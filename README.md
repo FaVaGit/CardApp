@@ -1,6 +1,64 @@
 # 💕 Gioco della Complicità - Card Game per Coppie
 
-Un'applicazione web interattiva progettata per rafforzare i legami tra le coppie attraverso domande, sfide e attività pensate per promuovere la comunicazione e l'intimità.
+Un'applicazione web interattiva progettata per rafforzare i legami tra le coppie attraverso domande, sf## 🧪 Debug e Testing
+
+### Logs del Backend
+Il backend produce logs dettagliati per:
+- Connessioni SignalR
+- Operazioni database
+- Gestione errori
+
+### Testing Multi-utente
+1. Apri due browser (normale + incognito)
+2. Registra due utenti diversi
+3. Crea una coppia e testa la sincronizzazione
+
+### Troubleshooting
+```bash
+# Verifica porte occupate
+lsof -i :5000  # Backend
+lsof -i :5173  # Frontend
+
+# Reset database
+rm Backend/ComplicityGame.Api/game.db
+
+# Pulisci cache Vite
+rm -rf node_modules/.vite
+```
+
+## 🚀 Deploy e Produzione
+
+### Deploy su IIS (Windows Server)
+1. Pubblica il backend: `dotnet publish -c Release`
+2. Build del frontend: `npm run build`
+3. Configura IIS con i file generati
+4. Aggiorna connection string per database produzione
+
+### Deploy su Docker
+```dockerfile
+# Dockerfile di esempio per il backend
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+COPY Backend/ComplicityGame.Api/bin/Release/net8.0/publish/ /app/
+WORKDIR /app
+EXPOSE 80
+ENTRYPOINT ["dotnet", "ComplicityGame.Api.dll"]
+```
+
+### Deploy su Vercel/Netlify (Frontend)
+```bash
+npm run build
+# Carica la cartella dist/ su Vercel/Netlify
+```
+
+### Variabili d'Ambiente Produzione
+```bash
+# Backend
+ASPNETCORE_ENVIRONMENT=Production
+ConnectionStrings__DefaultConnection="Server=..."
+
+# Frontend
+VITE_API_URL=https://your-backend-api.com
+```tà pensate per promuovere la comunicazione e l'intimità.
 
 ## 🚀 Caratteristiche Principali
 
@@ -48,28 +106,57 @@ CardApp/
 - **.NET 8 SDK**
 - **Git**
 
+## 🚀 Installazione e Setup
+
+### Prerequisiti
+- **Node.js** 18+ e npm
+- **.NET 8 SDK**
+- **Git**
+
 ### 1. Clona il Repository
 ```bash
-git clone https://github.com/tuoUsername/CardApp.git
+git clone https://github.com/FaVaGit/CardApp.git
 cd CardApp
 ```
 
-### 2. Avvia il Backend
+### 2. Setup Automatico (Consigliato)
+
+#### Su Linux/macOS:
+```bash
+chmod +x setup-backend.sh
+./setup-backend.sh
+```
+
+#### Su Windows:
+```powershell
+.\setup-backend.ps1
+```
+
+### 3. Setup Manuale
+
+#### Backend:
 ```bash
 cd Backend/ComplicityGame.Api
 dotnet restore
 dotnet run
 ```
-Il backend sarà disponibile su `http://localhost:5000`
+🌐 Backend disponibile su: `http://localhost:5000`
+📊 Health check: `http://localhost:5000/api/health`
 
-### 3. Avvia il Frontend
+#### Frontend:
 ```bash
 # In una nuova finestra del terminale
 cd CardApp
 npm install
 npm run dev
 ```
-Il frontend sarà disponibile su `http://localhost:5173`
+🌐 Frontend disponibile su: `http://localhost:5173`
+
+### 4. Verifica Installazione
+- ✅ Backend attivo su porta 5000
+- ✅ Frontend attivo su porta 5173
+- ✅ Database SQLite creato automaticamente
+- ✅ SignalR Hub funzionante
 
 ## 🎮 Come Giocare
 
