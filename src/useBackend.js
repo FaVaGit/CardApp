@@ -154,31 +154,48 @@ export function useBackend() {
       // Aspetta che la connessione SignalR sia pronta
       if (backendService.isConnected) {
         console.log('📡 Calling SignalR methods...');
-        await backendService.updateUserPresence(user.id);
-        await backendService.joinHub(user.id);
+        // Non aspettare questi metodi per evitare di bloccare il login
+        backendService.updateUserPresence(user.id).catch(err => 
+          console.warn('⚠️ UpdateUserPresence failed:', err)
+        );
+        backendService.joinHub(user.id).catch(err => 
+          console.warn('⚠️ JoinHub failed:', err)
+        );
         
         // Aspetta un momento per permettere al server di aggiornare lo stato
         setTimeout(async () => {
-          await backendService.refreshOnlineUsers();
-          console.log('🔄 Refreshed online users after join');
+          try {
+            await backendService.refreshOnlineUsers();
+            console.log('🔄 Refreshed online users after join');
+          } catch (err) {
+            console.warn('⚠️ RefreshOnlineUsers failed:', err);
+          }
         }, 1000);
         
-        console.log('✅ SignalR methods called successfully');
+        console.log('✅ SignalR methods called');
       } else {
-        console.warn('⚠️ SignalR not connected, skipping presence update');
-        // Riprova dopo la connessione
+        console.warn('⚠️ SignalR not connected, will retry after login');
+        // Riprova dopo la connessione senza bloccare
         setTimeout(async () => {
           if (backendService.isConnected) {
             console.log('🔄 Retrying SignalR methods after delay...');
-            await backendService.updateUserPresence(user.id);
-            await backendService.joinHub(user.id);
+            backendService.updateUserPresence(user.id).catch(err => 
+              console.warn('⚠️ UpdateUserPresence retry failed:', err)
+            );
+            backendService.joinHub(user.id).catch(err => 
+              console.warn('⚠️ JoinHub retry failed:', err)
+            );
             
             setTimeout(async () => {
-              await backendService.refreshOnlineUsers();
-              console.log('🔄 Refreshed online users after retry');
+              try {
+                await backendService.refreshOnlineUsers();
+                console.log('🔄 Refreshed online users after retry');
+              } catch (err) {
+                console.warn('⚠️ RefreshOnlineUsers retry failed:', err);
+              }
             }, 1000);
             
-            console.log('✅ SignalR methods called successfully (retry)');
+            console.log('✅ SignalR methods retried');
           }
         }, 2000);
       }
