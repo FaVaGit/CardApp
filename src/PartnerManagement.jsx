@@ -12,6 +12,7 @@ export function PartnerManagement({
   onJoinUserByCode,
   onCreateGameSession,
   onLeaveCouple,
+  onSwitchCouple,
   onSendMessage,
   onShareCard,
   onRefreshData,
@@ -23,6 +24,7 @@ export function PartnerManagement({
   const [joinCode, setJoinCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
+  const [switchDialogData, setSwitchDialogData] = useState(null);
   const [chatMessage, setChatMessage] = useState('');
 
   // Reset error quando cambia tab
@@ -50,11 +52,40 @@ export function PartnerManagement({
         setError('Utente non trovato o non disponibile');
       }
     } catch (error) {
-      setError('Errore durante il join');
-      console.error('Join error:', error);
+      // Se l'errore supporta il switch, mostra il dialogo
+      if (error.canSwitch && error.targetUserCode) {
+        setSwitchDialogData({
+          targetUserCode: error.targetUserCode,
+          message: error.message
+        });
+      } else {
+        setError(error.message || 'Errore durante l\'unione alla coppia');
+      }
     } finally {
       setIsJoining(false);
     }
+  };
+
+  const handleSwitchCouple = async (targetUserCode) => {
+    try {
+      setIsJoining(true);
+      const result = await onSwitchCouple(targetUserCode);
+      if (result) {
+        setSwitchDialogData(null);
+        setActiveTab('couple');
+        setJoinCode('');
+        setError('');
+      }
+    } catch (error) {
+      setError(error.message || 'Errore durante il cambio coppia');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handleCancelSwitch = () => {
+    setSwitchDialogData(null);
+    setError('');
   };
 
   const handleStartGameSession = async () => {
@@ -64,6 +95,21 @@ export function PartnerManagement({
     } catch (error) {
       setError('Errore durante la creazione della sessione');
       console.error('Session creation error:', error);
+    }
+  };
+
+  const handleLeaveCouple = async () => {
+    if (!window.confirm('Sei sicuro di voler lasciare la coppia attuale?')) {
+      return;
+    }
+
+    try {
+      await onLeaveCouple();
+      setActiveTab('join');
+      setError('');
+    } catch (error) {
+      setError('Errore durante l\'uscita dalla coppia: ' + error.message);
+      console.error('Leave couple error:', error);
     }
   };
 
@@ -326,7 +372,7 @@ export function PartnerManagement({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">💑 {currentCouple.name}</h2>
               <button
-                onClick={onLeaveCouple}
+                onClick={handleLeaveCouple}
                 className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
               >
                 Lascia Coppia
@@ -600,6 +646,39 @@ export function PartnerManagement({
           </div>
         )}
       </div>
+
+      {/* Switch Couple Dialog */}
+      {switchDialogData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              🔄 Cambia Coppia
+            </h3>
+            <p className="text-gray-700 mb-6">
+              {switchDialogData.message}
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              Vuoi lasciare la tua coppia attuale e unirti a questo utente?
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => handleSwitchCouple(switchDialogData.targetUserCode)}
+                disabled={isJoining}
+                className="flex-1 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 transition-colors"
+              >
+                {isJoining ? 'Cambiando...' : 'Sì, Cambia Coppia'}
+              </button>
+              <button
+                onClick={handleCancelSwitch}
+                disabled={isJoining}
+                className="flex-1 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50 transition-colors"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

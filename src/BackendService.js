@@ -250,12 +250,61 @@ class BackendService {
       });
       
       if (!response.ok) {
-        throw new Error(`Couple creation by code failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Couple creation by code failed: ${response.statusText}`);
       }
       
       return await response.json();
     } catch (error) {
       console.error('Create couple by code error:', error);
+      throw error;
+    }
+  }
+
+  // Metodo per lasciare una coppia
+  async leaveCouple(userId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/game/couples/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Leave couple failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Leave couple error:', error);
+      throw error;
+    }
+  }
+
+  // Metodo per cambiare coppia (lascia l'attuale e si unisce a una nuova)
+  async switchCouple(currentUserId, targetUserCode, coupleName) {
+    try {
+      const coupleData = {
+        currentUserId: currentUserId,
+        targetUserCode: targetUserCode,
+        name: coupleName
+      };
+
+      const response = await fetch(`${this.baseUrl}/game/couples/switch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(coupleData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Switch couple failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Switch couple error:', error);
       throw error;
     }
   }
