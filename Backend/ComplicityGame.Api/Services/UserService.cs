@@ -112,12 +112,17 @@ public class UserService : IUserService
         var user = await GetUserByIdAsync(userId);
         if (user == null) return null;
 
-        // Get user's current couple
-        var coupleUser = await _context.CoupleUsers
+        // Get user's current couple - prefer active couples
+        var allCouples = await _context.CoupleUsers
             .Include(cu => cu.Couple)
             .ThenInclude(c => c.Members)
             .ThenInclude(m => m.User)
-            .FirstOrDefaultAsync(cu => cu.UserId == userId);
+            .Where(cu => cu.UserId == userId)
+            .ToListAsync();
+
+        // Prefer active couples over inactive ones
+        var coupleUser = allCouples.FirstOrDefault(cu => cu.Couple.IsActive) 
+                        ?? allCouples.FirstOrDefault();
 
         var currentCouple = coupleUser?.Couple;
 
