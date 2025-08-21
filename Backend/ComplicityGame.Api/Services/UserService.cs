@@ -1,4 +1,5 @@
 using ComplicityGame.Api.Models;
+using ComplicityGame.Api.Controllers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ComplicityGame.Api.Services;
@@ -11,6 +12,7 @@ public interface IUserService
     Task SetUserOfflineAsync(string userId);
     Task<User?> GetUserByCodeAsync(string personalCode);
     Task<User?> GetUserByIdAsync(string userId);
+    Task<UserStateDto?> GetUserStateAsync(string userId);
 }
 
 public class UserService : IUserService
@@ -103,6 +105,77 @@ public class UserService : IUserService
     {
         return await _context.Users
             .FirstOrDefaultAsync(u => u.Id == userId);
+    }
+
+    public async Task<UserStateDto?> GetUserStateAsync(string userId)
+    {
+        var user = await GetUserByIdAsync(userId);
+        if (user == null) return null;
+
+        // Get user's current couple
+        var coupleUser = await _context.CoupleUsers
+            .Include(cu => cu.Couple)
+            .ThenInclude(c => c.Members)
+            .ThenInclude(m => m.User)
+            .FirstOrDefaultAsync(cu => cu.UserId == userId);
+
+        var currentCouple = coupleUser?.Couple;
+
+        // Get active session for the couple
+        GameSession? activeSession = null;
+        if (currentCouple != null)
+        {
+            activeSession = await _context.GameSessions
+                .FirstOrDefaultAsync(gs => gs.CoupleId == currentCouple.Id && gs.IsActive);
+        }
+
+        // Get online users for the same game type
+        var onlineUsers = await GetOnlineUsersAsync(user.GameType);
+
+        // Calculate permissions based on user state
+        var permissions = CalculateUserPermissions(user, currentCouple, activeSession);
+
+        return new UserStateDto
+        {
+            User = user,
+            CurrentCouple = currentCouple,
+            ActiveSession = activeSession,
+            OnlineUsers = onlineUsers,
+            Permissions = permissions
+        };
+    }
+
+    private UserPermissions CalculateUserPermissions(User user, Couple? currentCouple, GameSession? activeSession)
+    {
+        var permissions = new UserPermissions();
+
+        if (currentCouple == null)
+        {
+            // User is not in a couple
+            permissions.CanJoinByCode = true;
+            permissions.CanViewUsers = true;
+            permissions.CanStartGameSession = false;
+            permissions.CanViewCouple = false;
+            permissions.CanLeaveCouple = false;
+            permissions.DefaultTab = "join";
+        }
+        else
+        {
+            // User is in a couple
+            permissions.CanJoinByCode = false; // Disable joining when already in couple
+            permissions.CanViewUsers = false;  // Disable users tab when in couple
+            permissions.CanViewCouple = true;
+            permissions.CanLeaveCouple = true;
+            permissions.DefaultTab = "couple";
+
+            // Check if both users in couple are online
+            var coupleMembers = currentCouple.Members.Where(m => m.User.IsOnline).Count();
+            var hasActiveSession = activeSession != null;
+
+            permissions.CanStartGameSession = coupleMembers >= 2 && !hasActiveSession;
+        }
+
+        return permissions;
     }
 
     private string GeneratePersonalCode()

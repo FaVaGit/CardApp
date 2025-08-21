@@ -11,8 +11,9 @@ export function useBackend() {
   const [sharedCards, setSharedCards] = useState([]);
   const [error, setError] = useState(null);
 
-  // Gestione coppie
+  // Stati per le coppie
   const [currentCouple, setCurrentCouple] = useState(null);
+  const [allCouples, setAllCouples] = useState([]);
 
   // Inizializza la connessione al backend
   const initializeConnection = useCallback(async () => {
@@ -401,6 +402,18 @@ export function useBackend() {
     }
   }, [currentUser]);
 
+  // Ottieni tutte le coppie
+  const getAllCouples = useCallback(async () => {
+    try {
+      const couples = await backendService.getAllCouples();
+      setAllCouples(couples);
+      return couples;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, []);
+
   // Logout
   const logout = useCallback(async () => {
     try {
@@ -413,6 +426,16 @@ export function useBackend() {
       setIsConnected(false);
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  }, []);
+
+  // Get user state with permissions (centralizes UI logic in backend)
+  const getUserState = useCallback(async (userId) => {
+    try {
+      return await backendService.getUserState(userId);
+    } catch (error) {
+      console.error('Get user state error:', error);
+      throw error;
     }
   }, []);
 
@@ -433,6 +456,7 @@ export function useBackend() {
     currentUser,
     onlineUsers,
     currentCouple,
+    allCouples,
     
     // Game data
     gameSession,
@@ -448,9 +472,11 @@ export function useBackend() {
     joinUserByCode,
     leaveCouple,
     switchCouple,
+    getAllCouples,
     createGameSession,
     sendMessage,
     shareCard,
+    getUserState,
     logout
   };
 }

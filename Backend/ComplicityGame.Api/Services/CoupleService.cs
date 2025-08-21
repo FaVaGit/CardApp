@@ -13,6 +13,7 @@ public interface ICoupleService
     Task<bool> LeaveCoupleAsync(string userId);
     Task<List<Couple>> GetUserCouplesAsync(string userId);
     Task<List<Couple>> GetAllCouplesAsync();
+    Task<List<Couple>> GetAllActiveCouplesAsync();
     Task<Couple?> GetCoupleByIdAsync(string coupleId);
 }
 
@@ -238,6 +239,16 @@ public class CoupleService : ICoupleService
             .Include(c => c.Members)
             .ThenInclude(m => m.User)
             .Where(c => c.IsActive)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<Couple>> GetAllActiveCouplesAsync()
+    {
+        return await _context.Couples
+            .Include(c => c.Members)
+            .ThenInclude(m => m.User)
+            .Where(c => c.IsActive && c.Members.Count >= 2)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
     }

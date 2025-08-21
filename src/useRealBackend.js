@@ -197,6 +197,16 @@ export function useRealBackend(currentUser, setCurrentUser) {
   }, [currentUser]);
 
   // Cleanup
+  // Get user state (centralizes UI logic in backend)
+  const getUserState = useCallback(async (userId) => {
+    if (!backendRef.current || !isConnected) {
+      throw new Error('Backend not connected');
+    }
+
+    console.log('📊 Getting user state for:', userId);
+    return await backendRef.current.getUserState(userId);
+  }, [isConnected]);
+
   const cleanup = useCallback(() => {
     if (backendRef.current) {
       console.log('🧹 Cleaning up real backend connection');
@@ -217,7 +227,7 @@ export function useRealBackend(currentUser, setCurrentUser) {
   useEffect(() => {
     if (!isConnected || !currentUser) return;
 
-    const interval = setInterval(updatePresence, 30000); // Every 30 seconds
+    const interval = setInterval(updatePresence, 10000); // Every 10 seconds (più frequente per migliore sincronizzazione)
     return () => clearInterval(interval);
   }, [isConnected, currentUser, updatePresence]);
 
@@ -248,6 +258,7 @@ export function useRealBackend(currentUser, setCurrentUser) {
     shareCard,
     refreshOnlineUsers,
     updatePresence,
+    getUserState,
     cleanup,
     
     // Backend reference (for advanced usage)

@@ -6,6 +6,7 @@ export function PartnerManagement({
   allUsers,
   onlineUsers,
   currentCouple,
+  allCouples,
   partnerStatus,
   gameSession,
   connectionStatus,
@@ -13,24 +14,99 @@ export function PartnerManagement({
   onCreateGameSession,
   onLeaveCouple,
   onSwitchCouple,
+  onGetAllCouples,
   onSendMessage,
   onShareCard,
   onRefreshData,
   onUpdatePartnerStatus,
   onLogout,
-  onBack
+  onBack,
+  getUserState // Aggiungiamo la nuova funzione
 }) {
-  const [activeTab, setActiveTab] = useState(currentCouple ? 'couple' : 'join');
+  const [activeTab, setActiveTab] = useState('join');
   const [joinCode, setJoinCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const [switchDialogData, setSwitchDialogData] = useState(null);
   const [chatMessage, setChatMessage] = useState('');
+  const [userState, setUserState] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Carica lo stato dell'utente dal backend (centralizzato)
+  useEffect(() => {
+    const loadUserState = async () => {
+      if (!currentUser || !getUserState) return;
+      
+      try {
+        setLoading(true);
+        const state = await getUserState(currentUser.id);
+        setUserState(state);
+        
+        // Imposta il tab di default basato sui permessi dal backend
+        setActiveTab(state.permissions.defaultTab);
+      } catch (error) {
+        console.error('❌ Failed to load user state:', error);
+        setError('Errore nel caricamento dello stato utente');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserState();
+  }, [currentUser, getUserState]);
+
+  // Ricarica lo stato quando ci sono cambiamenti importanti
+  useEffect(() => {
+    if (!currentUser || !getUserState || loading) return;
+    
+    const reloadState = async () => {
+      try {
+        const state = await getUserState(currentUser.id);
+        setUserState(state);
+      } catch (error) {
+        console.error('❌ Failed to reload user state:', error);
+      }
+    };
+
+    reloadState();
+  }, [currentCouple, gameSession, onlineUsers]);
 
   // Reset error quando cambia tab
   useEffect(() => {
     setError('');
   }, [activeTab]);
+
+  // Funzioni di utilità per i permessi
+  const permissions = userState?.permissions || {};
+  const canJoinPartner = permissions.canJoinByCode;
+  const canViewUsers = permissions.canViewUsers;
+  const canStartGameSession = permissions.canStartGameSession;
+
+  // Cambia automaticamente al tab 'couple' quando viene formata una coppia
+  useEffect(() => {
+    if (userState && userState.permissions.defaultTab !== activeTab) {
+      setActiveTab(userState.permissions.defaultTab);
+    }
+  }, [userState]);
+
+  // Carica tutte le coppie quando il componente si monta
+  useEffect(() => {
+    if (onGetAllCouples) {
+      onGetAllCouples().catch(console.error);
+    }
+  }, [onGetAllCouples]);
+
+  // Aggiorna i dati quando si cambia tab
+  useEffect(() => {
+    if (onRefreshData) {
+      // Piccolo delay per evitare chiamate troppo frequenti
+      const timeoutId = setTimeout(() => {
+        onRefreshData();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeTab, onRefreshData]);
 
   const handleJoinByCode = async (e) => {
     e.preventDefault();
@@ -90,7 +166,12 @@ export function PartnerManagement({
 
   const handleStartGameSession = async () => {
     try {
-      await onCreateGameSession('couple');
+      const sessionData = {
+        CoupleId: couple?.id,
+        CreatedBy: currentUser?.id,
+        SessionType: 'couple'
+      };
+      await onCreateGameSession(sessionData);
       setActiveTab('game');
     } catch (error) {
       setError('Errore durante la creazione della sessione');
@@ -245,6 +326,13 @@ export function PartnerManagement({
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
+        {/* Loading Display */}
+        {loading && (
+          <div className="bg-blue-600/20 border border-blue-600 text-blue-300 px-4 py-2 rounded-lg mb-4 text-center">
+            🔄 Caricamento stato utente...
+          </div>
+        )}
+        
         {/* Error Display */}
         {error && (
           <div className="bg-red-600/20 border border-red-600 text-red-300 px-4 py-2 rounded-lg mb-4">
@@ -255,25 +343,29 @@ export function PartnerManagement({
         {/* Tabs */}
         <div className="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg">
           <button
-            onClick={() => setActiveTab('join')}
+            onClick={() => canJoinPartner && setActiveTab('join')}
+            disabled={!canJoinPartner}
             className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
               activeTab === 'join' 
+                ? 'bg-purple-600 text-white' 
+                : canJoinPartner 
+                  ? 'text-gray-400 hover:text-white'
+                  : 'text-gray-600 bg-gray-700 cursor-not-allowed'
+            }`}
+            title={!canJoinPartner ? 'Sei già in una coppia attiva' : ''}
+          >
+            🤝 Unisciti ad un Partner
+            {!canJoinPartner && <span className="ml-2 text-xs">🔒</span>}
+          </button>
+          <button
+            onClick={() => setActiveTab('couple')}
+            className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
+              activeTab === 'couple' 
                 ? 'bg-purple-600 text-white' 
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            🤝 Unisciti ad un Partner
-          </button>
-          <button
-            onClick={() => setActiveTab('couple')}
-            disabled={!currentCouple}
-            className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-              activeTab === 'couple' 
-                ? 'bg-purple-600 text-white' 
-                : 'text-gray-400 hover:text-white disabled:opacity-50'
-            }`}
-          >
-            💑 Coppia ({currentCouple ? '✓' : '✗'})
+            💑 Coppie ({allCouples?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab('game')}
@@ -287,14 +379,19 @@ export function PartnerManagement({
             🎮 Sessione ({gameSession ? '✓' : '✗'})
           </button>
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => canViewUsers && setActiveTab('users')}
+            disabled={!canViewUsers}
             className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
               activeTab === 'users' 
                 ? 'bg-purple-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+                : canViewUsers
+                  ? 'text-gray-400 hover:text-white'
+                  : 'text-gray-600 bg-gray-700 cursor-not-allowed'
             }`}
+            title={!canViewUsers ? 'Utenti disponibili solo se non sei in coppia' : ''}
           >
             👥 Utenti ({onlineUsers?.length || 0})
+            {!canViewUsers && <span className="ml-2 text-xs">🔒</span>}
           </button>
         </div>
 
@@ -406,10 +503,10 @@ export function PartnerManagement({
                 {!gameSession ? (
                   <button
                     onClick={handleStartGameSession}
-                    disabled={!partnerStatus?.bothOnline}
+                    disabled={!canStartGameSession}
                     className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {partnerStatus?.bothOnline 
+                    {canStartGameSession 
                       ? '🎮 Inizia Sessione di Gioco' 
                       : '⏳ In attesa che il partner sia online'
                     }
@@ -450,17 +547,98 @@ export function PartnerManagement({
         )}
 
         {activeTab === 'couple' && !currentCouple && (
-          <div className="bg-gray-800 rounded-lg p-6 text-center">
-            <h2 className="text-xl font-semibold mb-4">💔 Nessuna Coppia</h2>
-            <p className="text-gray-300 mb-6">
-              Non sei ancora in una coppia. Unisciti ad un partner per iniziare a giocare insieme.
-            </p>
-            <button
-              onClick={() => setActiveTab('join')}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              🤝 Trova un Partner
-            </button>
+          <div className="space-y-6">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-4">� Coppie Formate</h2>
+              
+              {!allCouples || allCouples.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-300 mb-4">Nessuna coppia formata al momento.</p>
+                  <p className="text-sm text-gray-400 mb-6">
+                    Sii il primo a creare una coppia e iniziare a giocare!
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('join')}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    🤝 Trova un Partner
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-gray-300 text-sm mb-4">
+                    Ecco le coppie già formate. Puoi unirti a una di queste se c'è posto disponibile.
+                  </p>
+                  
+                  {allCouples.map((couple) => (
+                    <div key={couple.id} className="bg-gray-700 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-white mb-1">
+                            💑 {couple.name || 'Coppia Senza Nome'}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {couple.members?.map((member) => (
+                              <div 
+                                key={member.userId} 
+                                className="flex items-center space-x-2 bg-gray-600 rounded px-2 py-1"
+                              >
+                                <span className="text-sm">
+                                  {member.user?.isOnline ? '🟢' : '🔴'}
+                                </span>
+                                <span className="text-sm text-white">
+                                  {member.user?.name}
+                                </span>
+                                <span className="text-xs text-gray-300">
+                                  ({member.role})
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            Creata: {new Date(couple.createdAt).toLocaleDateString('it-IT')}
+                          </p>
+                        </div>
+                        
+                        <div className="flex flex-col space-y-2">
+                          <span className="text-xs text-gray-400 text-center">
+                            {couple.members?.length || 0}/2 membri
+                          </span>
+                          
+                          {couple.members?.length < 2 && (
+                            <button
+                              onClick={() => {
+                                // Logica per unirsi alla coppia esistente
+                                // Dovremmo implementare un endpoint per questo
+                                alert('Funzionalità in sviluppo: Unisciti alla coppia');
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                            >
+                              🚀 Unisciti
+                            </button>
+                          )}
+                          
+                          {couple.members?.length >= 2 && (
+                            <span className="px-3 py-1 bg-green-600/20 text-green-400 text-sm rounded text-center">
+                              ✅ Completa
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="pt-4 border-t border-gray-600">
+                    <button
+                      onClick={() => setActiveTab('join')}
+                      className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      ➕ Crea una Nuova Coppia
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
