@@ -184,6 +184,24 @@ class RealBackendService {
     });
   }
 
+  // Get user state with permissions (centralizes UI logic in backend)
+  async getUserState(userId) {
+    if (!this.isConnected) throw new Error('Not connected to backend');
+    
+    try {
+      const response = await fetch(`${this.baseUrl}/api/users/${userId}/state`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get user state: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Failed to get user state:', error);
+      throw error;
+    }
+  }
+
   // Couple Management API
   async joinUserByCode(currentUserId, targetUserCode) {
     if (!this.isConnected) throw new Error('Not connected to backend');

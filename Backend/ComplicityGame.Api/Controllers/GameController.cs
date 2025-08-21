@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ComplicityGame.Api.Services;
 using ComplicityGame.Api.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace ComplicityGame.Api.Controllers;
 
@@ -92,6 +93,20 @@ public class GameController : ControllerBase
         }
     }
 
+    [HttpGet("couples")]
+    public async Task<ActionResult<List<Couple>>> GetAllCouples()
+    {
+        try
+        {
+            var couples = await _coupleService.GetAllActiveCouplesAsync();
+            return Ok(couples);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
         [HttpPost("couples/by-code")]
     public async Task<ActionResult<Couple>> CreateCoupleByCode([FromBody] CreateCoupleByCodeRequest request)
     {
@@ -155,20 +170,6 @@ public class GameController : ControllerBase
                 return NotFound(new { error = "Utente non in nessuna coppia attiva" });
             }
             return Ok(new { message = "Hai lasciato la coppia con successo" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-    }
-
-    [HttpGet("couples")]
-    public async Task<ActionResult<List<Couple>>> GetAllCouples()
-    {
-        try
-        {
-            var couples = await _coupleService.GetAllCouplesAsync();
-            return Ok(couples);
         }
         catch (Exception ex)
         {
@@ -244,8 +245,12 @@ public class GameController : ControllerBase
 // DTOs
 public class CreateSessionRequest
 {
+    [Required(ErrorMessage = "CoupleId è obbligatorio")]
     public string CoupleId { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "CreatedBy è obbligatorio")]
     public string CreatedBy { get; set; } = string.Empty;
+    
     public string SessionType { get; set; } = "couple";
 }
 

@@ -16,6 +16,7 @@ export default function App() {
     currentUser,
     onlineUsers,
     currentCouple,
+    allCouples,
     gameSession,
     initializeConnection,
     registerUser,
@@ -24,7 +25,9 @@ export default function App() {
     joinUserByCode,
     leaveCouple,
     switchCouple,
+    getAllCouples,
     createGameSession,
+    getUserState,
     logout
   } = useBackend();
 
@@ -171,6 +174,7 @@ export default function App() {
         allUsers={onlineUsers}
         onlineUsers={onlineUsers}
         currentCouple={currentCouple}
+        allCouples={allCouples}
         partnerStatus={calculatePartnerStatus()}
         gameSession={gameSession}
         connectionStatus={isConnected ? 'connected' : 'disconnected'}
@@ -178,7 +182,9 @@ export default function App() {
         onCreateCouple={createCouple}
         onLeaveCouple={leaveCouple}
         onSwitchCouple={switchCouple}
+        onGetAllCouples={getAllCouples}
         onCreateGameSession={createGameSession}
+        getUserState={getUserState}
         onLogout={handleLogout}
         onBack={handleBack}
       />

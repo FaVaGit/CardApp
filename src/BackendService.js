@@ -283,28 +283,37 @@ class BackendService {
   }
 
   // Metodo per cambiare coppia (lascia l'attuale e si unisce a una nuova)
-  async switchCouple(currentUserId, targetUserCode, coupleName) {
+  async switchCouple(switchData) {
     try {
-      const coupleData = {
-        currentUserId: currentUserId,
-        targetUserCode: targetUserCode,
-        name: coupleName
-      };
-
       const response = await fetch(`${this.baseUrl}/game/couples/switch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(coupleData)
+        body: JSON.stringify(switchData)
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Switch couple failed: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Switch couple failed: ${errorText}`);
       }
       
       return await response.json();
     } catch (error) {
       console.error('Switch couple error:', error);
+      throw error;
+    }
+  }
+
+  async getAllCouples() {
+    try {
+      const response = await fetch(`${this.baseUrl}/game/couples`);
+      
+      if (!response.ok) {
+        throw new Error(`Get couples failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get all couples error:', error);
       throw error;
     }
   }
@@ -428,6 +437,25 @@ class BackendService {
       }
     } catch (error) {
       console.error('Refresh online users error:', error);
+      throw error;
+    }
+  }
+
+  // Get user state with permissions (centralizes UI logic in backend)
+  async getUserState(userId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/users/${userId}/state`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get user state: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get user state error:', error);
       throw error;
     }
   }
