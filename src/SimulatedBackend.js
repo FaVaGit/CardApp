@@ -1,6 +1,14 @@
 // Backend simulato per testing multi-device
 // Simula un server reale usando BroadcastChannel API
 
+// Helper to generate a cryptographically secure random string
+function secureRandomString(length = 16) {
+  const array = new Uint8Array(length);
+  window.crypto.getRandomValues(array);
+  // Convert to base36 for compactness
+  return Array.from(array, b => b.toString(36).padStart(2, '0')).join('');
+}
+
 class SimulatedBackend {
   constructor() {
     this.isEnabled = false;
@@ -459,7 +467,7 @@ class SimulatedBackend {
 
   // Genera ID unico
   generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + secureRandomString(12);
   }
 
   // Genera device ID unico
@@ -467,7 +475,7 @@ class SimulatedBackend {
     const saved = sessionStorage.getItem('simulated_device_id');
     if (saved) return saved;
     
-    const deviceId = 'device_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+    const deviceId = 'device_' + Date.now().toString(36) + secureRandomString(12);
     sessionStorage.setItem('simulated_device_id', deviceId);
     return deviceId;
   }
