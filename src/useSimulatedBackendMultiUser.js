@@ -527,22 +527,34 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
   };
 
   // Utilità
+  // Helper to generate a cryptographically secure random string
+  const secureRandomString = (length = 16) => {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    // Convert to base36 for compactness
+    return Array.from(array, b => b.toString(36).padStart(2, '0')).join('');
+  };
+
   const generateUniqueId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + secureRandomString(8);
   };
 
   const generateJoinCode = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
-    
     let code = '';
+    // Securely pick 3 random letters
+    const letterArray = new Uint8Array(3);
+    window.crypto.getRandomValues(letterArray);
     for (let i = 0; i < 3; i++) {
-      code += letters.charAt(Math.floor(Math.random() * letters.length));
+      code += letters.charAt(letterArray[i] % letters.length);
     }
+    // Securely pick 3 random numbers
+    const numberArray = new Uint8Array(3);
+    window.crypto.getRandomValues(numberArray);
     for (let i = 0; i < 3; i++) {
-      code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+      code += numbers.charAt(numberArray[i] % numbers.length);
     }
-    
     return code;
   };
 
