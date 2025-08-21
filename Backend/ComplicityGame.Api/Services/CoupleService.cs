@@ -7,8 +7,10 @@ public interface ICoupleService
 {
     Task<Couple> CreateCoupleByCodeAsync(string currentUserId, string targetUserCode);
     Task<Couple> CreateCoupleByCodeAsync(string currentUserId, string targetUserCode, string? coupleName);
+    Task<Couple> SwitchCoupleAsync(string currentUserId, string targetUserCode, string? coupleName);
     Task<Couple> CreateCoupleAsync(string name, string createdBy, string gameType);
     Task<Couple?> AddUserToCoupleAsync(string coupleId, string userId, string role);
+    Task<bool> LeaveCoupleAsync(string userId);
     Task<List<Couple>> GetUserCouplesAsync(string userId);
     Task<List<Couple>> GetAllCouplesAsync();
     Task<Couple?> GetCoupleByIdAsync(string coupleId);
@@ -28,6 +30,15 @@ public class CoupleService : ICoupleService
     public async Task<Couple> CreateCoupleByCodeAsync(string currentUserId, string targetUserCode)
     {
         return await CreateCoupleByCodeAsync(currentUserId, targetUserCode, null);
+    }
+
+    public async Task<Couple> SwitchCoupleAsync(string currentUserId, string targetUserCode, string? coupleName)
+    {
+        // Prima lascia la coppia attuale se presente
+        await LeaveCoupleAsync(currentUserId);
+        
+        // Poi crea una nuova coppia
+        return await CreateCoupleByCodeAsync(currentUserId, targetUserCode, coupleName);
     }
 
     public async Task<Couple> CreateCoupleByCodeAsync(string currentUserId, string targetUserCode, string? coupleName)
@@ -157,6 +168,58 @@ public class CoupleService : ICoupleService
         await _context.SaveChangesAsync();
 
         return await GetCoupleByIdAsync(coupleId);
+    }
+
+    public async Task<bool> LeaveCoupleAsync(string userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            throw new ArgumentException("User not found");
+
+        // Find all active couples where the user is a member
+        var userCouples = await _context.CoupleUsers
+            .Include(cu => cu.Couple)
+            .Where(cu => cu.UserId == userId && cu.Couple.IsActive)
+            .ToListAsync();
+
+        if (!userCouples.Any())
+            return false; // User not in any active couple
+
+        foreach (var coupleUser in userCouples)
+        {
+            var couple = coupleUser.Couple;
+            
+            // Remove the user from the couple
+            _context.CoupleUsers.Remove(coupleUser);
+            
+            // Check remaining members
+            var remainingMembers = await _context.CoupleUsers
+                .Where(cu => cu.CoupleId == couple.Id)
+                .CountAsync();
+
+            // If this was the last member or only one member remains, deactivate the couple
+            if (remainingMembers <= 1)
+            {
+                couple.IsActive = false;
+                
+                // If there's one remaining member, make them available for pairing again
+                var lastMember = await _context.CoupleUsers
+                    .Include(cu => cu.User)
+                    .Where(cu => cu.CoupleId == couple.Id)
+                    .FirstOrDefaultAsync();
+                
+                if (lastMember != null)
+                {
+                    lastMember.User.AvailableForPairing = true;
+                }
+            }
+        }
+
+        // Make the leaving user available for pairing again
+        user.AvailableForPairing = true;
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<List<Couple>> GetUserCouplesAsync(string userId)

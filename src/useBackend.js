@@ -272,6 +272,76 @@ export function useBackend() {
       
       return couple;
     } catch (error) {
+      // Migliorare i messaggi di errore per l'utente
+      let userFriendlyMessage = error.message;
+      
+      if (error.message.includes('Target user not found')) {
+        userFriendlyMessage = 'Utente non trovato con questo codice';
+      } else if (error.message.includes('not available for pairing')) {
+        userFriendlyMessage = 'Questo utente è già in una coppia. Vuoi lasciare la tua coppia attuale per unirti a questo utente?';
+      } else if (error.message.includes('Cannot create couple with yourself')) {
+        userFriendlyMessage = 'Non puoi creare una coppia con te stesso';
+      } else if (error.message.includes('Current user not found')) {
+        userFriendlyMessage = 'Errore del sistema: utente corrente non trovato';
+      }
+      
+      // Se l'errore è dovuto al fatto che l'utente non è disponibile, 
+      // lancia un errore speciale che include l'opzione di switch
+      if (error.message.includes('not available for pairing')) {
+        const switchError = new Error(userFriendlyMessage);
+        switchError.canSwitch = true;
+        switchError.targetUserCode = targetUserCode;
+        setError(userFriendlyMessage);
+        throw switchError;
+      }
+      
+      setError(userFriendlyMessage);
+      throw new Error(userFriendlyMessage);
+    }
+  }, [currentUser]);
+
+  // Lascia la coppia attuale
+  const leaveCouple = useCallback(async () => {
+    if (!currentUser) {
+      throw new Error('Devi essere loggato per lasciare una coppia');
+    }
+
+    try {
+      await backendService.leaveCouple(currentUser.id);
+      setCurrentCouple(null);
+      
+      // Aggiorna la lista utenti per riflettere i cambiamenti di disponibilità
+      refreshOnlineUsers();
+      
+      console.log('✅ Left couple successfully');
+      return true;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, [currentUser]);
+
+  // Cambia coppia (lascia l'attuale e si unisce a una nuova)
+  const switchCouple = useCallback(async (targetUserCode) => {
+    if (!currentUser) {
+      throw new Error('Devi essere loggato per cambiare coppia');
+    }
+
+    try {
+      // Trova l'utente target per generare il nome della coppia
+      const targetUser = await backendService.joinUserByCode(targetUserCode);
+      const coupleName = `${currentUser.name} & ${targetUser.name}`;
+      
+      // Utilizza l'endpoint switch che gestisce automaticamente l'uscita dalla coppia attuale
+      const couple = await backendService.switchCouple(currentUser.id, targetUserCode, coupleName);
+      setCurrentCouple(couple);
+      
+      // Aggiorna la lista utenti per riflettere i cambiamenti
+      refreshOnlineUsers();
+      
+      console.log('✅ Switched couple successfully');
+      return couple;
+    } catch (error) {
       setError(error.message);
       throw error;
     }
@@ -376,6 +446,8 @@ export function useBackend() {
     getUsers,
     createCouple,
     joinUserByCode,
+    leaveCouple,
+    switchCouple,
     createGameSession,
     sendMessage,
     shareCard,

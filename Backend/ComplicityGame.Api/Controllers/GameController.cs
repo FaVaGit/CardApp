@@ -109,6 +109,23 @@ public class GameController : ControllerBase
         }
     }
 
+    [HttpPost("couples/switch")]
+    public async Task<ActionResult<Couple>> SwitchCouple([FromBody] CreateCoupleByCodeRequest request)
+    {
+        try
+        {
+            var couple = await _coupleService.SwitchCoupleAsync(
+                request.CurrentUserId, 
+                request.TargetUserCode,
+                request.Name);
+            return Ok(couple);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("couples/{coupleId}/join")]
     public async Task<ActionResult<Couple>> JoinCouple(string coupleId, [FromBody] JoinCoupleRequest request)
     {
@@ -120,6 +137,24 @@ public class GameController : ControllerBase
                 return NotFound(new { error = "Coppia non trovata" });
             }
             return Ok(couple);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("couples/leave")]
+    public async Task<ActionResult> LeaveCouple([FromBody] LeaveCoupleRequest request)
+    {
+        try
+        {
+            var success = await _coupleService.LeaveCoupleAsync(request.UserId);
+            if (!success)
+            {
+                return NotFound(new { error = "Utente non in nessuna coppia attiva" });
+            }
+            return Ok(new { message = "Hai lasciato la coppia con successo" });
         }
         catch (Exception ex)
         {
@@ -229,6 +264,11 @@ public class CreateCoupleByCodeRequest
 }
 
 public class JoinCoupleRequest
+{
+    public string UserId { get; set; } = string.Empty;
+}
+
+public class LeaveCoupleRequest
 {
     public string UserId { get; set; } = string.Empty;
 }
