@@ -13,17 +13,29 @@ Il backend produce logs dettagliati per:
 2. Registra due utenti diversi
 3. Crea una coppia e testa la sincronizzazione
 
-### Troubleshooting
-```bash
-# Verifica porte occupate
-lsof -i :5000  # Backend
-lsof -i :5173  # Frontend
+### 🔧 Risoluzione Problemi Rapida
 
-# Reset database
+```bash
+# Porte occupate? Libera tutto:
+lsof -ti:5000 | xargs -r kill -9  # Backend
+lsof -ti:5173 | xargs -r kill -9  # Frontend
+
+# Database corrotto? Reset:
 rm Backend/ComplicityGame.Api/game.db
 
-# Pulisci cache Vite
+# Cache problemi? Pulisci:
 rm -rf node_modules/.vite
+rm -rf node_modules    # Solo se necessario
+npm install
+
+# Riavvio completo:
+./start.sh
+```
+
+### ⚡ Avvio Ultra-Veloce
+```bash
+# Un solo comando per tutto:
+./quick-start.sh
 ```
 
 ## 🚀 Deploy e Produzione
@@ -106,57 +118,45 @@ CardApp/
 - **.NET 8 SDK**
 - **Git**
 
-## 🚀 Installazione e Setup
+## 🚀 Avvio Rapido
 
-### Prerequisiti
-- **Node.js** 18+ e npm
-- **.NET 8 SDK**
-- **Git**
-
-### 1. Clona il Repository
-```bash
-git clone https://github.com/FaVaGit/CardApp.git
-cd CardApp
-```
-
-### 2. Setup Automatico (Consigliato)
+### Opzione 1: Script Automatico (Consigliato) 🎯
 
 #### Su Linux/macOS:
 ```bash
-chmod +x setup-backend.sh
-./setup-backend.sh
+# Avvio completo con log dettagliati
+./start.sh
+
+# Oppure avvio super rapido (in background)
+./quick-start.sh
 ```
 
 #### Su Windows:
-```powershell
-.\setup-backend.ps1
+```cmd
+# Doppio click su start.bat oppure:
+start.bat
 ```
 
-### 3. Setup Manuale
-
-#### Backend:
+### Opzione 2: Setup Completo
 ```bash
+# Prima volta: setup completo dell'ambiente
+./setup-complete.sh
+
+# Poi usa lo script generato:
+./start-dev.sh
+```
+
+### Opzione 3: Manuale
+```bash
+# Terminale 1 - Backend
 cd Backend/ComplicityGame.Api
-dotnet restore
 dotnet run
-```
-🌐 Backend disponibile su: `http://localhost:5000`
-📊 Health check: `http://localhost:5000/api/health`
 
-#### Frontend:
-```bash
-# In una nuova finestra del terminale
-cd CardApp
-npm install
+# Terminale 2 - Frontend  
 npm run dev
 ```
-🌐 Frontend disponibile su: `http://localhost:5173`
 
-### 4. Verifica Installazione
-- ✅ Backend attivo su porta 5000
-- ✅ Frontend attivo su porta 5173
-- ✅ Database SQLite creato automaticamente
-- ✅ SignalR Hub funzionante
+🌐 **Applicazione pronta su:** http://localhost:5173
 
 ## 🎮 Come Giocare
 

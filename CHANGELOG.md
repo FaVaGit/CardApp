@@ -8,11 +8,20 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 ## [Non Rilasciato]
 
 ### Aggiunto
-- Setup CI/CD con GitHub Actions
-- Template per Issues e Pull Request
-- Documentazione contribuzione
-- File LICENSE MIT
-- Workflow automatici per testing e deploy
+- ✨ **Script di avvio automatico** per Linux/macOS (`start.sh`)
+- ⚡ **Avvio ultra-rapido** con `quick-start.sh` 
+- 🖥️ **Script Windows** `start.bat` per utenti Windows
+- 🔧 **Setup CI/CD** con GitHub Actions
+- 📋 **Template** per Issues e Pull Request
+- 📖 **Documentazione contribuzione** completa
+- 📄 **File LICENSE** MIT
+- 🚀 **Workflow automatici** per testing e deploy
+
+### Risolto
+- 🐛 **Fix critico**: Errore "Errore durante la creazione della sessione"
+  - Mancava `createGameSession` nel destructuring di useBackend
+  - Mancava `onCreateGameSession` come prop di PartnerManagement
+- 🔄 **Workflow automatici** per testing e deploy
 
 ## [1.0.0] - 2025-08-21
 
