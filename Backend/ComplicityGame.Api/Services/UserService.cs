@@ -163,7 +163,7 @@ public class UserService : IUserService
         {
             // User is in a couple
             permissions.CanJoinByCode = false; // Disable joining when already in couple
-            permissions.CanViewUsers = false;  // Disable users tab when in couple
+            permissions.CanViewUsers = true;   // Always allow viewing users, but with different content
             permissions.CanViewCouple = true;
             permissions.CanLeaveCouple = true;
             permissions.DefaultTab = "couple";

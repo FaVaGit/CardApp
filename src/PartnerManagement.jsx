@@ -379,19 +379,14 @@ export function PartnerManagement({
             🎮 Sessione ({gameSession ? '✓' : '✗'})
           </button>
           <button
-            onClick={() => canViewUsers && setActiveTab('users')}
-            disabled={!canViewUsers}
+            onClick={() => setActiveTab('users')}
             className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
               activeTab === 'users' 
                 ? 'bg-purple-600 text-white' 
-                : canViewUsers
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 bg-gray-700 cursor-not-allowed'
+                : 'text-gray-400 hover:text-white'
             }`}
-            title={!canViewUsers ? 'Utenti disponibili solo se non sei in coppia' : ''}
           >
             👥 Utenti ({onlineUsers?.length || 0})
-            {!canViewUsers && <span className="ml-2 text-xs">🔒</span>}
           </button>
         </div>
 
@@ -780,7 +775,40 @@ export function PartnerManagement({
 
         {activeTab === 'users' && (
           <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">👥 Utenti Online ({onlineUsers?.length || 0})</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              👥 Utenti Online ({onlineUsers?.length || 0})
+            </h2>
+            
+            {/* Mostra info coppia se l'utente è in una coppia */}
+            {currentCouple && (
+              <div className="bg-blue-600/20 border border-blue-600 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-blue-300 mb-2">👥 La tua coppia</h3>
+                <p className="text-blue-200 text-sm mb-3">
+                  Sei attualmente in coppia. Puoi visualizzare gli altri utenti ma non unirti a loro.
+                </p>
+                {canStartGameSession && (
+                  <button
+                    onClick={handleStartGameSession}
+                    className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    🎮 Inizia Sessione di Gioco
+                  </button>
+                )}
+                {!canStartGameSession && gameSession && (
+                  <button
+                    onClick={() => setActiveTab('game')}
+                    className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    🎮 Vai alla Sessione Attiva
+                  </button>
+                )}
+                {!canStartGameSession && !gameSession && (
+                  <div className="text-center py-2 text-gray-400 text-sm">
+                    ⏳ In attesa che il partner sia online per iniziare
+                  </div>
+                )}
+              </div>
+            )}
             
             {onlineUsers && onlineUsers.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -799,7 +827,7 @@ export function PartnerManagement({
                     <p className="text-xs text-gray-500">
                       Tipo: {user.gameType}
                     </p>
-                    {user.id !== currentUser?.id && user.availableForPairing && (
+                    {user.id !== currentUser?.id && user.availableForPairing && canJoinPartner && (
                       <button
                         onClick={() => {
                           setJoinCode(user.personalCode);
@@ -809,6 +837,11 @@ export function PartnerManagement({
                       >
                         🤝 Unisciti
                       </button>
+                    )}
+                    {user.id !== currentUser?.id && (!canJoinPartner) && (
+                      <div className="mt-2 w-full py-1 bg-gray-600 text-gray-400 rounded text-sm text-center">
+                        👥 Sei già in coppia
+                      </div>
                     )}
                   </div>
                 ))}
