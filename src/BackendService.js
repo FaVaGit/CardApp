@@ -119,17 +119,46 @@ class BackendService {
 
   // Verifica e ristabilisce la connessione se necessario
   async ensureConnection() {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
-      console.log('🔄 Connection not ready, attempting to reconnect...');
+    if (!this.connection) {
+      console.log('🔄 No connection exists, initializing...');
       return await this.initialize();
     }
     
-    // Aggiorna il flag isConnected se la connessione è attiva
     if (this.connection.state === signalR.HubConnectionState.Connected) {
       this.isConnected = true;
+      return true;
     }
     
-    return true;
+    if (this.connection.state === signalR.HubConnectionState.Connecting) {
+      console.log('⏳ Connection in progress, waiting...');
+      // Aspetta che la connessione sia stabilita
+      let attempts = 0;
+      while (this.connection.state === signalR.HubConnectionState.Connecting && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+      
+      if (this.connection.state === signalR.HubConnectionState.Connected) {
+        this.isConnected = true;
+        return true;
+      }
+    }
+    
+    if (this.connection.state === signalR.HubConnectionState.Disconnected) {
+      console.log('🔄 Connection disconnected, attempting to restart...');
+      try {
+        await this.connection.start();
+        this.isConnected = true;
+        console.log('✅ Connection restarted successfully');
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to restart connection:', error);
+        this.isConnected = false;
+        return false;
+      }
+    }
+    
+    return false;
   }
 
   // Chiude la connessione
@@ -381,17 +410,18 @@ class BackendService {
   // Metodi SignalR per aggiornare presenza e notificare coppie
   async updateUserPresence(userId) {
     try {
-      await this.ensureConnection();
-      if (this.isConnected) {
-        console.log('👤 Updating user presence for:', userId, 'Connection state:', this.connection?.state);
-        await this.connection.invoke('UpdateUserPresence', userId);
-        console.log('✅ Successfully updated user presence for:', userId);
-      } else {
-        throw new Error('Cannot connect to SignalR hub - isConnected is false');
+      const isConnected = await this.ensureConnection();
+      if (!isConnected) {
+        throw new Error('Cannot establish SignalR connection');
       }
+      
+      console.log('👤 Updating user presence for:', userId, 'Connection state:', this.connection?.state);
+      await this.connection.invoke('UpdateUserPresence', userId);
+      console.log('✅ Successfully updated user presence for:', userId);
     } catch (error) {
       console.error('❌ Update user presence error:', error);
-      throw error;
+      // Non rilanciare l'errore per evitare di bloccare il login
+      // throw error;
     }
   }
 
@@ -412,17 +442,18 @@ class BackendService {
 
   async joinHub(userId) {
     try {
-      await this.ensureConnection();
-      if (this.isConnected) {
-        console.log('🔗 Joining hub for user:', userId, 'Connection state:', this.connection?.state);
-        await this.connection.invoke('JoinHub', userId);
-        console.log('✅ Successfully joined hub for user:', userId);
-      } else {
-        throw new Error('Cannot connect to SignalR hub - isConnected is false');
+      const isConnected = await this.ensureConnection();
+      if (!isConnected) {
+        throw new Error('Cannot establish SignalR connection');
       }
+      
+      console.log('🔗 Joining hub for user:', userId, 'Connection state:', this.connection?.state);
+      await this.connection.invoke('JoinHub', userId);
+      console.log('✅ Successfully joined hub for user:', userId);
     } catch (error) {
       console.error('❌ Join hub error:', error);
-      throw error;
+      // Non rilanciare l'errore per evitare di bloccare il login
+      // throw error;
     }
   }
 
