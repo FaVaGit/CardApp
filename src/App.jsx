@@ -22,6 +22,7 @@ export default function App() {
     loginUser,
     createCouple,
     joinUserByCode,
+    createGameSession,
     logout
   } = useBackend();
 
@@ -173,6 +174,7 @@ export default function App() {
         connectionStatus={isConnected ? 'connected' : 'disconnected'}
         onJoinUserByCode={joinUserByCode}
         onCreateCouple={createCouple}
+        onCreateGameSession={createGameSession}
         onLogout={handleLogout}
         onBack={handleBack}
       />
