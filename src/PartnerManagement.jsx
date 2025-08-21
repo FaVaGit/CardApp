@@ -69,7 +69,7 @@ export function PartnerManagement({
     };
 
     reloadState();
-  }, [currentCouple, gameSession, onlineUsers]);
+  }, [currentCouple, activeSession, onlineUsers]);
 
   // Reset error quando cambia tab
   useEffect(() => {
@@ -81,6 +81,9 @@ export function PartnerManagement({
   const canJoinPartner = permissions.canJoinByCode;
   const canViewUsers = permissions.canViewUsers;
   const canStartGameSession = permissions.canStartGameSession;
+  
+  // Usa activeSession dal backend invece di gameSession prop
+  const activeSession = userState?.activeSession;
 
   // Cambia automaticamente al tab 'couple' quando viene formata una coppia
   useEffect(() => {
@@ -268,7 +271,7 @@ export function PartnerManagement({
                   console.log('=== DEBUG INFO ===');
                   console.log('Current User:', currentUser);
                   console.log('Current Couple:', currentCouple);
-                  console.log('Game Session:', gameSession);
+                  console.log('Game Session:', activeSession);
                   console.log('Online Users:', onlineUsers);
                   console.log('Partner Status:', partnerStatus);
                   console.log('Connection Status:', connectionStatus);
@@ -340,6 +343,46 @@ export function PartnerManagement({
           </div>
         )}
 
+        {/* Game Session Actions - Always Visible */}
+        {userState && currentCouple && (
+          <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-600/50 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-green-300 mb-1">
+                  🎮 Sessione di Gioco
+                </h3>
+                <p className="text-sm text-gray-300">
+                  Coppia: <span className="text-blue-300 font-medium">{currentCouple.name}</span>
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                {!activeSession ? (
+                  <button
+                    onClick={handleStartGameSession}
+                    disabled={!canStartGameSession}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-lg"
+                  >
+                    {canStartGameSession 
+                      ? '🚀 Inizia Sessione' 
+                      : '⏳ In attesa partner'
+                    }
+                  </button>
+                ) : (
+                  <div className="flex space-x-3 items-center">
+                    <span className="text-green-300 font-medium">✅ Sessione Attiva</span>
+                    <button
+                      onClick={() => setActiveTab('game')}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Vai alla Sessione →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg">
           <button
@@ -369,14 +412,14 @@ export function PartnerManagement({
           </button>
           <button
             onClick={() => setActiveTab('game')}
-            disabled={!gameSession}
+            disabled={!activeSession}
             className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
               activeTab === 'game' 
                 ? 'bg-purple-600 text-white' 
                 : 'text-gray-400 hover:text-white disabled:opacity-50'
             }`}
           >
-            🎮 Sessione ({gameSession ? '✓' : '✗'})
+            🎮 Sessione ({activeSession ? '✓' : '✗'})
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -494,33 +537,8 @@ export function PartnerManagement({
               </div>
             )}
 
-            {/* Game Session Actions */}              <div className="space-y-4">
-                {!gameSession ? (
-                  <button
-                    onClick={handleStartGameSession}
-                    disabled={!canStartGameSession}
-                    className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {canStartGameSession 
-                      ? '🎮 Inizia Sessione di Gioco' 
-                      : '⏳ In attesa che il partner sia online'
-                    }
-                  </button>
-                ) : (
-                  <div className="bg-green-600/20 border border-green-600 rounded-lg p-4">
-                    <h3 className="font-semibold text-green-300 mb-2">🎮 Sessione Attiva</h3>
-                    <p className="text-green-200 text-sm mb-3">
-                      La sessione di gioco è attiva! Passa alla tab "Sessione" per giocare.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('game')}
-                      className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                    >
-                      Vai alla Sessione →
-                    </button>
-                  </div>
-                )}
-                
+            {/* Chat and Communication */}
+            <div className="space-y-4">
                 {/* Debug button for partner status */}
                 <button
                   onClick={async () => {
@@ -637,7 +655,7 @@ export function PartnerManagement({
           </div>
         )}
 
-        {activeTab === 'game' && gameSession && (
+        {activeTab === 'game' && activeSession && (
           <div className="space-y-6">
             {/* Game Session Info */}
             <div className="bg-gray-800 rounded-lg p-6">
@@ -645,42 +663,42 @@ export function PartnerManagement({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-sm text-gray-400">Sessione ID</p>
-                  <p className="font-mono text-sm">{gameSession.id}</p>
+                  <p className="font-mono text-sm">{activeSession.id}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Tipo</p>
-                  <p className="capitalize">{gameSession.sessionType}</p>
+                  <p className="capitalize">{activeSession.sessionType}</p>
                 </div>
               </div>
 
               {/* Current Card */}
-              {gameSession.currentCard && (
-                <div className={`bg-gradient-to-br ${gameSession.currentCard.color || 'from-purple-600 to-pink-600'} rounded-lg p-6 mb-4 text-white`}>
+              {activeSession.currentCard && (
+                <div className={`bg-gradient-to-br ${activeSession.currentCard.color || 'from-purple-600 to-pink-600'} rounded-lg p-6 mb-4 text-white`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
-                      <span className="text-2xl">{gameSession.currentCard.emoji || '🃏'}</span>
+                      <span className="text-2xl">{activeSession.currentCard.emoji || '🃏'}</span>
                       <div>
-                        <h3 className="font-semibold">{gameSession.currentCard.title || 'Carta Condivisa'}</h3>
-                        <p className="text-xs opacity-75 capitalize">{gameSession.currentCard.category}</p>
+                        <h3 className="font-semibold">{activeSession.currentCard.title || 'Carta Condivisa'}</h3>
+                        <p className="text-xs opacity-75 capitalize">{activeSession.currentCard.category}</p>
                       </div>
                     </div>
                     <span className="text-xs opacity-75">
-                      {new Date(gameSession.currentCard.sharedAt).toLocaleTimeString()}
+                      {new Date(activeSession.currentCard.sharedAt).toLocaleTimeString()}
                     </span>
                   </div>
-                  <p className="text-lg leading-relaxed mb-3">{gameSession.currentCard.content}</p>
+                  <p className="text-lg leading-relaxed mb-3">{activeSession.currentCard.content}</p>
                   <p className="text-xs opacity-75">
-                    Condivisa da {gameSession.currentCard.sharedByName}
+                    Condivisa da {activeSession.currentCard.sharedByName}
                   </p>
                 </div>
               )}
 
               {/* Card History */}
-              {gameSession.sharedHistory && gameSession.sharedHistory.length > 0 && (
+              {activeSession.sharedHistory && activeSession.sharedHistory.length > 0 && (
                 <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                  <h3 className="font-semibold text-gray-300 mb-3">📚 Carte Condivise ({gameSession.sharedHistory.length})</h3>
+                  <h3 className="font-semibold text-gray-300 mb-3">📚 Carte Condivise ({activeSession.sharedHistory.length})</h3>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {gameSession.sharedHistory.slice(-3).map((card, index) => (
+                    {activeSession.sharedHistory.slice(-3).map((card, index) => (
                       <div key={card.id || index} className="text-sm">
                         <div className="flex items-center space-x-2">
                           <span>{card.emoji || '🃏'}</span>
@@ -718,8 +736,8 @@ export function PartnerManagement({
               
               {/* Messages */}
               <div className="bg-gray-700 rounded-lg p-4 mb-4 h-64 overflow-y-auto">
-                {gameSession.messages && gameSession.messages.length > 0 ? (
-                  gameSession.messages.map((msg, index) => (
+                {activeSession.messages && activeSession.messages.length > 0 ? (
+                  activeSession.messages.map((msg, index) => (
                     <div key={index} className="mb-3">
                       <div className="flex items-center space-x-2 mb-1">
                         <span className="text-sm font-medium text-blue-300">{msg.senderName}</span>
@@ -758,7 +776,7 @@ export function PartnerManagement({
           </div>
         )}
 
-        {activeTab === 'game' && !gameSession && (
+        {activeTab === 'game' && !activeSession && (
           <div className="bg-gray-800 rounded-lg p-6 text-center">
             <h2 className="text-xl font-semibold mb-4">🎮 Nessuna Sessione</h2>
             <p className="text-gray-300 mb-6">
