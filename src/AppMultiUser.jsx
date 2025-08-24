@@ -64,17 +64,14 @@ export default function App() {
     currentUser: multiUser, 
     partnerStatus,
     gameSession, 
-    isLoading: multiLoading,
-    error,
+    isConnecting: multiLoading,
+    connectionError: error,
     registerUser, 
-    loginUser, 
-    logout: multiLogout,
-    createPartnership,
-    joinUserByCode,
+    joinPartnerByCode,
     createGameSession,
     sendMessage,
     shareCard,
-    backendRef
+    backend
   } = useRealBackend();
   
   // Single-user hooks (per compatibilità)
@@ -95,7 +92,7 @@ export default function App() {
     updateCanvas: updateSharedCanvas,
     endSharedSession,
     isSessionActive
-  } = useSharedSession(backendRef?.current);
+  } = useSharedSession(backend);
 
   // Gestisci carte condivise dall'URL all'avvio
   useEffect(() => {
@@ -140,7 +137,10 @@ export default function App() {
 
   const handleLoginUser = async (credentials) => {
     try {
-      await loginUser(credentials.personalCode);
+      // Non esiste loginUser in useRealBackend
+      // Per ora, implementiamo come registerUser se l'utente non esiste
+      console.log('Login attempt with credentials:', credentials);
+      alert('Login non ancora implementato - usa registrazione');
     } catch (error) {
       console.error('Errore login:', error);
       alert(`Errore: ${error.message}`);
@@ -149,7 +149,7 @@ export default function App() {
 
   const handleCreatePartnership = async (targetUserCode) => {
     try {
-      await createPartnership(targetUserCode);
+      await joinPartnerByCode(targetUserCode);
     } catch (error) {
       console.error('Errore creazione partnership:', error);
       alert(`Errore: ${error.message}`);
@@ -158,7 +158,7 @@ export default function App() {
 
   const handleJoinUserByCode = async (userCode) => {
     try {
-      await joinUserByCode(userCode);
+      await joinPartnerByCode(userCode);
     } catch (error) {
       console.error('Errore join user:', error);
       alert(`Errore: ${error.message}`);
