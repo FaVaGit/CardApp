@@ -21,6 +21,11 @@ export function useSharedSession(backendService = null) {
   // Crea una nuova sessione condivisa
   const createSharedSession = useCallback(async (card, currentUser) => {
     try {
+      console.log('🎮 Starting shared session creation...');
+      console.log('Backend service:', backendService);
+      console.log('Backend connected:', backendService?.isConnected);
+      console.log('Backend connection:', backendService?.connection);
+
       const code = generateSessionCode();
       const sessionData = {
         id: `shared_${Date.now()}`,
@@ -32,13 +37,24 @@ export function useSharedSession(backendService = null) {
         status: 'waiting' // waiting, active, completed
       };
 
-      console.log('🎮 Creating shared session:', sessionData);
+      console.log('🎮 Session data prepared:', sessionData);
 
       // Invia al backend per creare la sessione
-      if (backendService && backendService.isConnected) {
+      if (backendService && backendService.isConnected && backendService.connection) {
+        console.log('📡 Invoking CreateSharedSession...');
         await backendService.connection.invoke('CreateSharedSession', sessionData);
+        console.log('✅ CreateSharedSession invoked successfully');
+      } else {
+        console.warn('⚠️ Backend not available, creating session locally only');
+        console.log('Backend service available:', !!backendService);
+        console.log('Backend connected:', backendService?.isConnected);
+        console.log('Backend connection available:', !!backendService?.connection);
+        
+        // Modalità locale: simula la creazione della sessione
+        console.log('🏠 Creating session in local mode');
       }
 
+      // Imposta lo stato locale indipendentemente dal backend
       setSharedSession(sessionData);
       setIsHost(true);
       setSessionCode(code);
@@ -46,6 +62,7 @@ export function useSharedSession(backendService = null) {
       setMessages([]);
       setCanvasData(null);
 
+      console.log('🎮 Shared session created locally:', code);
       return { sessionCode: code, session: sessionData };
     } catch (error) {
       console.error('❌ Errore creazione sessione condivisa:', error);
@@ -56,15 +73,54 @@ export function useSharedSession(backendService = null) {
   // Partecipa a una sessione esistente tramite codice
   const joinSharedSession = useCallback(async (code, currentUser) => {
     try {
-      console.log('🚪 Joining shared session with code:', code);
+      console.log('🚪 Starting shared session join...');
+      console.log('Session code:', code);
+      console.log('User:', currentUser);
 
-      if (backendService && backendService.isConnected) {
+      if (backendService && backendService.isConnected && backendService.connection) {
+        console.log('📡 Invoking JoinSharedSession...');
         await backendService.connection.invoke('JoinSharedSession', code, currentUser);
+        console.log('✅ JoinSharedSession invoked successfully');
+      } else {
+        console.warn('⚠️ Backend not available, simulating join locally');
+        
+        // Modalità locale: simula join alla sessione
+        console.log('🏠 Simulating session join in local mode');
+        
+        // Per ora, crea una sessione fittizia per test
+        const mockSession = {
+          id: `shared_${Date.now()}`,
+          code: code,
+          card: {
+            id: 'mock_1',
+            title: 'Carta Condivisa Simulata',
+            emoji: '🎭',
+            prompts: ['Questa è una sessione simulata per test'],
+            category: 'test',
+            color: 'from-blue-400 to-purple-300'
+          },
+          host: { id: 'mock_host', name: 'Host Simulato' },
+          createdAt: new Date().toISOString(),
+          type: 'shared_card',
+          status: 'active'
+        };
+        
+        setSharedSession(mockSession);
+        setIsHost(false);
+        setParticipants([mockSession.host, currentUser]);
+        setMessages([
+          {
+            id: 'welcome',
+            content: 'Benvenuto nella sessione condivisa simulata!',
+            timestamp: new Date().toISOString(),
+            type: 'system'
+          }
+        ]);
       }
 
       setSessionCode(code);
-      setIsHost(false);
 
+      console.log('🚪 Joined shared session successfully');
       return true;
     } catch (error) {
       console.error('❌ Errore accesso sessione condivisa:', error);

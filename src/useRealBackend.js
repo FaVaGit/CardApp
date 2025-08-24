@@ -114,11 +114,21 @@ export function useRealBackend(currentUser, setCurrentUser) {
     backend.on('messageReceived', (message) => {
       console.log('💬 Message received:', message);
       setMessages(prev => [...prev, message]);
+      // Aggiorna anche gameSession se esiste
+      setGameSession(prev => prev ? {
+        ...prev,
+        messages: [...(prev.messages || []), message]
+      } : null);
     });
 
     backend.on('cardShared', (card) => {
       console.log('🃏 Card shared:', card);
       setSharedCards(prev => [...prev, card]);
+      // Aggiorna anche gameSession se esiste
+      setGameSession(prev => prev ? {
+        ...prev,
+        sharedCards: [...(prev.sharedCards || []), card]
+      } : null);
     });
 
     backend.on('error', (error) => {

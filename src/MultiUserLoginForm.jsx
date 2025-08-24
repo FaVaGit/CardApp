@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export function MultiUserLoginForm({ onRegister, onLogin, allUsers }) {
+export function MultiUserLoginForm({ onRegister, onLogin }) {
   const [isNewCouple, setIsNewCouple] = useState(true);
   const [formData, setFormData] = useState({
     partnerName1: '',
@@ -36,15 +36,7 @@ export function MultiUserLoginForm({ onRegister, onLogin, allUsers }) {
       if (!formData.partnerName2.trim()) {
         newErrors.partnerName2 = 'Il nome del secondo partner è obbligatorio';
       }
-      // Verifica che il nickname non sia già in uso
-      if (formData.coupleNickname.trim()) {
-        const existingCouple = allUsers.find(user => 
-          user.coupleNickname && user.coupleNickname.toLowerCase() === formData.coupleNickname.toLowerCase()
-        );
-        if (existingCouple) {
-          newErrors.coupleNickname = 'Questo nickname è già in uso da un\'altra coppia';
-        }
-      }
+      // Il backend gestirà la validazione del nickname
     } else {
       if (!formData.loginIdentifier.trim()) {
         newErrors.loginIdentifier = 'Inserisci il nickname di coppia o i nomi dei partner';
@@ -63,44 +55,20 @@ export function MultiUserLoginForm({ onRegister, onLogin, allUsers }) {
     }
 
     if (isNewCouple) {
-      // Registrazione nuova coppia
+      // Registrazione nuova coppia per backend reale
       const newCoupleData = {
-        partnerName1: formData.partnerName1.trim(),
-        partnerName2: formData.partnerName2.trim(),
-        coupleNickname: formData.coupleNickname.trim() || null,
-        relationshipStart: formData.relationshipStart || null
+        name: `${formData.partnerName1.trim()} & ${formData.partnerName2.trim()}`,
+        gameType: 'couple',
+        nickname: formData.coupleNickname.trim() || null
       };
       onRegister(newCoupleData);
     } else {
-      // Login coppia esistente
+      // Login con backend reale - passiamo solo il personal code
       const loginData = {
-        identifier: formData.loginIdentifier.trim()
+        personalCode: formData.loginIdentifier.trim()
       };
-      
-      // Cerca per nickname o nomi
-      const foundCouple = allUsers.find(user => {
-        const identifier = loginData.identifier.toLowerCase();
-        const coupleNickname = user.coupleNickname?.toLowerCase();
-        const namesCombo1 = `${user.partnerName1.toLowerCase()} & ${user.partnerName2.toLowerCase()}`;
-        const namesCombo2 = `${user.partnerName2.toLowerCase()} & ${user.partnerName1.toLowerCase()}`;
-        
-        return coupleNickname === identifier || 
-               namesCombo1.includes(identifier) || 
-               namesCombo2.includes(identifier);
-      });
-
-      if (foundCouple) {
-        onLogin(foundCouple);
-      } else {
-        setErrors({ loginIdentifier: 'Coppia non trovata. Verifica i dati inseriti.' });
-      }
+      onLogin(loginData);
     }
-  };
-
-  const getExistingCouplesPreview = () => {
-    return allUsers.slice(0, 3).map(user => 
-      user.coupleNickname || `${user.partnerName1} & ${user.partnerName2}`
-    );
   };
 
   return (
@@ -113,17 +81,6 @@ export function MultiUserLoginForm({ onRegister, onLogin, allUsers }) {
           <p className="text-gray-600">
             🌟 Versione Multi-Coppia 🌟
           </p>
-          <div className="mt-4 p-3 bg-purple-50 rounded-xl">
-            <p className="text-sm text-purple-700">
-              Coppie registrate: <strong>{allUsers.length}</strong>
-            </p>
-            {allUsers.length > 0 && (
-              <p className="text-xs text-purple-600 mt-1">
-                Es: {getExistingCouplesPreview().join(', ')}
-                {allUsers.length > 3 && '...'}
-              </p>
-            )}
-          </div>
         </div>
 
         {/* Toggle tra registrazione e login */}
@@ -273,26 +230,6 @@ export function MultiUserLoginForm({ onRegister, onLogin, allUsers }) {
                   Inserisci il vostro nickname di coppia o i nomi dei partner
                 </p>
               </div>
-
-              {allUsers.length > 0 && (
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                    Coppie Registrate:
-                  </h4>
-                  <div className="space-y-1">
-                    {allUsers.slice(0, 5).map((user, index) => (
-                      <div key={index} className="text-sm text-gray-600">
-                        • {user.coupleNickname || `${user.partnerName1} & ${user.partnerName2}`}
-                      </div>
-                    ))}
-                    {allUsers.length > 5 && (
-                      <div className="text-xs text-gray-500">
-                        ... e altre {allUsers.length - 5} coppie
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </>
           )}
 
