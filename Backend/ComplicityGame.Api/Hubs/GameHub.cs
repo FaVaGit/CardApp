@@ -167,6 +167,20 @@ public class GameHub : Hub
         {
             var session = await _gameSessionService.CreateSessionAsync(coupleId, createdBy);
             
+            // Get couple members to add them to session group
+            var couple = await _coupleService.GetCoupleByIdAsync(coupleId);
+            if (couple != null)
+            {
+                foreach (var member in couple.Members)
+                {
+                    var connectionId = await GetUserConnectionId(member.UserId);
+                    if (!string.IsNullOrEmpty(connectionId))
+                    {
+                        await Groups.AddToGroupAsync(connectionId, $"Session_{session.Id}");
+                    }
+                }
+            }
+            
             // Notify couple members
             await Clients.Group($"Couple_{coupleId}").SendAsync("GameSessionCreated", session);
             

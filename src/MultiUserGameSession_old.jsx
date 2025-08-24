@@ -1,33 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { expandedCards } from './expandedCards';
 import { SharedCanvas } from './SharedCanvas';
+import { ShareCardModal } from './ShareCardModal';
+import { useCardSharing } from './useCardSharing';
 
 export function MultiUserGameSession({ 
-  selectedMode,
   gameSession, 
   currentUser, 
-  currentFamily,
-  partnerConnection,
-  sharedCanvas,
-  sharedNotes,
+  partnerStatus,
   onLeaveSession, 
   onSendMessage, 
-  onShareCard, 
-  onDrawCard,
-  onAddCanvasStroke,
-  onAddNote,
-  onClearCanvas,
-  getParticipantNames,
-  expandedCards: cardDeck,
-  allFamilyCards
+  onShareCard
 }) {
   const [current, setCurrent] = useState(gameSession?.currentCard || null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [newMessage, setNewMessage] = useState('');
-  const [showChat, setShowChat] = useState(false);
   const [activeTab, setActiveTab] = useState('game'); // 'game', 'chat', 'canvas'
   const messagesEndRef = useRef(null);
+
+  // Hook per la condivisione carte
+  const {
+    isShareModalOpen,
+    cardToShare,
+    openShareModal,
+    closeShareModal
+  } = useCardSharing();
 
   // Seleziona il mazzo di carte appropriato
   const cards = selectedMode?.gameType === 'family' ? allFamilyCards : (cardDeck || expandedCards);
@@ -110,7 +108,7 @@ export function MultiUserGameSession({
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center space-x-4">
               <div className="text-2xl">
-                {selectedMode?.gameType === 'family' ? '�‍👩‍👧‍👦' : '💕'}
+                {selectedMode?.gameType === 'family' ? '👨‍👩‍👧‍👦' : '💕'}
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-800">
@@ -275,7 +273,15 @@ export function MultiUserGameSession({
                       </div>
                     ))}
                   </div>
-                  <div className="mt-6 text-center">
+                  <div className="mt-6 text-center space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <button 
+                        onClick={() => openShareModal(current)}
+                        className="px-6 py-2 bg-gradient-to-r from-cyan-400 to-blue-400 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500"
+                      >
+                        📤 Condividi Carta
+                      </button>
+                    </div>
                     <p className="text-sm text-gray-600 italic">
                       💡 Discutete insieme le vostre risposte!
                     </p>
@@ -286,7 +292,7 @@ export function MultiUserGameSession({
               <div className="max-w-md mx-auto text-center">
                 <div className="bg-white bg-opacity-80 backdrop-blur-sm p-8 rounded-3xl shadow-xl">
                   <div className="text-6xl mb-4 animate-pulse">
-                    {selectedMode?.gameType === 'family' ? '�‍👩‍👧‍👦' : '💕'}
+                    {selectedMode?.gameType === 'family' ? '👨‍👩‍👧‍👦' : '💕'}
                   </div>
                   <p className="text-xl text-gray-700 font-medium leading-relaxed mb-4">
                     Benvenuti nella sessione {selectedMode?.gameType === 'family' ? 'famiglia' : 'coppia'}!<br />
@@ -391,6 +397,14 @@ export function MultiUserGameSession({
             />
           </div>
         )}
+
+        {/* Share Card Modal */}
+        <ShareCardModal
+          card={cardToShare}
+          isOpen={isShareModalOpen}
+          onClose={closeShareModal}
+          currentUser={currentUser}
+        />
       </div>
     </div>
   );

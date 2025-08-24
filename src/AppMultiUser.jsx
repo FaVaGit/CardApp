@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FloatingParticles } from './FloatingParticles';
 import { useConfetti, ConfettiEffect } from './ConfettiEffect';
-import { useMultiUser } from './useMultiUser';
+import { useRealBackend } from './useRealBackend';
 import { MultiUserLoginForm } from './MultiUserLoginForm';
 import { MultiUserLobby } from './MultiUserLobby';
 import { MultiUserGameSession } from './MultiUserGameSession';
@@ -14,6 +14,7 @@ import { ShareDemoButton } from './ShareDemoButton';
 import { useSharedSession } from './useSharedSession';
 import { SharedSession } from './SharedSession';
 import { SharedSessionTestButton } from './SharedSessionTestButton';
+import { DebugSharedSession } from './DebugSharedSession';
 
 // Manteniamo anche la versione single-user per compatibilità
 import { useAuth, useHistory } from './useAuth';
@@ -29,6 +30,25 @@ export default function App() {
   const [sharedCardFromUrl, setSharedCardFromUrl] = useState(null);
   const { showConfetti, triggerConfetti } = useConfetti();
   
+  // Gestione carte condivise da URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedCardParam = urlParams.get('sharedCard');
+    
+    if (sharedCardParam) {
+      try {
+        const cardData = JSON.parse(decodeURIComponent(sharedCardParam));
+        setSharedCardFromUrl(cardData);
+        console.log('📤 Carta condivisa ricevuta da URL:', cardData);
+        
+        // Rimuovi il parametro dall'URL senza ricaricare la pagina
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (error) {
+        console.error('❌ Errore nel parsing della carta condivisa:', error);
+      }
+    }
+  }, []);
+  
   // Hook per la condivisione carte
   const {
     isShareModalOpen,
@@ -39,29 +59,29 @@ export default function App() {
     handleIncomingSharedCard
   } = useCardSharing();
   
-  // Multi-user hooks
+  // Multi-user hooks con backend reale
   const { 
     currentUser: multiUser, 
-    allUsers, 
-    onlineUsers, 
+    partnerStatus,
     gameSession, 
     isLoading: multiLoading,
-    registerCouple, 
-    loginCouple, 
+    error,
+    registerUser, 
+    loginUser, 
     logout: multiLogout,
+    createPartnership,
+    joinUserByCode,
     createGameSession,
-    joinGameSession,
-    leaveGameSession,
     sendMessage,
     shareCard,
-    getParticipantNames 
-  } = useMultiUser();
+    backendRef
+  } = useRealBackend();
   
   // Single-user hooks (per compatibilità)
   const { user: singleUser, login: singleLogin, logout: singleLogout, isLoading: singleLoading } = useAuth();
   const { history, addToHistory, clearHistory, getStats } = useHistory();
 
-  // Hook per sessioni condivise
+  // Hook per sessioni condivise con backend reale
   const {
     sharedSession,
     messages: sharedMessages,
@@ -75,7 +95,7 @@ export default function App() {
     updateCanvas: updateSharedCanvas,
     endSharedSession,
     isSessionActive
-  } = useSharedSession(/* backendService sarà aggiunto quando disponibile */);
+  } = useSharedSession(backendRef?.current);
 
   // Gestisci carte condivise dall'URL all'avvio
   useEffect(() => {
@@ -108,36 +128,63 @@ export default function App() {
     return expandedCards.filter(card => card.category === selectedCategory);
   };
 
-  // Gestione multi-user
-  const handleRegisterCouple = (coupleData) => {
-    registerCouple(coupleData);
-  };
-
-  const handleLoginCouple = (userData) => {
-    loginCouple(userData);
-  };
-
-  const handleCreateSession = (invitedUsers) => {
-    createGameSession(invitedUsers);
-    setAppView('multi-game');
-  };
-
-  const handleJoinSession = (sessionId) => {
-    const session = joinGameSession(sessionId);
-    if (session) {
-      setAppView('multi-game');
-    } else {
-      alert('Sessione non trovata o non più disponibile');
+  // Gestione backend reale
+  const handleRegisterUser = async (userData) => {
+    try {
+      await registerUser(userData.name, userData.gameType, userData.nickname);
+    } catch (error) {
+      console.error('Errore registrazione:', error);
+      alert(`Errore: ${error.message}`);
     }
   };
 
-  const handleStartSoloGame = () => {
-    setAppView('single-game');
+  const handleLoginUser = async (credentials) => {
+    try {
+      await loginUser(credentials.personalCode);
+    } catch (error) {
+      console.error('Errore login:', error);
+      alert(`Errore: ${error.message}`);
+    }
+  };
+
+  const handleCreatePartnership = async (targetUserCode) => {
+    try {
+      await createPartnership(targetUserCode);
+    } catch (error) {
+      console.error('Errore creazione partnership:', error);
+      alert(`Errore: ${error.message}`);
+    }
+  };
+
+  const handleJoinUserByCode = async (userCode) => {
+    try {
+      await joinUserByCode(userCode);
+    } catch (error) {
+      console.error('Errore join user:', error);
+      alert(`Errore: ${error.message}`);
+    }
+  };
+
+  const handleCreateSession = async () => {
+    try {
+      await createGameSession();
+      setAppView('multi-game');
+    } catch (error) {
+      console.error('Errore creazione sessione:', error);
+      alert(`Errore: ${error.message}`);
+    }
   };
 
   const handleLeaveSession = () => {
-    leaveGameSession();
+    // Implementare logout/leave se necessario
     setAppView('lobby');
+  };
+
+  const handleLogout = () => {
+    // Per ora resettiamo solo lo stato locale
+    // In futuro potrebbe chiamare una funzione di logout dal backend
+    setAppView('lobby');
+    window.location.reload(); // Forza il reload per resettare completamente lo stato
   };
 
   const handleSendMessage = (message) => {
@@ -150,18 +197,22 @@ export default function App() {
 
   // Gestione sessioni condivise
   const handleCreateSharedSession = async (card) => {
+    console.log('🎮 handleCreateSharedSession called with card:', card);
     try {
       const currentUser = multiUser || singleUser;
+      console.log('Current user:', currentUser);
+      
       if (!currentUser) {
         alert('Devi essere loggato per creare una sessione condivisa');
         return;
       }
 
+      console.log('📡 Calling createSharedSession...');
       const result = await createSharedSession(card, currentUser);
       console.log('✅ Sessione condivisa creata:', result);
       
       // Mostra il codice sessione per la condivisione
-      if (result.sessionCode) {
+      if (result && result.sessionCode) {
         const message = `🎮 Sessione condivisa creata!\n\nCodice sessione: ${result.sessionCode}\n\nCondividi questo codice con il tuo partner per unirsi alla sessione.`;
         alert(message);
         
@@ -172,10 +223,13 @@ export default function App() {
         } catch (err) {
           console.warn('⚠️ Impossibile copiare negli appunti:', err);
         }
+      } else {
+        console.warn('⚠️ Nessun codice sessione ricevuto:', result);
+        alert('Sessione creata ma nessun codice generato');
       }
     } catch (error) {
       console.error('❌ Errore creazione sessione condivisa:', error);
-      alert('Errore nella creazione della sessione condivisa');
+      alert(`Errore nella creazione della sessione condivisa: ${error.message}`);
     }
   };
 
@@ -242,6 +296,25 @@ export default function App() {
     );
   }
 
+  // Error states per il backend reale
+  if (gameMode === 'multi' && error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-200 via-orange-200 to-yellow-200 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-xl">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Errore Backend</h2>
+          <p className="text-gray-700 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            🔄 Ricarica
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Multi-user flow
   if (gameMode === 'multi') {
     // Se non c'è utente loggato, mostra il form di login multi-user
@@ -250,9 +323,8 @@ export default function App() {
         <div className="relative">
           <FloatingParticles />
           <MultiUserLoginForm 
-            onRegister={handleRegisterCouple} 
-            onLogin={handleLoginCouple}
-            allUsers={allUsers}
+            onRegister={handleRegisterUser} 
+            onLogin={handleLoginUser}
           />
           
           {/* Pulsante per passare a modalità singola */}
@@ -275,11 +347,10 @@ export default function App() {
           <MultiUserGameSession
             gameSession={gameSession}
             currentUser={multiUser}
-            allUsers={allUsers}
+            partnerStatus={partnerStatus}
             onLeaveSession={handleLeaveSession}
             onSendMessage={handleSendMessage}
             onShareCard={handleShareCard}
-            getParticipantNames={getParticipantNames}
           />
         </div>
       );
@@ -291,11 +362,10 @@ export default function App() {
         <FloatingParticles />
         <MultiUserLobby
           currentUser={multiUser}
-          onlineUsers={onlineUsers}
-          allUsers={allUsers}
+          partnerStatus={partnerStatus}
+          onCreatePartnership={handleCreatePartnership}
+          onJoinUserByCode={handleJoinUserByCode}
           onCreateSession={handleCreateSession}
-          onJoinSession={handleJoinSession}
-          onStartSoloGame={handleStartSoloGame}
         />
         
         {/* Controlli in alto */}
@@ -313,7 +383,7 @@ export default function App() {
             🎮 Unisciti
           </button>
           <button
-            onClick={multiLogout}
+            onClick={handleLogout}
             className="px-4 py-2 bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors duration-200"
           >
             Esci
@@ -584,6 +654,12 @@ export default function App() {
 
       {/* Shared Session Test Button */}
       <SharedSessionTestButton />
+
+      {/* Debug Component */}
+      <DebugSharedSession 
+        onCreateSharedSession={handleCreateSharedSession}
+        currentUser={gameMode === 'multi' ? multiUser : singleUser}
+      />
     </div>
   );
 }

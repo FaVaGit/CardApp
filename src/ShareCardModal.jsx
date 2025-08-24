@@ -254,13 +254,27 @@ Pescata da: ${currentUser?.name || 'Anonimo'}
             </h3>
             <button
               onClick={async () => {
+                console.log('🎮 Pulsante sessione condivisa cliccato');
+                console.log('onCreateSharedSession function:', onCreateSharedSession);
+                console.log('Card data:', card);
+                
                 if (isCreatingSession) return;
+                
+                if (!onCreateSharedSession) {
+                  console.error('❌ onCreateSharedSession function not provided');
+                  alert('Funzione di creazione sessione non disponibile');
+                  return;
+                }
+                
                 setIsCreatingSession(true);
                 try {
-                  await onCreateSharedSession?.(card);
+                  console.log('📡 Calling onCreateSharedSession...');
+                  const result = await onCreateSharedSession(card);
+                  console.log('✅ Session creation result:', result);
                   onClose();
                 } catch (error) {
-                  console.error('Errore creazione sessione:', error);
+                  console.error('❌ Errore creazione sessione:', error);
+                  alert(`Errore: ${error.message}`);
                 } finally {
                   setIsCreatingSession(false);
                 }
