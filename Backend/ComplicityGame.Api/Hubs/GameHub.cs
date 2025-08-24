@@ -274,14 +274,187 @@ public class GameHub : Hub
         }
     }
 
+    // ===== SESSIONI CONDIVISE =====
+    // Crea una nuova sessione condivisa per una carta
+    public async Task CreateSharedSession(object sessionData)
+    {
+        try
+        {
+            // Per ora implementiamo un sistema semplice con gruppi SignalR
+            // In futuro si può espandere con database persistence
+            
+            var sessionJson = sessionData.ToString();
+            if (string.IsNullOrEmpty(sessionJson))
+            {
+                throw new ArgumentException("Session data is empty");
+            }
+            
+            var sessionObj = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(sessionJson);
+            if (sessionObj == null)
+            {
+                throw new ArgumentException("Invalid session data");
+            }
+            
+            var sessionId = sessionObj["id"]?.ToString();
+            var sessionCode = sessionObj["code"]?.ToString();
+            
+            if (string.IsNullOrEmpty(sessionId) || string.IsNullOrEmpty(sessionCode))
+            {
+                throw new ArgumentException("Missing session ID or code");
+            }
+            
+            // Unisce il creatore al gruppo della sessione
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"SharedSession_{sessionCode}");
+            
+            // Invia conferma di creazione al creatore
+            await Clients.Caller.SendAsync("SharedSessionCreated", sessionData);
+            
+            Console.WriteLine($"🎮 Shared session created: {sessionCode} by {Context.ConnectionId}");
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("SharedSessionError", ex.Message);
+            Console.WriteLine($"❌ Error creating shared session: {ex.Message}");
+        }
+    }
+
+    // Unisce un utente a una sessione condivisa esistente
+    public async Task JoinSharedSession(string sessionCode, object userData)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(sessionCode))
+            {
+                throw new ArgumentException("Session code is required");
+            }
+            
+            // Unisce l'utente al gruppo della sessione
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"SharedSession_{sessionCode}");
+            
+            // Notifica tutti i partecipanti che qualcuno si è unito
+            await Clients.Group($"SharedSession_{sessionCode}").SendAsync("SharedSessionJoined", userData, sessionCode);
+            
+            Console.WriteLine($"👤 User joined shared session: {sessionCode}");
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("SharedSessionError", ex.Message);
+            Console.WriteLine($"❌ Error joining shared session: {ex.Message}");
+        }
+    }
+
+    // Invia un messaggio nella chat della sessione condivisa
+    public async Task SendSharedSessionMessage(object messageData)
+    {
+        try
+        {
+            var messageJson = messageData.ToString();
+            if (string.IsNullOrEmpty(messageJson))
+            {
+                throw new ArgumentException("Message data is empty");
+            }
+            
+            var messageObj = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(messageJson);
+            if (messageObj == null)
+            {
+                throw new ArgumentException("Invalid message data");
+            }
+            
+            var sessionId = messageObj["sessionId"]?.ToString();
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                throw new ArgumentException("Missing session ID");
+            }
+            
+            // Per ora usiamo il sessionId come codice sessione
+            // In futuro mapperemo sessionId -> sessionCode via database
+            var sessionCode = sessionId.Replace("shared_", "");
+            
+            // Broadcast del messaggio a tutti i partecipanti della sessione
+            await Clients.Group($"SharedSession_{sessionCode}").SendAsync("SharedSessionMessage", messageData);
+            
+            Console.WriteLine($"💬 Message sent in shared session: {sessionCode}");
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("SharedSessionError", ex.Message);
+            Console.WriteLine($"❌ Error sending shared session message: {ex.Message}");
+        }
+    }
+
+    // Aggiorna il canvas condiviso
+    public async Task UpdateSharedCanvas(object canvasData)
+    {
+        try
+        {
+            var canvasJson = canvasData.ToString();
+            if (string.IsNullOrEmpty(canvasJson))
+            {
+                throw new ArgumentException("Canvas data is empty");
+            }
+            
+            var canvasObj = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(canvasJson);
+            if (canvasObj == null)
+            {
+                throw new ArgumentException("Invalid canvas data");
+            }
+            
+            var sessionId = canvasObj["sessionId"]?.ToString();
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                throw new ArgumentException("Missing session ID");
+            }
+            
+            var sessionCode = sessionId.Replace("shared_", "");
+            
+            // Broadcast dell'aggiornamento del canvas a tutti i partecipanti
+            await Clients.Group($"SharedSession_{sessionCode}").SendAsync("SharedCanvasUpdated", canvasData);
+            
+            Console.WriteLine($"🎨 Canvas updated in shared session: {sessionCode}");
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("SharedSessionError", ex.Message);
+            Console.WriteLine($"❌ Error updating shared canvas: {ex.Message}");
+        }
+    }
+
+    // Termina una sessione condivisa
+    public async Task EndSharedSession(string sessionId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                throw new ArgumentException("Session ID is required");
+            }
+            
+            var sessionCode = sessionId.Replace("shared_", "");
+            
+            // Notifica tutti i partecipanti che la sessione è terminata
+            await Clients.Group($"SharedSession_{sessionCode}").SendAsync("SharedSessionEnded", sessionId);
+            
+            // Rimuove tutti i partecipanti dal gruppo
+            // Note: Non c'è un modo diretto per rimuovere tutti dal gruppo in SignalR
+            // I client si disconnetteranno automaticamente quando ricevono l'evento
+            
+            Console.WriteLine($"🔚 Shared session ended: {sessionCode}");
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("SharedSessionError", ex.Message);
+            Console.WriteLine($"❌ Error ending shared session: {ex.Message}");
+        }
+    }
+
     // Helper methods
-    private async Task<string?> GetUserConnectionId(string userId)
+    private Task<string?> GetUserConnectionId(string userId)
     {
         if (_userConnections.TryGetValue(userId, out var connections) && connections.Count > 0)
         {
             // Restituisci la prima connessione disponibile
-            return connections.First();
+            return Task.FromResult<string?>(connections.First());
         }
-        return null;
+        return Task.FromResult<string?>(null);
     }
 }
