@@ -5,6 +5,15 @@ export function ShareCardModal({ card, isOpen, onClose, currentUser, onCreateSha
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
+  // Debug: Log delle props ricevute
+  console.log('🔍 ShareCardModal props:', {
+    card: card?.title,
+    isOpen,
+    currentUser: currentUser?.name,
+    onCreateSharedSession: typeof onCreateSharedSession,
+    onCreateSharedSessionExists: !!onCreateSharedSession
+  });
+
   if (!isOpen || !card) return null;
 
   // Genera il testo della carta da condividere
