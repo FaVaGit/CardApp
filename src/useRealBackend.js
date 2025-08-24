@@ -167,7 +167,14 @@ export function useRealBackend(currentUser, setCurrentUser) {
     }
 
     console.log('🎮 Creating game session for couple:', partnerStatus.coupleId);
-    await backendRef.current.createGameSession(partnerStatus.coupleId, currentUser.gameType);
+    
+    const sessionData = {
+      CoupleId: partnerStatus.coupleId,
+      CreatedBy: currentUser.id,
+      SessionType: currentUser.gameType || 'couple'
+    };
+    
+    await backendRef.current.createGameSession(sessionData);
   }, [currentUser, partnerStatus]);
 
   // Send message
