@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 
-export function ShareCardModal({ card, isOpen, onClose, currentUser }) {
+export function ShareCardModal({ card, isOpen, onClose, currentUser, onCreateSharedSession }) {
   const [copiedText, setCopiedText] = useState('');
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   if (!isOpen || !card) return null;
 
@@ -245,6 +246,42 @@ Pescata da: ${currentUser?.name || 'Anonimo'}
 
         {/* Opzioni di condivisione */}
         <div className="p-6 space-y-4">
+          {/* Sessione Condivisa - NUOVA OPZIONE */}
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              🎮 Sessione Condivisa
+              <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">NUOVO</span>
+            </h3>
+            <button
+              onClick={async () => {
+                if (isCreatingSession) return;
+                setIsCreatingSession(true);
+                try {
+                  await onCreateSharedSession?.(card);
+                  onClose();
+                } catch (error) {
+                  console.error('Errore creazione sessione:', error);
+                } finally {
+                  setIsCreatingSession(false);
+                }
+              }}
+              disabled={isCreatingSession}
+              className="w-full p-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:from-green-600 hover:to-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCreatingSession ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Creando sessione...
+                </span>
+              ) : (
+                '🎯 Crea Sessione Real-Time'
+              )}
+            </button>
+            <p className="text-xs text-gray-600 mt-2">
+              Crea una stanza condivisa dove entrambi potete vedere la carta, chattare e disegnare insieme in tempo reale
+            </p>
+          </div>
+
           {/* Condivisione rapida */}
           <div>
             <h3 className="font-semibold text-gray-800 mb-3">Condivisione Rapida</h3>

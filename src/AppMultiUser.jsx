@@ -11,6 +11,9 @@ import { ShareCardModal } from './ShareCardModal';
 import { SharedCardViewer } from './SharedCardViewer';
 import { useCardSharing } from './useCardSharing';
 import { ShareDemoButton } from './ShareDemoButton';
+import { useSharedSession } from './useSharedSession';
+import { SharedSession } from './SharedSession';
+import { SharedSessionTestButton } from './SharedSessionTestButton';
 
 // Manteniamo anche la versione single-user per compatibilità
 import { useAuth, useHistory } from './useAuth';
@@ -57,6 +60,22 @@ export default function App() {
   // Single-user hooks (per compatibilità)
   const { user: singleUser, login: singleLogin, logout: singleLogout, isLoading: singleLoading } = useAuth();
   const { history, addToHistory, clearHistory, getStats } = useHistory();
+
+  // Hook per sessioni condivise
+  const {
+    sharedSession,
+    messages: sharedMessages,
+    canvasData: sharedCanvasData,
+    participants: sharedParticipants,
+    isHost,
+    sessionCode,
+    createSharedSession,
+    joinSharedSession,
+    sendMessage: sendSharedMessage,
+    updateCanvas: updateSharedCanvas,
+    endSharedSession,
+    isSessionActive
+  } = useSharedSession(/* backendService sarà aggiunto quando disponibile */);
 
   // Gestisci carte condivise dall'URL all'avvio
   useEffect(() => {
@@ -127,6 +146,73 @@ export default function App() {
 
   const handleShareCard = (card) => {
     shareCard(card);
+  };
+
+  // Gestione sessioni condivise
+  const handleCreateSharedSession = async (card) => {
+    try {
+      const currentUser = multiUser || singleUser;
+      if (!currentUser) {
+        alert('Devi essere loggato per creare una sessione condivisa');
+        return;
+      }
+
+      const result = await createSharedSession(card, currentUser);
+      console.log('✅ Sessione condivisa creata:', result);
+      
+      // Mostra il codice sessione per la condivisione
+      if (result.sessionCode) {
+        const message = `🎮 Sessione condivisa creata!\n\nCodice sessione: ${result.sessionCode}\n\nCondividi questo codice con il tuo partner per unirsi alla sessione.`;
+        alert(message);
+        
+        // Copia il codice negli appunti automaticamente
+        try {
+          await navigator.clipboard.writeText(result.sessionCode);
+          console.log('📋 Codice sessione copiato negli appunti');
+        } catch (err) {
+          console.warn('⚠️ Impossibile copiare negli appunti:', err);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Errore creazione sessione condivisa:', error);
+      alert('Errore nella creazione della sessione condivisa');
+    }
+  };
+
+  const handleJoinSharedSession = async (sessionCode) => {
+    try {
+      const currentUser = multiUser || singleUser;
+      if (!currentUser) {
+        alert('Devi essere loggato per unirti a una sessione');
+        return;
+      }
+
+      await joinSharedSession(sessionCode, currentUser);
+      console.log('✅ Sessione condivisa raggiunta');
+    } catch (error) {
+      console.error('❌ Errore accesso sessione:', error);
+      alert('Errore nell\'accesso alla sessione');
+    }
+  };
+
+  const handleSendSharedMessage = (content) => {
+    const currentUser = multiUser || singleUser;
+    sendSharedMessage(content, currentUser);
+  };
+
+  const handleUpdateSharedCanvas = (canvasData) => {
+    const currentUser = multiUser || singleUser;
+    updateSharedCanvas(canvasData, currentUser);
+  };
+
+  const handleEndSharedSession = () => {
+    endSharedSession();
+  };
+
+  const handleLeaveSharedSession = () => {
+    // Per ora usa la stessa logica di endSharedSession
+    // In futuro potrebbe essere diversa se solo il guest lascia la sessione
+    endSharedSession();
   };
 
   // Gestione single-user (gioco privato di coppia)
@@ -214,6 +300,18 @@ export default function App() {
         
         {/* Controlli in alto */}
         <div className="fixed top-4 right-4 flex items-center space-x-2 z-50">
+          <button
+            onClick={() => {
+              const code = prompt('Inserisci il codice della sessione condivisa:');
+              if (code) {
+                handleJoinSharedSession(code.trim().toUpperCase());
+              }
+            }}
+            className="px-4 py-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors duration-200 text-sm"
+            title="Unisciti a una sessione condivisa"
+          >
+            🎮 Unisciti
+          </button>
           <button
             onClick={multiLogout}
             className="px-4 py-2 bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors duration-200"
@@ -449,7 +547,25 @@ export default function App() {
         isOpen={isShareModalOpen}
         onClose={closeShareModal}
         currentUser={gameMode === 'multi' ? multiUser : singleUser}
+        onCreateSharedSession={handleCreateSharedSession}
       />
+
+      {/* Shared Session Modal */}
+      {isSessionActive && (
+        <SharedSession
+          sharedSession={sharedSession}
+          messages={sharedMessages}
+          canvasData={sharedCanvasData}
+          participants={sharedParticipants}
+          currentUser={gameMode === 'multi' ? multiUser : singleUser}
+          isHost={isHost}
+          sessionCode={sessionCode}
+          onSendMessage={handleSendSharedMessage}
+          onCanvasUpdate={handleUpdateSharedCanvas}
+          onEndSession={handleEndSharedSession}
+          onLeaveSession={handleLeaveSharedSession}
+        />
+      )}
 
       {/* Shared Card Viewer */}
       {sharedCardFromUrl && (
@@ -465,6 +581,9 @@ export default function App() {
 
       {/* Demo Button for Testing */}
       <ShareDemoButton />
+
+      {/* Shared Session Test Button */}
+      <SharedSessionTestButton />
     </div>
   );
 }
