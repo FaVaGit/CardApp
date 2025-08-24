@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { expandedCards } from './expandedCards';
+import { ShareCardModal } from './ShareCardModal';
+import { SharedCardViewer } from './SharedCardViewer';
+import { useCardSharing } from './useCardSharing';
 
 export function PartnerManagement({ 
   currentUser,
@@ -31,6 +34,25 @@ export function PartnerManagement({
   const [chatMessage, setChatMessage] = useState('');
   const [userState, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sharedCardFromUrl, setSharedCardFromUrl] = useState(null);
+
+  // Hook per la condivisione carte
+  const {
+    isShareModalOpen,
+    cardToShare,
+    openShareModal,
+    closeShareModal,
+    quickShare,
+    handleIncomingSharedCard
+  } = useCardSharing();
+
+  // Gestisci carte condivise dall'URL all'avvio
+  useEffect(() => {
+    const incomingCard = handleIncomingSharedCard();
+    if (incomingCard) {
+      setSharedCardFromUrl(incomingCard);
+    }
+  }, [handleIncomingSharedCard]);
 
   // Carica lo stato dell'utente dal backend (centralizzato)
   useEffect(() => {
@@ -69,7 +91,7 @@ export function PartnerManagement({
     };
 
     reloadState();
-  }, [currentCouple, activeSession, onlineUsers]);
+  }, [currentCouple, onlineUsers]);
 
   // Reset error quando cambia tab
   useEffect(() => {
@@ -210,7 +232,13 @@ export function PartnerManagement({
   };
 
   const handleShareRandomCard = async () => {
-    // Prendi una carta casuale dal database
+    // Se c'è una carta attuale nella sessione, condividi quella
+    if (activeSession?.currentCard) {
+      openShareModal(activeSession.currentCard);
+      return;
+    }
+
+    // Altrimenti prendi una carta casuale dal database
     const randomCard = expandedCards[Math.floor(Math.random() * expandedCards.length)];
     const randomPrompt = randomCard.prompts[Math.floor(Math.random() * randomCard.prompts.length)];
     
@@ -221,14 +249,11 @@ export function PartnerManagement({
       emoji: randomCard.emoji,
       category: randomCard.category,
       color: randomCard.color,
+      prompts: [randomPrompt], // Assicuriamoci che sia un array
       type: "conversation"
     };
 
-    try {
-      await onShareCard(cardToShare);
-    } catch (error) {
-      console.error('Card share error:', error);
-    }
+    openShareModal(cardToShare);
   };
 
   // Status indicator
@@ -682,14 +707,22 @@ export function PartnerManagement({
                         <p className="text-xs opacity-75 capitalize">{activeSession.currentCard.category}</p>
                       </div>
                     </div>
+                    <button
+                      onClick={() => openShareModal(activeSession.currentCard)}
+                      className="px-3 py-1 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg text-white text-sm font-medium transition-colors"
+                    >
+                      📤 Condividi
+                    </button>
+                  </div>
+                  <p className="text-lg leading-relaxed mb-3">{activeSession.currentCard.content}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs opacity-75">
+                      Condivisa da {activeSession.currentCard.sharedByName}
+                    </p>
                     <span className="text-xs opacity-75">
                       {new Date(activeSession.currentCard.sharedAt).toLocaleTimeString()}
                     </span>
                   </div>
-                  <p className="text-lg leading-relaxed mb-3">{activeSession.currentCard.content}</p>
-                  <p className="text-xs opacity-75">
-                    Condivisa da {activeSession.currentCard.sharedByName}
-                  </p>
                 </div>
               )}
 
@@ -907,6 +940,26 @@ export function PartnerManagement({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Share Card Modal */}
+      <ShareCardModal
+        card={cardToShare}
+        isOpen={isShareModalOpen}
+        onClose={closeShareModal}
+        currentUser={currentUser}
+      />
+
+      {/* Shared Card Viewer */}
+      {sharedCardFromUrl && (
+        <SharedCardViewer
+          sharedCard={sharedCardFromUrl}
+          onClose={() => setSharedCardFromUrl(null)}
+          onPlayGame={() => {
+            setSharedCardFromUrl(null);
+            // L'utente può iniziare a giocare dalla carta condivisa
+          }}
+        />
       )}
     </div>
   );

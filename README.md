@@ -5,11 +5,39 @@ Un'applicazione web interattiva progettata per rafforzare i legami tra le coppie
 ## 🚀 Caratteristiche Principali
 
 - **🎮 Gioco Interattivo**: Carte con domande e attività per coppie
-- **👥 Multi-utente in Tempo Reale**: Sincronizzazione live tramite SignalR
+- **� Condividi Carta**: Condividi le tue carte preferite sui social media o tramite link
+- **�👥 Multi-utente in Tempo Reale**: Sincronizzazione live tramite SignalR
 - **📱 Responsive Design**: Ottimizzato per dispositivi mobili e desktop
 - **🔗 Sistema di Accoppiamento**: Crea coppie tramite codici unici
 - **🌐 Supporto Multi-dispositivo**: Gioca su diversi dispositivi contemporaneamente
 - **🏗️ Architettura Centralizzata**: Logica UI gestita completamente dal backend
+
+## 📤 Funzionalità "Condividi Carta"
+
+### ✨ **Cosa Puoi Fare**
+- **Condivisioni Rapide**: Condividi direttamente su WhatsApp, Telegram, Twitter, Facebook
+- **Link Personalizzati**: Genera link che mostrano la carta condivisa nell'app
+- **Copia Intelligente**: Copia il testo della carta o solo il link negli appunti
+- **Salvataggio**: Scarica la carta come immagine PNG personalizzata
+- **Apertura Diretta**: I link condivisi aprono automaticamente la carta nell'app
+
+### 🎯 **Come Funziona**
+1. **Durante il Gioco**: Clicca "📤 Condividi Carta" su qualsiasi carta pescata
+2. **Scegli il Metodo**: Seleziona tra social media, link, copia o salvataggio
+3. **Condivisione Automatica**: La carta viene formattata e condivisa con design professionale
+4. **Ricezione**: Chi riceve il link vede la carta in un viewer speciale
+
+### 🔗 **Dove Appare**
+- **Gioco Privato**: Nelle carte pescare nella modalità privata
+- **Sessioni Multi-utente**: Durante le sessioni di gruppo
+- **Partner Management**: Nelle carte condivise nella sessione attiva
+- **Dual-Device**: Nella modalità dual-device per coppie
+
+### 📱 **Formati Supportati**
+- **Nativo Mobile**: Usa il menu di condivisione del telefono
+- **Social Media**: Collegamenti diretti a WhatsApp, Telegram, ecc.
+- **Link Web**: URL che apre la carta direttamente nell'app
+- **Immagine**: PNG ad alta risoluzione con design personalizzato
 
 ## 🛠️ Tecnologie Utilizzate
 

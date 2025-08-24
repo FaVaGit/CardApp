@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FloatingParticles } from './FloatingParticles';
 import { useConfetti, ConfettiEffect } from './ConfettiEffect';
 import { useMultiUser } from './useMultiUser';
@@ -7,6 +7,10 @@ import { MultiUserLobby } from './MultiUserLobby';
 import { MultiUserGameSession } from './MultiUserGameSession';
 import { HistoryModal } from './HistoryModal';
 import { expandedCards } from './expandedCards';
+import { ShareCardModal } from './ShareCardModal';
+import { SharedCardViewer } from './SharedCardViewer';
+import { useCardSharing } from './useCardSharing';
+import { ShareDemoButton } from './ShareDemoButton';
 
 // Manteniamo anche la versione single-user per compatibilità
 import { useAuth, useHistory } from './useAuth';
@@ -19,7 +23,18 @@ export default function App() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [sharedCardFromUrl, setSharedCardFromUrl] = useState(null);
   const { showConfetti, triggerConfetti } = useConfetti();
+  
+  // Hook per la condivisione carte
+  const {
+    isShareModalOpen,
+    cardToShare,
+    openShareModal,
+    closeShareModal,
+    quickShare,
+    handleIncomingSharedCard
+  } = useCardSharing();
   
   // Multi-user hooks
   const { 
@@ -42,6 +57,14 @@ export default function App() {
   // Single-user hooks (per compatibilità)
   const { user: singleUser, login: singleLogin, logout: singleLogout, isLoading: singleLoading } = useAuth();
   const { history, addToHistory, clearHistory, getStats } = useHistory();
+
+  // Gestisci carte condivise dall'URL all'avvio
+  useEffect(() => {
+    const incomingCard = handleIncomingSharedCard();
+    if (incomingCard) {
+      setSharedCardFromUrl(incomingCard);
+    }
+  }, [handleIncomingSharedCard]);
 
   const categories = [
     { id: 'all', name: 'Tutte', emoji: '🎲' },
@@ -360,13 +383,21 @@ export default function App() {
               ))}
             </div>
             <div className="mt-6 text-center space-y-3">
-              <button 
-                onClick={drawCard}
-                disabled={isDrawing}
-                className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 hover:from-purple-500 hover:to-pink-500"
-              >
-                Pesca un'altra carta ✨
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button 
+                  onClick={drawCard}
+                  disabled={isDrawing}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 hover:from-purple-500 hover:to-pink-500"
+                >
+                  Pesca un'altra carta ✨
+                </button>
+                <button 
+                  onClick={() => openShareModal(current)}
+                  className="px-6 py-3 bg-gradient-to-r from-cyan-400 to-blue-400 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500"
+                >
+                  📤 Condividi Carta
+                </button>
+              </div>
               <p className="text-sm text-gray-600 italic">
                 💡 Prendetevi il vostro tempo per godervi il momento!
               </p>
@@ -411,6 +442,29 @@ export default function App() {
           setShowHistory(false);
         }}
       />
+
+      {/* Share Card Modal */}
+      <ShareCardModal
+        card={cardToShare}
+        isOpen={isShareModalOpen}
+        onClose={closeShareModal}
+        currentUser={gameMode === 'multi' ? multiUser : singleUser}
+      />
+
+      {/* Shared Card Viewer */}
+      {sharedCardFromUrl && (
+        <SharedCardViewer
+          sharedCard={sharedCardFromUrl}
+          onClose={() => setSharedCardFromUrl(null)}
+          onPlayGame={() => {
+            setSharedCardFromUrl(null);
+            // L'utente può iniziare a giocare dalla carta condivisa
+          }}
+        />
+      )}
+
+      {/* Demo Button for Testing */}
+      <ShareDemoButton />
     </div>
   );
 }

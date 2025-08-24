@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { expandedCards } from './expandedCards';
+import { ShareCardModal } from './ShareCardModal';
+import { useCardSharing } from './useCardSharing';
 
 export function DualDeviceGameSession({ 
   currentPartner, 
@@ -18,6 +20,14 @@ export function DualDeviceGameSession({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showCanvas, setShowCanvas] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+
+  // Hook per la condivisione carte
+  const {
+    isShareModalOpen,
+    cardToShare,
+    openShareModal,
+    closeShareModal
+  } = useCardSharing();
   const [newNote, setNewNote] = useState('');
   const [drawingMode, setDrawingMode] = useState(false);
   const [brushColor, setBrushColor] = useState(currentPartner?.preferences.drawingColor || '#8b5cf6');
@@ -317,7 +327,15 @@ export function DualDeviceGameSession({
                     </div>
                   ))}
                 </div>
-                <div className="mt-6 text-center">
+                <div className="mt-6 text-center space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button 
+                      onClick={() => openShareModal(current)}
+                      className="px-6 py-2 bg-gradient-to-r from-cyan-400 to-blue-400 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500"
+                    >
+                      📤 Condividi Carta
+                    </button>
+                  </div>
                   <p className="text-sm text-gray-600 italic">
                     💡 Rispondete insieme e usate canvas e note per condividere le idee!
                   </p>
@@ -467,6 +485,14 @@ export function DualDeviceGameSession({
             )}
           </div>
         )}
+
+        {/* Share Card Modal */}
+        <ShareCardModal
+          card={cardToShare}
+          isOpen={isShareModalOpen}
+          onClose={closeShareModal}
+          currentUser={currentPartner}
+        />
       </div>
     </div>
   );

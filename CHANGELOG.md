@@ -8,6 +8,38 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 ## [Non Rilasciato]
 
 ### Aggiunto
+- 📤 **Funzionalità "Condividi Carta"** completa
+  - **ShareCardModal.jsx**: Modal principale per la condivisione
+  - **SharedCardViewer.jsx**: Visualizzatore per carte ricevute tramite link
+  - **useCardSharing.js**: Hook React personalizzato per gestire la condivisione
+  - **Condivisione Multi-Piattaforma**: WhatsApp, Telegram, Twitter, Facebook, Email
+  - **Link Dinamici**: Genera automaticamente URL condivisibili con carta incorporata
+  - **Copia negli Appunti**: Testo completo o solo link con feedback visivo
+  - **Salvataggio come Immagine**: Genera PNG personalizzato della carta
+  - **Web Share API**: Condivisione nativa su dispositivi mobili
+- 🧪 **ShareDemoButton**: Pulsante di test per validare la funzionalità
+- 📋 **CONDIVIDI_CARTA_GUIDE.md**: Documentazione completa della funzionalità
+- 🔄 **Integrazione Completa**: Funzionalità disponibile in tutti i componenti di gioco
+  - AppMultiUser.jsx (modalità privata)
+  - PartnerManagement.jsx (backend reale)
+  - MultiUserGameSession.jsx (sessioni multi-utente)
+  - DualDeviceGameSession.jsx (modalità dual-device)
+
+### Migliorato
+- 🎨 **UX Condivisione**: Design coerente con pulsanti "📤 Condividi Carta"
+- 📱 **Responsive**: Modal e viewer ottimizzati per mobile e desktop
+- ⚡ **Performance**: Generazione immagini ottimizzata con Canvas API
+- 🔗 **SEO**: URL condivisibili includono tutti i metadati necessari
+
+### Tecnico
+- **Canvas API**: Per generazione dinamica di immagini delle carte
+- **URL Encoding**: Codifica sicura dei dati carta nei link condivisibili
+- **Clipboard API**: Copia intelligente con fallback per browser legacy
+- **Progressive Enhancement**: Funziona anche su browser che non supportano tutte le API
+
+## [1.1.0] - 2025-08-22
+
+### Aggiunto
 - ✨ **Script di avvio automatico** per Linux/macOS (`start.sh`)
 - ⚡ **Avvio ultra-rapido** con `quick-start.sh` 
 - 🖥️ **Script Windows** `start.bat` per utenti Windows
