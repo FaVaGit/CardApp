@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { expandedCards } from './expandedCards';
 import { SharedCanvas } from './SharedCanvas';
+import { ShareCardModal } from './ShareCardModal';
+import { useCardSharing } from './useCardSharing';
 
 export function MultiUserGameSession({ 
   selectedMode,
@@ -27,6 +29,14 @@ export function MultiUserGameSession({
   const [newMessage, setNewMessage] = useState('');
   const [activeTab, setActiveTab] = useState('game'); // 'game', 'chat', 'canvas'
   const messagesEndRef = useRef(null);
+
+  // Hook per la condivisione carte
+  const {
+    isShareModalOpen,
+    cardToShare,
+    openShareModal,
+    closeShareModal
+  } = useCardSharing();
 
   // Seleziona il mazzo di carte appropriato
   const cards = selectedMode?.gameType === 'family' ? allFamilyCards : (cardDeck || expandedCards);
@@ -274,7 +284,15 @@ export function MultiUserGameSession({
                       </div>
                     ))}
                   </div>
-                  <div className="mt-6 text-center">
+                  <div className="mt-6 text-center space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <button 
+                        onClick={() => openShareModal(current)}
+                        className="px-6 py-2 bg-gradient-to-r from-cyan-400 to-blue-400 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500"
+                      >
+                        📤 Condividi Carta
+                      </button>
+                    </div>
                     <p className="text-sm text-gray-600 italic">
                       💡 Discutete insieme le vostre risposte!
                     </p>
@@ -390,6 +408,14 @@ export function MultiUserGameSession({
             />
           </div>
         )}
+
+        {/* Share Card Modal */}
+        <ShareCardModal
+          card={cardToShare}
+          isOpen={isShareModalOpen}
+          onClose={closeShareModal}
+          currentUser={currentUser}
+        />
       </div>
     </div>
   );
