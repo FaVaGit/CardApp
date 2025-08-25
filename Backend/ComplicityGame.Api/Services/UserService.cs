@@ -13,6 +13,7 @@ public interface IUserService
     Task<User?> GetUserByCodeAsync(string personalCode);
     Task<User?> GetUserByIdAsync(string userId);
     Task<UserStateDto?> GetUserStateAsync(string userId);
+    Task ClearAllUsersAsync();
 }
 
 public class UserService : IUserService
@@ -201,5 +202,36 @@ public class UserService : IUserService
         while (_context.Users.Any(u => u.PersonalCode == code));
 
         return code;
+    }
+
+    public async Task ClearAllUsersAsync()
+    {
+        try
+        {
+            // Set all users offline first
+            var allUsers = await _context.Users.ToListAsync();
+            foreach (var user in allUsers)
+            {
+                user.IsOnline = false;
+                user.LastSeen = DateTime.UtcNow;
+            }
+
+            // Clear all related data
+            _context.SharedCards.RemoveRange(_context.SharedCards);
+            _context.GameMessages.RemoveRange(_context.GameMessages);
+            _context.GameSessions.RemoveRange(_context.GameSessions);
+            _context.CoupleUsers.RemoveRange(_context.CoupleUsers);
+            _context.Couples.RemoveRange(_context.Couples);
+            _context.Users.RemoveRange(_context.Users);
+
+            await _context.SaveChangesAsync();
+            
+            Console.WriteLine("✅ All users and related data cleared successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error clearing users: {ex.Message}");
+            throw;
+        }
     }
 }

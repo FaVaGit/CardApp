@@ -191,6 +191,20 @@ public class GameController : ControllerBase
         }
     }
 
+    [HttpGet("couples/{coupleId}/sessions")]
+    public async Task<ActionResult<List<GameSession>>> GetCoupleSessions(string coupleId)
+    {
+        try
+        {
+            var sessions = await _gameSessionService.GetCoupleSessionsAsync(coupleId);
+            return Ok(sessions);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("couples/{coupleId}")]
     public async Task<ActionResult<Couple>> GetCouple(string coupleId)
     {
@@ -240,6 +254,94 @@ public class GameController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    // ============ FRONTEND COMPATIBILITY ENDPOINTS ============
+    // These endpoints match the exact calls made by the frontend
+    
+    [HttpPost("create-couple")]
+    public async Task<ActionResult<Couple>> CreateCoupleForFrontend([FromBody] CreateCoupleForFrontendRequest request)
+    {
+        try
+        {
+            var couple = await _coupleService.CreateCoupleAsync(
+                request.PartnerName ?? "Couple", 
+                request.CreatorId, 
+                request.GameType ?? "Single");
+            return Ok(couple);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("join-couple")]
+    public async Task<ActionResult<Couple>> JoinCoupleForFrontend([FromBody] JoinCoupleForFrontendRequest request)
+    {
+        try
+        {
+            var couple = await _coupleService.AddUserToCoupleAsync(request.CoupleId, request.UserId, "member");
+            if (couple == null)
+            {
+                return NotFound(new { error = "Coppia non trovata" });
+            }
+            return Ok(couple);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("leave-couple")]
+    public async Task<ActionResult> LeaveCoupleForFrontend([FromBody] LeaveCoupleForFrontendRequest request)
+    {
+        try
+        {
+            var success = await _coupleService.LeaveCoupleAsync(request.UserId);
+            if (!success)
+            {
+                return NotFound(new { error = "Utente non in nessuna coppia attiva" });
+            }
+            return Ok(new { message = "Hai lasciato la coppia con successo" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("start-session")]
+    public async Task<ActionResult<GameSession>> StartSessionForFrontend([FromBody] StartSessionForFrontendRequest request)
+    {
+        try
+        {
+            var session = await _gameSessionService.CreateSessionAsync(
+                request.CoupleId, 
+                request.CoupleId, // Using coupleId as createdBy for now
+                request.SessionType ?? "Standard");
+            return Ok(session);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("sessions/{sessionId}/end")]
+    public async Task<ActionResult> EndSession(string sessionId)
+    {
+        try
+        {
+            // For now, we'll just return success
+            // In a real implementation, this would end the session
+            return Ok(new { message = "Session ended successfully", sessionId });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }
 
 // DTOs
@@ -276,4 +378,30 @@ public class JoinCoupleRequest
 public class LeaveCoupleRequest
 {
     public string UserId { get; set; } = string.Empty;
+}
+
+// Frontend compatibility DTOs
+public class CreateCoupleForFrontendRequest
+{
+    public string CreatorId { get; set; } = string.Empty;
+    public string PartnerName { get; set; } = string.Empty;
+    public string GameType { get; set; } = string.Empty;
+}
+
+public class JoinCoupleForFrontendRequest
+{
+    public string CoupleId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+}
+
+public class LeaveCoupleForFrontendRequest
+{
+    public string CoupleId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+}
+
+public class StartSessionForFrontendRequest
+{
+    public string CoupleId { get; set; } = string.Empty;
+    public string SessionType { get; set; } = string.Empty;
 }

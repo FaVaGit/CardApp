@@ -11,6 +11,7 @@ public interface IGameSessionService
     Task<GameSession?> GetSessionAsync(string sessionId);
     Task<GameSession?> GetActiveSessionByCoupleAsync(string coupleId);
     Task<GameSession?> GetActiveSessionForCoupleAsync(string coupleId);
+    Task<List<GameSession>> GetCoupleSessionsAsync(string coupleId);
     Task<GameMessage> AddMessageAsync(string sessionId, string senderId, string message);
     Task<SharedCard> ShareCardAsync(string sessionId, string userId, object cardData);
 }
@@ -145,5 +146,20 @@ public class GameSessionService : IGameSessionService
             .ThenInclude(c => c.Members)
             .ThenInclude(m => m.User)
             .FirstOrDefaultAsync(s => s.CoupleId == coupleId && s.IsActive);
+    }
+
+    public async Task<List<GameSession>> GetCoupleSessionsAsync(string coupleId)
+    {
+        return await _context.GameSessions
+            .Include(s => s.Messages)
+            .ThenInclude(m => m.Sender)
+            .Include(s => s.SharedCards)
+            .ThenInclude(c => c.SharedBy)
+            .Include(s => s.Couple)
+            .ThenInclude(c => c.Members)
+            .ThenInclude(m => m.User)
+            .Where(s => s.CoupleId == coupleId)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
     }
 }

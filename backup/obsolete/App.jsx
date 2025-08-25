@@ -28,7 +28,9 @@ export default function App() {
     getAllCouples,
     createGameSession,
     getUserState,
-    logout
+    logout,
+    clearAllUsers,
+    forceRefreshData
   } = useBackend();
 
   useEffect(() => {
@@ -187,6 +189,8 @@ export default function App() {
         getUserState={getUserState}
         onLogout={handleLogout}
         onBack={handleBack}
+        clearAllUsers={clearAllUsers}
+        forceRefreshData={forceRefreshData}
       />
     );
   }
@@ -210,6 +214,8 @@ export default function App() {
             gameType="couple"
             onLogin={handleLogin}
             onBack={handleBack}
+            clearAllUsers={clearAllUsers}
+            forceRefreshData={forceRefreshData}
           />
         </div>
       </div>

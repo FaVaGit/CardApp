@@ -37,6 +37,9 @@ export function useRealBackend(currentUser, setCurrentUser) {
         // Setup event listeners
         setupEventListeners();
         
+        // Force refresh all data at startup
+        await forceRefreshData();
+        
         // Auto re-register user if we have one
         if (currentUser) {
           console.log('🔄 Re-registering current user after connection');
@@ -224,6 +227,77 @@ export function useRealBackend(currentUser, setCurrentUser) {
     return await backendRef.current.getUserState(userId);
   }, [isConnected]);
 
+  // Force refresh all data
+  const forceRefreshData = useCallback(async () => {
+    if (!backendRef.current) return;
+    
+    try {
+      console.log('🔄 Force refreshing all data...');
+      const { users, couples } = await backendRef.current.forceRefresh();
+      setOnlineUsers(users || []);
+      
+      // Reset state
+      setPartnerStatus(null);
+      setGameSession(null);
+      setMessages([]);
+      setSharedCards([]);
+      
+      console.log('✅ Data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Force refresh failed:', error);
+    }
+  }, []);
+
+  // Leave couple
+  const leaveCouple = useCallback(async () => {
+    if (!backendRef.current || !currentUser || !partnerStatus?.coupleId) {
+      throw new Error('Cannot leave couple: missing requirements');
+    }
+
+    console.log('👋 Leaving couple:', partnerStatus.coupleId);
+    await backendRef.current.leaveCouple(currentUser.id, partnerStatus.coupleId);
+    
+    // Reset partner status and session
+    setPartnerStatus(null);
+    setGameSession(null);
+    setMessages([]);
+  }, [currentUser, partnerStatus]);
+
+  // Get active sessions
+  const getActiveSessions = useCallback(async () => {
+    if (!backendRef.current || !partnerStatus?.coupleId) {
+      return [];
+    }
+
+    try {
+      console.log('📋 Getting active sessions for couple:', partnerStatus.coupleId);
+      return await backendRef.current.getActiveSessions(partnerStatus.coupleId);
+    } catch (error) {
+      console.error('❌ Failed to get active sessions:', error);
+      return [];
+    }
+  }, [partnerStatus]);
+
+  // Admin: Clear all users
+  const clearAllUsers = useCallback(async () => {
+    if (!backendRef.current) {
+      throw new Error('Backend not connected');
+    }
+
+    console.log('🗑️ Clearing all users...');
+    await backendRef.current.clearAllUsers();
+    
+    // Reset all state
+    setOnlineUsers([]);
+    setPartnerStatus(null);
+    setGameSession(null);
+    setMessages([]);
+    setSharedCards([]);
+    setCurrentUser(null);
+    
+    console.log('✅ All users cleared');
+  }, [setCurrentUser]);
+
   const cleanup = useCallback(() => {
     if (backendRef.current) {
       console.log('🧹 Cleaning up real backend connection');
@@ -277,6 +351,12 @@ export function useRealBackend(currentUser, setCurrentUser) {
     updatePresence,
     getUserState,
     cleanup,
+    
+    // New functions
+    forceRefreshData,
+    leaveCouple,
+    getActiveSessions,
+    clearAllUsers,
     
     // Backend reference (for advanced usage)
     backend: backendRef.current

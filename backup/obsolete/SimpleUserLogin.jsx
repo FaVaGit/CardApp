@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 
-export function SimpleUserLogin({ gameType, onLogin, onBack }) {
+export function SimpleUserLogin({ onLogin, onlineUsers, clearAllUsers, forceRefreshData }) {
   const [isNewUser, setIsNewUser] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     nickname: '',
-    personalCode: '',  // For login
-    coupleCode: ''     // For joining a couple
+    personalCode: '',
+    gameType: 'Single'
   });
   const [errors, setErrors] = useState({});
 
@@ -23,7 +23,9 @@ export function SimpleUserLogin({ gameType, onLogin, onBack }) {
         [name]: ''
       }));
     }
-  };  const validateForm = () => {
+  };
+
+  const validateForm = () => {
     const newErrors = {};
     
     if (!formData.name.trim()) {
@@ -39,15 +41,41 @@ export function SimpleUserLogin({ gameType, onLogin, onBack }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    const userData = {
-      action: isNewUser ? 'register' : 'login',
+    try {
+      if (isNewUser) {
+        // Register new user
+        await onLogin({
+          name: formData.name.trim(),
+          nickname: formData.nickname.trim() || formData.name.trim(),
+          gameType: formData.gameType,
+          isOnline: true,
+          availableForPairing: true
+        });
+      } else {
+        // Login existing user by personal code
+        const existingUser = onlineUsers.find(u => u.personalCode === formData.personalCode.trim());
+        if (!existingUser) {
+          setErrors({ personalCode: 'Codice personale non trovato' });
+          return;
+        }
+        
+        await onLogin({
+          ...existingUser,
+          isOnline: true,
+          availableForPairing: true
+        });
+      }
+    } catch (error) {
+      setErrors({ general: error.message });
+    }
+  };
       name: formData.name.trim(),
       nickname: formData.nickname.trim() || null,
       personalCode: formData.personalCode.trim() || null,  // For login
@@ -78,6 +106,28 @@ export function SimpleUserLogin({ gameType, onLogin, onBack }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-indigo-200 flex items-center justify-center p-4">
+      {/* Admin Controls Panel */}
+      <div className="fixed top-4 left-4 flex space-x-2 z-50">
+        {clearAllUsers && (
+          <button
+            onClick={clearAllUsers}
+            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+            title="Cancella tutti gli utenti dal database"
+          >
+            🗑️ Clear Users
+          </button>
+        )}
+        {forceRefreshData && (
+          <button
+            onClick={forceRefreshData}
+            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+            title="Ricarica tutti i dati"
+          >
+            🔄 Refresh
+          </button>
+        )}
+      </div>
+
       <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6">
