@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export function MultiUserLobby({ 
   currentUser, 
   partnerStatus,
   onCreatePartnership,
   onJoinUserByCode,
-  onCreateSession
+  onCreateSession,
+  onLeaveCouple,
+  onGetActiveSessions
 }) {
   const [partnerCode, setPartnerCode] = useState('');
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [showActiveSessions, setShowActiveSessions] = useState(false);
 
   const handleJoinPartner = () => {
     if (partnerCode.trim()) {
@@ -20,6 +24,23 @@ export function MultiUserLobby({
     const targetCode = prompt('Inserisci il codice del partner con cui vuoi creare una partnership:');
     if (targetCode && targetCode.trim()) {
       onCreatePartnership(targetCode.trim());
+    }
+  };
+
+  const handleLeaveCouple = async () => {
+    if (window.confirm('Sei sicuro di voler abbandonare la partnership?')) {
+      onLeaveCouple();
+    }
+  };
+
+  const handleViewActiveSessions = async () => {
+    try {
+      const sessions = await onGetActiveSessions();
+      setActiveSessions(sessions || []);
+      setShowActiveSessions(true);
+    } catch (error) {
+      console.error('Errore nel caricamento delle sessioni attive:', error);
+      alert('Errore nel caricamento delle sessioni attive');
     }
   };
 
@@ -63,11 +84,25 @@ export function MultiUserLobby({
               <p className="text-green-700 mb-4">
                 Sei in partnership con: <strong>{partnerStatus.partnerName}</strong>
               </p>
+              <div className="flex justify-center gap-4 mb-4">
+                <button
+                  onClick={onCreateSession}
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  🎮 Crea Sessione di Gioco
+                </button>
+                <button
+                  onClick={handleLeaveCouple}
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  🚪 Abbandona Partnership
+                </button>
+              </div>
               <button
-                onClick={onCreateSession}
-                className="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                onClick={handleViewActiveSessions}
+                className="px-4 py-2 bg-gradient-to-r from-blue-400 to-purple-400 text-white font-medium rounded-full hover:shadow-md transform hover:scale-105 transition-all duration-200 text-sm"
               >
-                🎮 Crea Sessione di Gioco
+                👀 Visualizza Sessioni Attive
               </button>
             </div>
           ) : (
@@ -118,6 +153,40 @@ export function MultiUserLobby({
             </div>
           </div>
         </div>
+
+        {/* Modal per le sessioni attive */}
+        {showActiveSessions && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowActiveSessions(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-800">Sessioni Attive</h3>
+                <button
+                  onClick={() => setShowActiveSessions(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-3">
+                {activeSessions.length > 0 ? (
+                  activeSessions.map((session, index) => (
+                    <div key={session.id || index} className="p-3 bg-gray-100 rounded-lg">
+                      <p className="font-medium">Sessione #{session.id}</p>
+                      <p className="text-sm text-gray-600">
+                        Coppia: {session.coupleName || 'Sconosciuta'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Stato: {session.isActive ? '🟢 Attiva' : '🔴 Inattiva'}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-4">Nessuna sessione attiva trovata</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

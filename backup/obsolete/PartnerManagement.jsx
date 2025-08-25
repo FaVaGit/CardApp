@@ -24,7 +24,9 @@ export function PartnerManagement({
   onUpdatePartnerStatus,
   onLogout,
   onBack,
-  getUserState // Aggiungiamo la nuova funzione
+  getUserState, // Aggiungiamo la nuova funzione
+  clearAllUsers,
+  forceRefreshData
 }) {
   const [activeTab, setActiveTab] = useState('join');
   const [joinCode, setJoinCode] = useState('');
@@ -291,7 +293,28 @@ export function PartnerManagement({
               </span>
             </div>
           </div>
-          <div className="flex space-x-2">              <button
+          <div className="flex space-x-2">
+            {/* Admin Controls */}
+            {clearAllUsers && (
+              <button
+                onClick={clearAllUsers}
+                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                title="Cancella tutti gli utenti dal database"
+              >
+                🗑️ Clear Users
+              </button>
+            )}
+            {forceRefreshData && (
+              <button
+                onClick={forceRefreshData}
+                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                title="Ricarica tutti i dati"
+              >
+                🔄 Refresh
+              </button>
+            )}
+            
+            <button
                 onClick={() => {
                   console.log('=== DEBUG INFO ===');
                   console.log('Current User:', currentUser);

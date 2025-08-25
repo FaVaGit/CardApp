@@ -71,7 +71,11 @@ export default function App() {
     createGameSession,
     sendMessage,
     shareCard,
-    backend
+    backend,
+    forceRefreshData,
+    leaveCouple,
+    getActiveSessions,
+    clearAllUsers
   } = useRealBackend();
   
   // Single-user hooks (per compatibilità)
@@ -366,6 +370,8 @@ export default function App() {
           onCreatePartnership={handleCreatePartnership}
           onJoinUserByCode={handleJoinUserByCode}
           onCreateSession={handleCreateSession}
+          onLeaveCouple={leaveCouple}
+          onGetActiveSessions={getActiveSessions}
         />
         
         {/* Controlli in alto */}
@@ -654,6 +660,43 @@ export default function App() {
 
       {/* Shared Session Test Button */}
       <SharedSessionTestButton />
+
+      {/* Admin Controls */}
+      {gameMode === 'multi' && (
+        <div className="fixed bottom-4 left-4 flex gap-2">
+          <button
+            onClick={async () => {
+              if (confirm('⚠️ Questo cancellerà TUTTI gli utenti dal sistema. Continuare?')) {
+                try {
+                  await clearAllUsers();
+                  alert('✅ Tutti gli utenti sono stati cancellati');
+                } catch (error) {
+                  alert('❌ Errore durante la cancellazione: ' + error.message);
+                }
+              }
+            }}
+            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 font-medium"
+            title="Cancella tutti gli utenti dal sistema"
+          >
+            🗑️ Clear Users
+          </button>
+          
+          <button
+            onClick={async () => {
+              try {
+                await forceRefreshData();
+                alert('🔄 Dati aggiornati');
+              } catch (error) {
+                alert('❌ Errore durante l\'aggiornamento: ' + error.message);
+              }
+            }}
+            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 font-medium"
+            title="Aggiorna tutti i dati dal server"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+      )}
 
       {/* Debug Component */}
       <DebugSharedSession 

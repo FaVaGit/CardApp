@@ -472,7 +472,6 @@ class BackendService {
     }
   }
 
-  // Get user state with permissions (centralizes UI logic in backend)
   async getUserState(userId) {
     try {
       const response = await fetch(`${this.baseUrl}/users/${userId}/state`, {
@@ -487,6 +486,85 @@ class BackendService {
       return await response.json();
     } catch (error) {
       console.error('Get user state error:', error);
+      throw error;
+    }
+  }
+
+  // Leave couple
+  async leaveCouple(userId, coupleId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/game/couples/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to leave couple: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Leave couple error:', error);
+      throw error;
+    }
+  }
+
+  // Get active sessions for a couple
+  async getActiveSessions(coupleId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/game/couples/${coupleId}/sessions`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get sessions: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get sessions error:', error);
+      throw error;
+    }
+  }
+
+  // Admin function to clear all users
+  async clearAllUsers() {
+    try {
+      const response = await fetch(`${this.baseUrl}/admin/clear-users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to clear users: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Clear users error:', error);
+      throw error;
+    }
+  }
+
+  // Force refresh all data
+  async forceRefresh() {
+    try {
+      console.log('🔄 Force refreshing all data...');
+      
+      // Refresh online users through SignalR
+      if (this.isConnected) {
+        await this.connection.invoke('RefreshOnlineUsers');
+      }
+      
+      // Get fresh data
+      const users = await this.getUsers();
+      const couples = await this.getAllCouples();
+      
+      return { users, couples };
+    } catch (error) {
+      console.error('Force refresh error:', error);
       throw error;
     }
   }

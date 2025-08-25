@@ -456,6 +456,37 @@ export function useBackend() {
     }
   }, []);
 
+  // Funzioni admin
+  const clearAllUsers = useCallback(async () => {
+    try {
+      const result = await backendService.clearAllUsers();
+      // Refresh degli utenti dopo la cancellazione
+      await refreshOnlineUsers();
+      return result;
+    } catch (error) {
+      console.error('Clear users error:', error);
+      throw error;
+    }
+  }, [refreshOnlineUsers]);
+
+  const forceRefreshData = useCallback(async () => {
+    try {
+      await backendService.forceRefresh();
+      // Refresh di tutti i dati
+      await refreshOnlineUsers();
+      await getAllCouples();
+      if (currentUser) {
+        const userState = await getUserState(currentUser.id);
+        if (userState) {
+          setCurrentCouple(userState.currentCouple);
+        }
+      }
+    } catch (error) {
+      console.error('Force refresh error:', error);
+      throw error;
+    }
+  }, [refreshOnlineUsers, getAllCouples, getUserState, currentUser]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -494,6 +525,10 @@ export function useBackend() {
     sendMessage,
     shareCard,
     getUserState,
-    logout
+    logout,
+    
+    // Admin functions
+    clearAllUsers,
+    forceRefreshData
   };
 }
