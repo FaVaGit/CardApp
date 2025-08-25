@@ -200,6 +200,46 @@ else
     VALIDATION_FAILED=$((VALIDATION_FAILED + 4))
 fi
 
+# Couple Environment Registration Test
+echo -e "\n${CYAN}🔍 COUPLE ENVIRONMENT TESTS${NC}"
+echo "----------------------------"
+
+# Test couple user registration workflow
+couple_user1_response=$(curl -s -w "%{http_code}" -X "POST" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"Mario","nickname":"mari","gameType":"Couple"}' \
+    "$BASE_URL/api/users/register" 2>/dev/null)
+couple_user1_status="${couple_user1_status: -3}"
+
+couple_user2_response=$(curl -s -w "%{http_code}" -X "POST" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"Lucia","nickname":"lucia","gameType":"Couple"}' \
+    "$BASE_URL/api/users/register" 2>/dev/null)
+couple_user2_status="${couple_user2_status: -3}"
+
+# Check if both registrations were successful
+if [[ "$couple_user1_response" =~ '"personalCode"' ]] && [[ "$couple_user2_response" =~ '"personalCode"' ]]; then
+    echo -e "${GREEN}✅ VALIDATION PASS: Couple User Registration (Both users registered successfully)${NC}"
+    VALIDATION_PASSED=$((VALIDATION_PASSED + 1))
+else
+    echo -e "${RED}❌ VALIDATION FAIL: Couple User Registration (Registration failed)${NC}"
+    echo -e "   User 1 Response: ${couple_user1_response%???}"
+    echo -e "   User 2 Response: ${couple_user2_response%???}"
+    VALIDATION_FAILED=$((VALIDATION_FAILED + 1))
+fi
+
+# Test that couple users appear in user list
+couple_users_response=$(curl -s "$BASE_URL/api/users?gameType=Couple" 2>/dev/null)
+couple_user_count=$(echo "$couple_users_response" | grep -o '"id":' | wc -l)
+
+if [ "$couple_user_count" -ge 2 ]; then
+    echo -e "${GREEN}✅ VALIDATION PASS: Couple Users Visibility (Found $couple_user_count couple users)${NC}"
+    VALIDATION_PASSED=$((VALIDATION_PASSED + 1))
+else
+    echo -e "${RED}❌ VALIDATION FAIL: Couple Users Visibility (Found only $couple_user_count users)${NC}"
+    VALIDATION_FAILED=$((VALIDATION_FAILED + 1))
+fi
+
 # Summary
 echo ""
 echo "========================================"
