@@ -312,7 +312,15 @@ export function useUnifiedBackend() {
 
   const getActiveSessions = async () => {
     try {
-      return await apiCall('/api/game/active-sessions');
+      // If user has a couple, get sessions for that couple
+      if (currentCouple && currentCouple.id) {
+        return await apiCall(`/api/game/sessions/couple/${currentCouple.id}`);
+      }
+      
+      // For now, return empty array if no couple
+      // TODO: Add backend endpoint for general active sessions if needed
+      console.warn('getActiveSessions: No couple found, returning empty array');
+      return [];
     } catch (err) {
       setError(err.message);
       throw err;
