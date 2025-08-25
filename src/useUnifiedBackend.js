@@ -162,7 +162,7 @@ export function useUnifiedBackend() {
   // User management
   const createOrUpdateUser = async (userData) => {
     try {
-      const user = await apiCall('/api/users', {
+      const user = await apiCall('/api/users/register', {
         method: 'POST',
         body: JSON.stringify(userData)
       });
