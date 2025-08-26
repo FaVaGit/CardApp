@@ -1,9 +1,9 @@
-# Gioco della Complicità - Updated Project Documentation
+# Gioco della Complicità - CardApp
 
 ## Project Status: ✅ Production Ready
 
-**Last Updated**: August 25, 2025  
-**Version**: 2.0 - Unified Architecture with Comprehensive Testing
+**Last Updated**: August 26, 2025  
+**Version**: 2.1 - Complete Couple Game with Real-time Card Sharing
 
 ## Quick Start
 
@@ -11,42 +11,54 @@
 # Clone and test in one command
 git clone <your-repo-url>
 cd CardApp
-./test-api-endpoints.sh
+./run-all-tests.sh
 ```
+
+## 🚀 Latest Updates (v2.1)
+
+### ✅ Couple Game Real-time Features
+- **Real-time Card Sharing**: Cards pescati da un partner appaiono istantaneamente all'altro
+- **SignalR Groups Management**: Sincronizzazione perfetta tra partner
+- **Game Session Management**: Creazione e gestione sessioni di gioco dedicate
+- **Complete Integration Testing**: Suite di test per scenario completo gioco di coppia
+
+### 🧪 Enhanced Testing Suite
+- **Unified Test Runner**: `./run-all-tests.sh` per tutti i test
+- **Couple Game Integration Tests**: Test specifici per condivisione carte real-time
+- **Interactive Testing**: Menu per selezione test specifici
+- **Comprehensive Documentation**: Guide complete per testing
 
 ## Architecture Overview
 
 ### Unified Backend-Frontend Integration
 - **Single ASP.NET Core Backend** (Port 5000)
-- **React Frontend** with Vite (Port 5173) 
+- **React Frontend** with Vite (Port 5174) 
 - **Real-time Communication** via SignalR WebSockets
 - **SQLite Database** with Entity Framework Core
-- **Comprehensive API Testing** with automated validation
+- **Comprehensive Testing Suite** with automated validation
 
 ### Technology Stack
 - **Backend**: ASP.NET Core 8.0, SignalR, Entity Framework Core, SQLite
-- **Frontend**: React 18, Vite 5, Tailwind CSS, TypeScript
-- **Testing**: Bash automation, curl-based API validation
+- **Frontend**: React 18, Vite 5, Tailwind CSS, SignalR Client
+- **Testing**: Bash automation, curl-based API validation, integration testing
 - **Development**: Hot reload, auto-restart, comprehensive error handling
 
 ## Key Features
 
 ### 🎮 Game Functionality
 - **User Registration & Management** with real-time presence
-- **Couple Formation** with partner matching
-- **Game Sessions** with WebSocket communication
-- **Card System** with dynamic content delivery
+- **Couple Formation** with partner matching and session codes
+- **Real-time Game Sessions** with instant card synchronization
+- **Dynamic Card System** with real-time sharing between partners
 - **Admin Controls** for system management
 
-### � Technical Excellence
+### 🔧 Technical Excellence
 - **Frontend-Backend API Consistency** (0 mismatches)
+- **Real-time SignalR Groups** for game session management
 - **Comprehensive Error Handling** with proper HTTP status codes
-- **Real-time Updates** via SignalR
-- **Automatic Testing Suite** with 18 validation scenarios
+- **Real-time Updates** via SignalR for all game interactions
+- **Complete Testing Suite** with couple game integration scenarios
 - **Self-contained Deployment** with zero-dependency testing
-- **Entity Framework Core** per ORM e gestione database
-- **SQLite** come database embedded
-- **CORS** configurato per comunicazione frontend-backend
 
 ## File Structure
 
@@ -58,9 +70,13 @@ CardApp/
 │   └── CHANGELOG.md                 # Version history
 │
 ├── 🧪 Testing Infrastructure  
-│   ├── test-api-endpoints.sh        # Self-contained comprehensive test suite
+│   ├── run-all-tests.sh             # Unified test suite with interactive menu
+│   ├── tests/
+│   │   └── couple-game-integration.test.sh  # Couple game real-time testing
+│   ├── test-api-endpoints.sh        # Comprehensive API testing
+│   ├── test-frontend.sh             # Frontend testing
 │   ├── simple-api-test.sh           # Lightweight testing option
-│   └── test-backend.log             # Backend test logs
+│   └── docs/TESTING.md              # Complete testing documentation
 │
 ├── 🚀 Application Launchers
 │   ├── start-unified.sh             # Unified app launcher (backend + frontend)
@@ -74,18 +90,22 @@ CardApp/
 │       │   ├── GameController.cs     # Game/couple operations
 │       │   └── AdminController.cs    # Admin functions
 │       ├── Services/                 # Business logic
-│       ├── Models/                   # Data models
-│       ├── Hubs/                     # SignalR hubs
+│       │   ├── GameSessionService.cs # Game session management
+│       │   └── UserService.cs        # User operations
+│       ├── Models/                   # Data models & DbContext
+│       ├── Hubs/                     # SignalR hubs for real-time communication
+│       │   └── GameHub.cs            # Main game hub with group management
 │       └── Program.cs                # Application entry point
 │
 ├── 🎨 Frontend (React + Vite)
 │   ├── src/
-│   │   ├── useUnifiedBackend.js      # Central API integration hook
-│   │   ├── App.jsx                   # Main React application
-│   │   ├── components/               # React components
+│   │   ├── SimpleApp.jsx             # Main application entry
+│   │   ├── SimpleAuth.jsx            # Authentication component
+│   │   ├── CoupleGame.jsx            # Couple game with real-time features
+│   │   ├── SimpleCardGame.jsx        # Individual card game
+│   │   ├── GameTypeSelector.jsx     # Game selection component
 │   │   └── styles/                   # Tailwind CSS styles
 │   ├── public/                       # Static assets
-│   ├── package.json                  # Node.js dependencies
 │   └── vite.config.js                # Vite configuration
 │
 └── 📦 Archive
@@ -127,7 +147,7 @@ CardApp/
 ### 1. Quick Testing
 ```bash
 # Test everything (auto-starts backend if needed)
-./test-api-endpoints.sh
+./run-all-tests.sh
 ```
 
 ### 2. Development Mode
@@ -147,28 +167,75 @@ dotnet run --urls=http://localhost:5000
 npm run dev
 ```
 
-## Testing Results (Latest Run)
+## 🧪 Testing Suite
+
+### Complete Test Coverage
+
+```bash
+# Esegui tutti i test con report dettagliato
+./run-all-tests.sh
+
+# Esecuzione interattiva con menu
+./run-all-tests.sh --interactive
+
+# Test specifici
+./tests/couple-game-integration.test.sh  # Test gioco di coppia
+./test-api-endpoints.sh                   # Test API backend
+./test-frontend.sh                        # Test frontend
+```
+
+### Latest Test Results (v2.1)
 
 ```
-🚀 Comprehensive API Endpoint Testing Suite
-============================================
+🧪 CARDAPP - UNIFIED TEST SUITE
+===============================================================================
 
-📊 TEST SUMMARY
-✅ Basic Tests Passed: 14/14
-✅ Frontend Compatibility Tests Passed: 6/6  
-✅ Validation Tests Passed: 4/4
-✅ Total Tests Passed: 18/18
+� Statistiche:
+   • Test totali: 4
+   • Test passati: 4  
+   • Test falliti: 0
+   • Tasso successo: 100%
 
-🎉 ALL TESTS PASSED! API is fully functional and consistent!
-✅ All basic endpoints working correctly
-✅ All frontend compatibility endpoints implemented  
-✅ All validation tests passed
-✅ No critical frontend-backend mismatches detected
+🎉 TUTTI I TEST SONO PASSATI!
 
-💡 Your API is production-ready!
+✅ Funzionalità verificate:
+   • API backend completamente funzionali
+   • Gioco di coppia con condivisione carte real-time
+   • SignalR connection e gruppi sincronizzati
+   • Frontend reattivo e responsive
+   • Gestione errori robusta
 ```
+
+### Test Gioco di Coppia (NUOVO)
+
+**Scenario verificato**: Condivisione carte real-time tra partner
+
+✅ **Step testati automaticamente**:
+- Connessione SignalR senza errori
+- Creazione e unione sessioni di coppia  
+- Gestione gruppi SignalR per GameSession
+- API endpoints per couples e cards
+
+✅ **Integrazione manuale verificata**:
+- Utente1 pesca carta → appare istantaneamente a Utente2
+- Utente2 pesca carta → appare istantaneamente a Utente1
+- Sincronizzazione real-time perfetta tra partner
 
 ## Recent Major Updates
+
+### ✅ Version 2.1 - Complete Couple Game (August 26, 2025)
+
+**🎮 Couple Game Real-time Features**
+- ✅ **Real-time Card Sharing** - Cards pescati si sincronizzano istantaneamente tra partner
+- ✅ **SignalR Groups Management** - Gestione perfetta dei gruppi per GameSession  
+- ✅ **Session Management** - Creazione, unione e gestione sessioni di coppia
+- ✅ **Complete Integration Testing** - Test end-to-end per scenario completo
+
+**🧪 Enhanced Testing Infrastructure**
+- ✅ **Unified Test Runner** - Suite completa con menu interattivo
+- ✅ **Couple Game Integration Tests** - Test specifici per condivisione real-time
+- ✅ **Comprehensive Documentation** - Guida completa testing in `docs/TESTING.md`
+- ✅ **Automated + Manual Testing** - Copertura completa funzionalità
 
 ### ✅ Version 2.0 - Unified Architecture (August 25, 2025)
 

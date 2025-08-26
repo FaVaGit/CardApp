@@ -63,15 +63,26 @@ public class GameSessionService : IGameSessionService
 
     public async Task<GameSession?> GetSessionAsync(string sessionId)
     {
-        return await _context.GameSessions
+        var session = await _context.GameSessions
             .Include(s => s.Messages)
             .ThenInclude(m => m.Sender)
             .Include(s => s.SharedCards)
             .ThenInclude(c => c.SharedBy)
             .Include(s => s.Couple)
-            .ThenInclude(c => c.Members)
-            .ThenInclude(m => m.User)
             .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+        // Load couple users separately to avoid circular includes
+        if (session?.Couple != null)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == session.Couple.Id)
+                .ToListAsync();
+            
+            session.Couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
+
+        return session;
     }
 
     public async Task<GameSession?> GetActiveSessionByCoupleAsync(string coupleId)
@@ -137,29 +148,54 @@ public class GameSessionService : IGameSessionService
 
     public async Task<GameSession?> GetActiveSessionForCoupleAsync(string coupleId)
     {
-        return await _context.GameSessions
+        var session = await _context.GameSessions
             .Include(s => s.Messages)
             .ThenInclude(m => m.Sender)
             .Include(s => s.SharedCards)
             .ThenInclude(c => c.SharedBy)
             .Include(s => s.Couple)
-            .ThenInclude(c => c.Members)
-            .ThenInclude(m => m.User)
             .FirstOrDefaultAsync(s => s.CoupleId == coupleId && s.IsActive);
+
+        // Load couple users separately to avoid circular includes
+        if (session?.Couple != null)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == session.Couple.Id)
+                .ToListAsync();
+            
+            session.Couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
+
+        return session;
     }
 
     public async Task<List<GameSession>> GetCoupleSessionsAsync(string coupleId)
     {
-        return await _context.GameSessions
+        var sessions = await _context.GameSessions
             .Include(s => s.Messages)
             .ThenInclude(m => m.Sender)
             .Include(s => s.SharedCards)
             .ThenInclude(c => c.SharedBy)
             .Include(s => s.Couple)
-            .ThenInclude(c => c.Members)
-            .ThenInclude(m => m.User)
             .Where(s => s.CoupleId == coupleId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
+
+        // Load couple users separately to avoid circular includes
+        foreach (var session in sessions)
+        {
+            if (session.Couple != null)
+            {
+                var coupleMembers = await _context.CoupleUsers
+                    .Include(cu => cu.User)
+                    .Where(cu => cu.CoupleId == session.Couple.Id)
+                    .ToListAsync();
+                
+                session.Couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+            }
+        }
+
+        return sessions;
     }
 }

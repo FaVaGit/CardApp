@@ -98,7 +98,7 @@ public class GameController : ControllerBase
     {
         try
         {
-            var couples = await _coupleService.GetAllActiveCouplesAsync();
+            var couples = await _coupleService.GetAllCouplesAsync();
             return Ok(couples);
         }
         catch (Exception ex)
