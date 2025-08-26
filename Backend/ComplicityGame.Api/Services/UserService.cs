@@ -116,8 +116,6 @@ public class UserService : IUserService
         // Get user's current couple - prefer active couples
         var allCouples = await _context.CoupleUsers
             .Include(cu => cu.Couple)
-            .ThenInclude(c => c.Members)
-            .ThenInclude(m => m.User)
             .Where(cu => cu.UserId == userId)
             .ToListAsync();
 
@@ -126,6 +124,18 @@ public class UserService : IUserService
                         ?? allCouples.FirstOrDefault();
 
         var currentCouple = coupleUser?.Couple;
+
+        // If user has a couple, load its members separately to avoid circular includes
+        if (currentCouple != null)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == currentCouple.Id)
+                .ToListAsync();
+            
+            // Map CoupleUsers to Users for the frontend
+            currentCouple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
 
         // Get active session for the couple
         GameSession? activeSession = null;

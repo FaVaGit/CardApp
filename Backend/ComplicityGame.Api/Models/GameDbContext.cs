@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ComplicityGame.Api.Models;
 
@@ -107,6 +108,10 @@ public class Couple
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
     public List<CoupleUser> Members { get; set; } = new();
+    
+    // Navigation property for easy access to Users (not mapped to database)
+    [NotMapped]
+    public List<User> Users { get; set; } = new();
 }
 
 public class CoupleUser

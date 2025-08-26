@@ -32,6 +32,7 @@ cleanup() {
     # Uccidi anche eventuali processi rimasti sulle porte
     lsof -ti:5000 | xargs -r kill -9 2>/dev/null || true
     lsof -ti:5173 | xargs -r kill -9 2>/dev/null || true
+    lsof -ti:5174 | xargs -r kill -9 2>/dev/null || true
     echo -e "${GREEN}✅ Cleanup completato${NC}"
     echo "👋 Arrivederci!"
     exit 0
@@ -71,6 +72,7 @@ echo -e "${GREEN}✅ Prerequisiti verificati${NC}"
 echo -e "${YELLOW}🧹 Pulizia porte occupate...${NC}"
 lsof -ti:5000 | xargs -r kill -9 2>/dev/null || true
 lsof -ti:5173 | xargs -r kill -9 2>/dev/null || true
+lsof -ti:5174 | xargs -r kill -9 2>/dev/null || true
 sleep 1
 
 # Avvia backend in background
@@ -108,8 +110,8 @@ fi
 
 # Avvia frontend
 echo -e "${BLUE}🎨 Avvio frontend React + Vite...${NC}"
-echo -e "${CYAN}   📍 Porta: 5173${NC}"
-echo -e "${CYAN}   ⚛️  Framework: React con architettura unificata${NC}"
+echo -e "${CYAN}   📍 Porta: 5174 (se 5173 è occupata)${NC}"
+echo -e "${CYAN}   ⚛️  Framework: React con architettura semplificata${NC}"
 
 npm run dev &
 FRONTEND_PID=$!
@@ -126,7 +128,7 @@ if ! curl -s http://localhost:5000/api/health > /dev/null 2>&1; then
     exit 1
 fi
 
-if ! curl -s http://localhost:5173 > /dev/null 2>&1; then
+if ! curl -s http://localhost:5173 > /dev/null 2>&1 && ! curl -s http://localhost:5174 > /dev/null 2>&1; then
     echo -e "${YELLOW}⚠️  Frontend potrebbe non essere ancora pronto (normale nei primi secondi)${NC}"
 fi
 
@@ -136,18 +138,19 @@ echo ""
 echo -e "${BLUE}┌─────────────────────────────────────────────────┐${NC}"
 echo -e "${BLUE}│                    ENDPOINTS                    │${NC}"
 echo -e "${BLUE}├─────────────────────────────────────────────────┤${NC}"
-echo -e "${BLUE}│ 📱 Frontend:     ${GREEN}http://localhost:5173${BLUE}           │${NC}"
+echo -e "${BLUE}│ 📱 Frontend:     ${GREEN}http://localhost:5174${BLUE}           │${NC}"
 echo -e "${BLUE}│ ⚙️  Backend API:  ${GREEN}http://localhost:5000${BLUE}           │${NC}"
 echo -e "${BLUE}│ 🔍 Health Check: ${GREEN}http://localhost:5000/api/health${BLUE} │${NC}"
 echo -e "${BLUE}│ 🎮 SignalR Hub:  ${GREEN}ws://localhost:5000/gamehub${BLUE}      │${NC}"
 echo -e "${BLUE}└─────────────────────────────────────────────────┘${NC}"
 echo ""
-echo -e "${CYAN}🏗️  ARCHITETTURA UNIFICATA:${NC}"
+echo -e "${CYAN}🏗️  ARCHITETTURA SEMPLIFICATA:${NC}"
 echo -e "${CYAN}   • Frontend: React + Vite + Tailwind CSS${NC}"
 echo -e "${CYAN}   • Backend: ASP.NET Core + SignalR + SQLite${NC}"
 echo -e "${CYAN}   • Comunicazione: HTTP REST + WebSocket${NC}"
+echo -e "${CYAN}   • Componenti: SimpleApp, SimpleAuth, CoupleGame${NC}"
 echo ""
-echo -e "${YELLOW}💡 Apri il browser su ${GREEN}http://localhost:5173${YELLOW} per iniziare!${NC}"
+echo -e "${YELLOW}💡 Apri il browser su ${GREEN}http://localhost:5174${YELLOW} per iniziare!${NC}"
 echo ""
 echo -e "${YELLOW}📋 CONTROLLI ADMIN DISPONIBILI:${NC}"
 echo -e "${CYAN}   • Clear Users: Rimuove tutti gli utenti${NC}"

@@ -225,39 +225,82 @@ public class CoupleService : ICoupleService
 
     public async Task<List<Couple>> GetUserCouplesAsync(string userId)
     {
-        return await _context.Couples
-            .Include(c => c.Members)
-            .ThenInclude(m => m.User)
+        var couples = await _context.Couples
             .Where(c => c.Members.Any(m => m.UserId == userId) && c.IsActive)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
+
+        // Load users for each couple separately to avoid circular includes
+        foreach (var couple in couples)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == couple.Id)
+                .ToListAsync();
+            
+            couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
+
+        return couples;
     }
 
     public async Task<List<Couple>> GetAllCouplesAsync()
     {
-        return await _context.Couples
-            .Include(c => c.Members)
-            .ThenInclude(m => m.User)
+        var couples = await _context.Couples
             .Where(c => c.IsActive)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
+
+        // Load users for each couple separately to avoid circular includes
+        foreach (var couple in couples)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == couple.Id)
+                .ToListAsync();
+            
+            couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
+
+        return couples;
     }
 
     public async Task<List<Couple>> GetAllActiveCouplesAsync()
     {
-        return await _context.Couples
-            .Include(c => c.Members)
-            .ThenInclude(m => m.User)
+        var couples = await _context.Couples
             .Where(c => c.IsActive && c.Members.Count >= 2)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
+
+        // Load users for each couple separately to avoid circular includes
+        foreach (var couple in couples)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == couple.Id)
+                .ToListAsync();
+            
+            couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
+
+        return couples;
     }
 
     public async Task<Couple?> GetCoupleByIdAsync(string coupleId)
     {
-        return await _context.Couples
-            .Include(c => c.Members)
-            .ThenInclude(m => m.User)
+        var couple = await _context.Couples
             .FirstOrDefaultAsync(c => c.Id == coupleId);
+            
+        if (couple != null)
+        {
+            var coupleMembers = await _context.CoupleUsers
+                .Include(cu => cu.User)
+                .Where(cu => cu.CoupleId == couple.Id)
+                .ToListAsync();
+            
+            couple.Users = coupleMembers.Select(cm => cm.User).ToList();
+        }
+
+        return couple;
     }
 }

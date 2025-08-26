@@ -148,9 +148,11 @@ print_step "Verifica configurazione unificata"
 # Verifica file principali dell'architettura unificata
 UNIFIED_FILES=(
     "src/useUnifiedBackend.js"
-    "src/AppUnified.jsx"
-    "src/SimpleUserLoginUnified.jsx"
-    "src/PartnerManagementUnified.jsx"
+    "src/SimpleApp.jsx"
+    "src/SimpleAuth.jsx"
+    "src/CoupleGame.jsx"
+    "src/SimpleCardGame.jsx"
+    "src/GameTypeSelector.jsx"
 )
 
 for file in "${UNIFIED_FILES[@]}"; do
@@ -207,11 +209,11 @@ echo ""
 echo -e "${YELLOW}🚀 COME INIZIARE:${NC}"
 echo -e "${CYAN}   1. Esegui: ${GREEN}./start-unified.sh${CYAN} (Linux/Mac)${NC}"
 echo -e "${CYAN}      oppure: ${GREEN}start-unified.bat${CYAN} (Windows)${NC}"
-echo -e "${CYAN}   2. Apri il browser su: ${GREEN}http://localhost:5173${NC}"
+echo -e "${CYAN}   2. Apri il browser su: ${GREEN}http://localhost:5174${NC}"
 echo -e "${CYAN}   3. Inizia a giocare!${NC}"
 echo ""
 echo -e "${YELLOW}🔧 ENDPOINT DISPONIBILI:${NC}"
-echo -e "${CYAN}   • Frontend:     http://localhost:5173${NC}"
+echo -e "${CYAN}   • Frontend:     http://localhost:5174${NC}"
 echo -e "${CYAN}   • Backend API:  http://localhost:5000${NC}"
 echo -e "${CYAN}   • Health Check: http://localhost:5000/api/health${NC}"
 echo -e "${CYAN}   • SignalR Hub:  ws://localhost:5000/gamehub${NC}"

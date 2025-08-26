@@ -165,24 +165,36 @@ public class GameHub : Hub
     {
         try
         {
+            Console.WriteLine($"🎮 CreateGameSession called for couple {coupleId} by user {createdBy}");
             var session = await _gameSessionService.CreateSessionAsync(coupleId, createdBy);
+            Console.WriteLine($"✅ Game session created with ID: {session.Id}");
             
             // Get couple members to add them to session group
             var couple = await _coupleService.GetCoupleByIdAsync(coupleId);
             if (couple != null)
             {
+                Console.WriteLine($"👥 Found couple with {couple.Members.Count} members");
                 foreach (var member in couple.Members)
                 {
                     var connectionId = await GetUserConnectionId(member.UserId);
+                    Console.WriteLine($"👤 User {member.UserId} connectionId: {connectionId ?? "NULL"}");
                     if (!string.IsNullOrEmpty(connectionId))
                     {
                         await Groups.AddToGroupAsync(connectionId, $"Session_{session.Id}");
+                        Console.WriteLine($"✅ Added user {member.UserId} to group Session_{session.Id}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"⚠️ No connection found for user {member.UserId}");
                     }
                 }
             }
             
             // Notify couple members
             await Clients.Group($"Couple_{coupleId}").SendAsync("GameSessionCreated", session);
+            
+            // Also notify users they've been added to session group
+            await Clients.Group($"Session_{session.Id}").SendAsync("JoinedGameSession", session.Id);
             
             Console.WriteLine($"🎮 Game session created: {session.Id}");
         }
@@ -213,16 +225,42 @@ public class GameHub : Hub
     {
         try
         {
+            Console.WriteLine($"🃏 ShareCard called for session {sessionId} by user {userId}");
             var sharedCard = await _gameSessionService.ShareCardAsync(sessionId, userId, cardData);
             
-            // Broadcast to all session participants
-            await Clients.Group($"Session_{sessionId}").SendAsync("CardShared", sharedCard);
+            // Deserialize the card data to send the original card structure
+            var originalCardData = System.Text.Json.JsonSerializer.Deserialize<object>(sharedCard.CardData);
             
-            Console.WriteLine($"🃏 Card shared in session {sessionId}");
+            // Broadcast to all session participants
+            var groupName = $"Session_{sessionId}";
+            Console.WriteLine($"📡 Broadcasting CardShared to group: {groupName}");
+            await Clients.Group(groupName).SendAsync("CardShared", originalCardData);
+            
+            Console.WriteLine($"✅ Card shared successfully in session {sessionId}");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ Error in ShareCard: {ex.Message}");
             await Clients.Caller.SendAsync("CardShareError", ex.Message);
+        }
+    }
+
+    // Join a session group for real-time communication
+    public async Task JoinSessionGroup(string sessionId)
+    {
+        try
+        {
+            var connectionId = Context.ConnectionId;
+            await Groups.AddToGroupAsync(connectionId, $"Session_{sessionId}");
+            Console.WriteLine($"👤 User with connection {connectionId} joined session group: Session_{sessionId}");
+            
+            // Send confirmation back to caller
+            await Clients.Caller.SendAsync("JoinedSessionGroup", sessionId);
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("SessionJoinError", ex.Message);
+            Console.WriteLine($"❌ Error joining session group: {ex.Message}");
         }
     }
 
