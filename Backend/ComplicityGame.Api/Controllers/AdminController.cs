@@ -52,7 +52,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("force-refresh")]
-    public async Task<ActionResult> ForceRefresh()
+    public ActionResult ForceRefresh()
     {
         try
         {

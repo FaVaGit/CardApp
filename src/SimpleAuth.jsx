@@ -23,19 +23,21 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
     try {
       // Use the new EventDrivenApiService
       const displayName = nickname.trim() || name.trim();
-      const userStatus = await apiService.connectUser(displayName, 'Coppia');
+      const response = await apiService.connectUser(displayName, 'Coppia');
       
-      console.log('✅ User authenticated via EventDrivenApi:', userStatus);
+      console.log('✅ User authenticated via EventDrivenApi:', response);
       
       // Create a user object compatible with the rest of the app
       const user = {
-        id: userStatus.userId,
+        id: response.userId,
         name: displayName,
         nickname: nickname.trim(),
         gameType: 'Coppia',
-        userId: userStatus.userId,
-        connectionId: userStatus.connectionId,
-        status: userStatus
+        userId: response.userId,
+        connectionId: response.connectionId,
+        userCode: response.personalCode || 'N/A', // Add the personal code
+        personalCode: response.personalCode || 'N/A',
+        status: response
       };
       
       // Notify parent with the authenticated user

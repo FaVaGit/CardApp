@@ -86,17 +86,17 @@ CardApp/
    ```
 
 3. **Access the application**:
-   - Frontend: http://localhost:5174
+   - Frontend: http://localhost:5173
    - Backend API: http://localhost:5000
 
 ### Single Player Mode
-1. Open http://localhost:5174
+1. Open http://localhost:5173
 2. Enter your name and select "Gioco Singolo"
 3. Start drawing cards and enjoy!
 
 ### Couple Mode
-1. **Player 1**: Open http://localhost:5174 in browser tab 1
-2. **Player 2**: Open http://localhost:5174 in browser tab 2  
+1. **Player 1**: Open http://localhost:5173 in browser tab 1
+2. **Player 2**: Open http://localhost:5173 in browser tab 2  
 3. Both players: Enter names and select "Gioco di Coppia"
 4. **Player 1**: Share your personal code with Player 2
 5. **Player 2**: Enter Player 1's code to join the couple
@@ -150,9 +150,26 @@ CardApp/
 | Script | Purpose |
 |--------|---------|
 | `start.sh` | Start complete application (backend + frontend) |
-| `stop.sh` | Stop all running services |
+| `start.sh --simple` | Quick start mode (minimal checks) |
+| `start.sh --cleanup` | Clean up ports and processes only |
+| `stop.sh` | Stop all services and clean up ports |
 | `test-all.sh` | Run comprehensive test suite |
 | `test-partner-matching.sh` | Test partner matching workflow |
+
+### Usage Examples
+```bash
+# Standard start with full health checks
+./start.sh
+
+# Quick start for development
+./start.sh --simple
+
+# Clean up stuck processes/ports
+./start.sh --cleanup
+
+# Stop everything cleanly
+./stop.sh
+```
 
 ## 🗃️ Database Schema
 

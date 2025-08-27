@@ -58,7 +58,21 @@ namespace ComplicityGame.Api.Controllers
                     await UpdateUserNameAsync(userId, request.Name, request.GameType);
                 }
                 
-                return Ok(new { success = true, status });
+                // Get user's personal code for frontend display
+                string? personalCode = null;
+                try
+                {
+                    using var scope = _serviceProvider.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                    var user = await context.Users.FindAsync(userId);
+                    personalCode = user?.PersonalCode;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Failed to get personal code for user {userId}");
+                }
+                
+                return Ok(new { success = true, status, personalCode });
             }
             catch (Exception ex)
             {

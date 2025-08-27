@@ -55,86 +55,135 @@ namespace ComplicityGame.Api.Services
                     return existingCoupleUser.Couple;
                 }
 
-                // Try to find an existing couple with this code (by name) that has only 1 member
-                var waitingCouple = await _context.Couples
-                    .Include(c => c.Members)
-                    .FirstOrDefaultAsync(c => c.Name == userCode && c.Members.Count == 1);
+                // Find the target user by their personal code
+                var targetUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.PersonalCode == userCode);
 
-                if (waitingCouple != null)
+                if (targetUser == null)
                 {
-                    // Join existing couple
+                    _logger.LogWarning($"❌ No user found with personal code {userCode}");
+                    return null;
+                }
+
+                if (targetUser.Id == userId)
+                {
+                    _logger.LogWarning($"❌ User {userId} cannot join couple with their own code");
+                    return null;
+                }
+
+                // Check if target user is already in a couple
+                var targetCoupleUser = await _context.CoupleUsers
+                    .Include(cu => cu.Couple)
+                    .ThenInclude(c => c.Members)
+                    .FirstOrDefaultAsync(cu => cu.UserId == targetUser.Id);
+
+                if (targetCoupleUser != null && targetCoupleUser.Couple.Members.Count >= 2)
+                {
+                    _logger.LogWarning($"❌ Target user {targetUser.Id} is already in a complete couple");
+                    return null;
+                }
+
+                Couple couple;
+
+                if (targetCoupleUser != null && targetCoupleUser.Couple.Members.Count == 1)
+                {
+                    // Target user has a couple waiting for a partner - join it
+                    couple = targetCoupleUser.Couple;
+                    
                     var newCoupleUser = new CoupleUser
                     {
-                        CoupleId = waitingCouple.Id,
+                        CoupleId = couple.Id,
                         UserId = userId,
                         Role = "member",
                         JoinedAt = DateTime.UtcNow
                     };
                     _context.CoupleUsers.Add(newCoupleUser);
                     await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
 
                     // Reload couple with all members
-                    waitingCouple = await _context.Couples
+                    couple = await _context.Couples
                         .Include(c => c.Members)
-                        .FirstOrDefaultAsync(c => c.Id == waitingCouple.Id);
+                        .FirstOrDefaultAsync(c => c.Id == couple.Id) ?? couple;
 
-                    // Publish couple completed event
-                    var coupleCompletedEvent = new CoupleCompletedEvent
-                    {
-                        UserId = userId,
-                        CoupleId = waitingCouple!.Id,
-                        CoupleCode = waitingCouple.Name,
-                        Member1Id = waitingCouple.Members.First().UserId,
-                        Member2Id = userId,
-                        CompletedAt = DateTime.UtcNow
-                    };
-
-                    await _eventPublisher.PublishToCoupleAsync(coupleCompletedEvent, waitingCouple.Id);
-
-                    _logger.LogInformation($"👥 User {userId} joined couple {waitingCouple.Id} with code {userCode}");
-                    return waitingCouple;
+                    _logger.LogInformation($"👥 User {userId} joined existing couple {couple.Id} with target user {targetUser.Id}");
                 }
                 else
                 {
-                    // Create new couple
-                    var newCouple = new Couple
+                    // Create new couple between current user and target user
+                    couple = new Couple
                     {
-                        Name = userCode, // Use userCode as couple name
+                        Name = $"{user.Name} & {targetUser.Name}", // Use meaningful couple name
                         CreatedBy = userId,
                         GameType = user.GameType,
                         CreatedAt = DateTime.UtcNow,
                         IsActive = true
                     };
 
-                    _context.Couples.Add(newCouple);
+                    _context.Couples.Add(couple);
                     
-                    var coupleUser = new CoupleUser
+                    // Add both users to the couple
+                    var coupleUser1 = new CoupleUser
                     {
-                        CoupleId = newCouple.Id,
+                        CoupleId = couple.Id,
                         UserId = userId,
                         Role = "creator",
                         JoinedAt = DateTime.UtcNow
                     };
-                    _context.CoupleUsers.Add(coupleUser);
+                    
+                    var coupleUser2 = new CoupleUser
+                    {
+                        CoupleId = couple.Id,
+                        UserId = targetUser.Id,
+                        Role = "member",
+                        JoinedAt = DateTime.UtcNow
+                    };
+                    
+                    _context.CoupleUsers.Add(coupleUser1);
+                    _context.CoupleUsers.Add(coupleUser2);
                     
                     await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
 
-                    // Publish couple created event
+                    // Reload couple with all members
+                    couple = await _context.Couples
+                        .Include(c => c.Members)
+                        .FirstOrDefaultAsync(c => c.Id == couple.Id) ?? couple;
+
+                    _logger.LogInformation($"👥 Created new couple {couple.Id} between user {userId} and target user {targetUser.Id}");
+                }
+
+                await transaction.CommitAsync();
+
+                // Publish events for both users
+                if (couple.Members.Count == 2)
+                {
+                    var coupleCompletedEvent = new CoupleCompletedEvent
+                    {
+                        UserId = userId,
+                        CoupleId = couple.Id,
+                        CoupleCode = couple.Name,
+                        Member1Id = couple.Members.First().UserId,
+                        Member2Id = couple.Members.Last().UserId,
+                        CompletedAt = DateTime.UtcNow
+                    };
+
+                    // Publish to both users
+                    await _eventPublisher.PublishToUserAsync(coupleCompletedEvent, couple.Members.First().UserId);
+                    await _eventPublisher.PublishToUserAsync(coupleCompletedEvent, couple.Members.Last().UserId);
+                }
+                else
+                {
                     var coupleCreatedEvent = new CoupleCreatedEvent
                     {
                         UserId = userId,
-                        CoupleId = newCouple.Id,
-                        CoupleCode = userCode,
-                        CreatedAt = newCouple.CreatedAt
+                        CoupleId = couple.Id,
+                        CoupleCode = couple.Name,
+                        CreatedAt = couple.CreatedAt
                     };
 
                     await _eventPublisher.PublishToUserAsync(coupleCreatedEvent, userId);
-
-                    _logger.LogInformation($"👥 Created new couple {newCouple.Id} with code {userCode} for user {userId}");
-                    return newCouple;
                 }
+
+                return couple;
             }
             catch (Exception ex)
             {

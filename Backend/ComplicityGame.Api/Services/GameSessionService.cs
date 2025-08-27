@@ -119,12 +119,37 @@ namespace ComplicityGame.Api.Services
                     return null;
                 }
 
-                // Get all available cards (not yet shared in this session)
+                // In-memory cards (same as CardService)
+                var allCards = new List<GameCard>
+                {
+                    // Couple cards
+                    new GameCard { Id = 1, GameType = "couple", Category = "Intimità", Content = "Racconta un momento in cui ti sei sentito/a particolarmente vicino/a a me", Level = 1 },
+                    new GameCard { Id = 2, GameType = "couple", Category = "Sogni", Content = "Qual è un sogno che vorresti realizzare insieme a me?", Level = 1 },
+                    new GameCard { Id = 3, GameType = "couple", Category = "Ricordi", Content = "Qual è il primo ricordo che hai di noi insieme?", Level = 1 },
+                    new GameCard { Id = 4, GameType = "couple", Category = "Futuro", Content = "Come immagini la nostra vita tra 5 anni?", Level = 2 },
+                    new GameCard { Id = 5, GameType = "couple", Category = "Intimità", Content = "Cosa apprezzi di più del nostro rapporto?", Level = 1 },
+                    new GameCard { Id = 6, GameType = "couple", Category = "Crescita", Content = "In che modo sono cresciuto/a grazie a te?", Level = 2 },
+                    new GameCard { Id = 7, GameType = "couple", Category = "Comunicazione", Content = "C'è qualcosa che vorresti dirmi ma non hai mai avuto il coraggio?", Level = 3 },
+                    new GameCard { Id = 8, GameType = "couple", Category = "Avventure", Content = "Qual è un'avventura che vorresti vivere insieme?", Level = 1 },
+                    new GameCard { Id = 9, GameType = "couple", Category = "Sfide", Content = "Qual è stata la sfida più grande che abbiamo superato insieme?", Level = 2 },
+                    new GameCard { Id = 10, GameType = "couple", Category = "Gratitudine", Content = "Per cosa sei più grato/a nella nostra relazione?", Level = 1 },
+                    new GameCard { Id = 11, GameType = "couple", Category = "Intimità", Content = "Descrivi un momento perfetto che vorresti condividere con me", Level = 2 },
+                    new GameCard { Id = 12, GameType = "couple", Category = "Scoperta", Content = "Cosa vorresti scoprire di nuovo l'uno dell'altro?", Level = 2 },
+                    new GameCard { Id = 13, GameType = "couple", Category = "Supporto", Content = "Come posso sostenerti meglio nei tuoi obiettivi?", Level = 2 },
+                    new GameCard { Id = 14, GameType = "couple", Category = "Gioco", Content = "Inventa una danza o un gesto speciale che rappresenti il nostro amore", Level = 1 },
+                    new GameCard { Id = 15, GameType = "couple", Category = "Ricordi", Content = "Qual è il momento più divertente che abbiamo vissuto insieme?", Level = 1 },
+                    new GameCard { Id = 16, GameType = "couple", Category = "Futuro", Content = "Qual è una tradizione che vorresti creare per noi?", Level = 2 },
+                    new GameCard { Id = 17, GameType = "couple", Category = "Vulnerabilità", Content = "Condividi una paura che hai per la nostra relazione", Level = 3 },
+                    new GameCard { Id = 18, GameType = "couple", Category = "Apprezzamento", Content = "Cosa ammiri di più del mio carattere?", Level = 1 },
+                    new GameCard { Id = 19, GameType = "couple", Category = "Creatività", Content = "Se potessi scrivere una canzone sulla nostra storia, quale sarebbe il ritornello?", Level = 2 },
+                    new GameCard { Id = 20, GameType = "couple", Category = "Intimità", Content = "In che modo ti fa sentire speciale il nostro amore?", Level = 2 }
+                };
+                
                 var sharedCardIds = session.SharedCards.Select(sc => sc.Id).ToList();
-                var availableCards = await _context.GameCards
-                    .Where(gc => gc.GameType == session.Couple.GameType && 
-                                !sharedCardIds.Contains(gc.Id.ToString()))
-                    .ToListAsync();
+                // Normalize game type comparison (Coppia -> couple)
+                var normalizedGameType = session.Couple.GameType.ToLower() == "coppia" ? "couple" : session.Couple.GameType.ToLower();
+                var availableCards = allCards.Where(gc => gc.GameType.ToLower() == normalizedGameType && 
+                                                          !sharedCardIds.Contains(gc.Id.ToString())).ToList();
 
                 if (!availableCards.Any())
                 {

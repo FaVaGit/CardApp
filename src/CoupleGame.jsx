@@ -13,6 +13,7 @@ import React, { useState, useEffect } from 'react';
 export default function CoupleGame({ user, apiService, onExit }) {
   const [gameState, setGameState] = useState('finding-partner'); // 'finding-partner', 'waiting-for-partner', 'playing', 'game-over'
   const [couple, setCouple] = useState(null);
+  const [currentCouple, setCurrentCouple] = useState(null); // Track current couple for real-time updates
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [partnerCode, setPartnerCode] = useState('');
@@ -31,11 +32,57 @@ export default function CoupleGame({ user, apiService, onExit }) {
     setMessages(prev => [...prev.slice(-9), message]); // Keep last 10 messages
   };
 
-  // Initialize couple game
+  // Initialize couple game and setup event-driven listeners
   useEffect(() => {
-    console.log('🚀 Initializing Couple Game for user:', user.userCode);
-    addMessage(`Benvenuto ${user.userCode}! Inserisci il codice del tuo partner.`, 'info');
-  }, [user]);
+    const displayCode = user.userCode || user.personalCode || 'N/A';
+    const displayName = user.nickname || user.name || 'Utente';
+    console.log('🚀 Initializing Couple Game for user:', displayName, 'with code:', displayCode);
+    addMessage(`Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, 'info');
+    addMessage('Inserisci il codice del tuo partner per iniziare.', 'info');
+
+    // Setup event-driven listeners for RabbitMQ events (via polling)
+    const setupEventListeners = () => {
+      // Listen for couple joined events (RabbitMQ: CoupleCreated/CoupleUpdated)
+      apiService.on('coupleJoined', (data) => {
+        console.log('💑 Received couple joined event:', data);
+        addMessage('💑 Partner si è collegato alla coppia!', 'success');
+        
+        if (gameState === 'waiting-for-partner') {
+          addMessage('⏳ Entrambi i partner collegati, avvio automatico...', 'info');
+          // The backend should auto-start the game session here
+        }
+      });
+
+      // Listen for game session started events (RabbitMQ: GameSessionStarted)
+      apiService.on('gameSessionStarted', (data) => {
+        console.log('🎮 Received game session started event:', data);
+        setGameState('playing');
+        addMessage('🎮 Partita avviata automaticamente!', 'success');
+        
+        // Optionally fetch the game session details
+        if (data.sessionId) {
+          setGameSession({ id: data.sessionId, isActive: true });
+        }
+      });
+
+      // Listen for card drawn events (RabbitMQ: CardDrawn)
+      apiService.on('cardDrawn', (cardData) => {
+        console.log('🎴 Received card drawn event from partner:', cardData);
+        if (cardData.card) {
+          addMessage(`🎴 Partner ha pescato una carta`, 'info');
+        }
+      });
+    };
+
+    setupEventListeners();
+
+    // Cleanup event listeners on unmount
+    return () => {
+      apiService.off('coupleJoined');
+      apiService.off('gameSessionStarted');
+      apiService.off('cardDrawn');
+    };
+  }, [user, apiService, gameState]);
 
   // Handle partner code input
   const handleJoinCouple = async () => {
@@ -44,7 +91,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       return;
     }
 
-    if (partnerCode.trim() === user.userCode) {
+    if (partnerCode.trim() === (user.userCode || user.personalCode)) {
       setError('Non puoi utilizzare il tuo stesso codice!');
       return;
     }
