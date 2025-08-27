@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 
 /**
  * Simple Authentication Component
- * COMPLETELY DECOUPLED from game types, couples, sessions
- * Single responsibility: Register/Login users
+ * UPDATED: Now uses EventDrivenApiService for new event-driven backend
  */
-export default function SimpleAuth({ onAuthSuccess, onClearUsers }) {
+export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,26 +21,22 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers }) {
     setError('');
 
     try {
-      // Simple registration - NO game type, NO couples, NO complexity
-      const response = await fetch('http://localhost:5000/api/users/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          nickname: nickname.trim() || name.trim(),
-          gameType: 'Single', // Default to simplest case
-          availableForPairing: false // Keep it simple
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const user = await response.json();
-      console.log('✅ User authenticated:', user);
+      // Use the new EventDrivenApiService
+      const displayName = nickname.trim() || name.trim();
+      const userStatus = await apiService.connectUser(displayName, 'Coppia');
+      
+      console.log('✅ User authenticated via EventDrivenApi:', userStatus);
+      
+      // Create a user object compatible with the rest of the app
+      const user = {
+        id: userStatus.userId,
+        name: displayName,
+        nickname: nickname.trim(),
+        gameType: 'Coppia',
+        userId: userStatus.userId,
+        connectionId: userStatus.connectionId,
+        status: userStatus
+      };
       
       // Notify parent with the authenticated user
       onAuthSuccess(user);

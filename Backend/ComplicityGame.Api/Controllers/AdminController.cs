@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ComplicityGame.Api.Services;
+using ComplicityGame.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ComplicityGame.Api.Controllers;
 
@@ -7,18 +9,18 @@ namespace ComplicityGame.Api.Controllers;
 [Route("api/[controller]")]
 public class AdminController : ControllerBase
 {
-    private readonly IUserService _userService;
-    private readonly ICoupleService _coupleService;
     private readonly IGameSessionService _gameSessionService;
+    private readonly IUserPresenceService _userPresenceService;
+    private readonly GameDbContext _context;
 
     public AdminController(
-        IUserService userService,
-        ICoupleService coupleService,
-        IGameSessionService gameSessionService)
+        IGameSessionService gameSessionService,
+        IUserPresenceService userPresenceService,
+        GameDbContext context)
     {
-        _userService = userService;
-        _coupleService = coupleService;
         _gameSessionService = gameSessionService;
+        _userPresenceService = userPresenceService;
+        _context = context;
     }
 
     [HttpPost("clear-users")]
@@ -26,7 +28,7 @@ public class AdminController : ControllerBase
     {
         try
         {
-            await _userService.ClearAllUsersAsync();
+            await _userPresenceService.ClearAllUsersAsync();
             return Ok(new { message = "All users cleared successfully" });
         }
         catch (Exception ex)
@@ -40,7 +42,7 @@ public class AdminController : ControllerBase
     {
         try
         {
-            await _userService.ClearAllUsersAsync();
+            await _userPresenceService.ClearAllUsersAsync();
             return Ok(new { message = "System reset successfully" });
         }
         catch (Exception ex)
@@ -57,6 +59,61 @@ public class AdminController : ControllerBase
             // This endpoint is used by frontend to trigger data refresh
             // It doesn't need to do anything specific, just signal that refresh is requested
             return Ok(new { message = "Data refresh triggered" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("seed-test-cards")]
+    public async Task<ActionResult> SeedTestCards()
+    {
+        try
+        {
+            // Check if cards already exist
+            var existingCards = await _gameSessionService.GetAvailableCardsCountAsync();
+            if (existingCards > 0)
+            {
+                return Ok(new { message = $"Cards already exist: {existingCards} cards", cardsCount = existingCards });
+            }
+
+            // Create test cards
+            var testCards = new[]
+            {
+                new GameCard { Content = "Cosa ti rende più felice in assoluto?", GameType = "couple", Category = "Emotions" },
+                new GameCard { Content = "Qual è il tuo ricordo d'infanzia più bello?", GameType = "couple", Category = "Memories" },
+                new GameCard { Content = "Se potessi cambiare una cosa di te, cosa sarebbe?", GameType = "couple", Category = "Personal" },
+                new GameCard { Content = "Cosa apprezzi di più del nostro rapporto?", GameType = "couple", Category = "Relationship" },
+                new GameCard { Content = "Qual è il tuo sogno nel cassetto?", GameType = "couple", Category = "Dreams" },
+                new GameCard { Content = "Cosa ti spaventa di più nella vita?", GameType = "couple", Category = "Fears" },
+                new GameCard { Content = "Se potessimo viaggiare ovunque, dove andresti?", GameType = "couple", Category = "Travel" },
+                new GameCard { Content = "Qual è la cosa più spontanea che hai mai fatto?", GameType = "couple", Category = "Adventures" },
+                new GameCard { Content = "Come immagini la nostra vita tra 10 anni?", GameType = "couple", Category = "Future" },
+                new GameCard { Content = "Cosa ti fa sentire più amato/a?", GameType = "couple", Category = "Love" }
+            };
+
+            _context.GameCards.AddRange(testCards);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Test cards seeded successfully", cardsCount = testCards.Length });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("cards-status")]
+    public async Task<ActionResult> GetCardsStatus()
+    {
+        try
+        {
+            var cardsCount = await _gameSessionService.GetAvailableCardsCountAsync();
+            return Ok(new { 
+                availableCards = cardsCount,
+                status = cardsCount > 0 ? "ready" : "no cards available"
+            });
         }
         catch (Exception ex)
         {

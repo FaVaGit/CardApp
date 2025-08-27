@@ -1,4 +1,3 @@
-using ComplicityGame.Api.Hubs;
 using ComplicityGame.Api.Services;
 using ComplicityGame.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -18,9 +17,6 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<GameDbContext>(options =>
     options.UseSqlite("Data Source=game.db"));
 
-// SignalR for real-time communication
-builder.Services.AddSignalR();
-
 // CORS for React frontend
 builder.Services.AddCors(options =>
 {
@@ -38,11 +34,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Application Services
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ICoupleService, CoupleService>();
+// RabbitMQ Event System Services
+builder.Services.AddSingleton<IEventPublisher, RabbitMQEventPublisher>();
+builder.Services.AddSingleton<IUserPresenceService, UserPresenceService>();
+builder.Services.AddScoped<ICoupleMatchingService, CoupleMatchingService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
-builder.Services.AddScoped<ICardService, CardService>();
 
 var app = builder.Build();
 
@@ -57,9 +53,6 @@ app.UseCors("ReactPolicy");
 app.UseAuthorization();
 
 app.MapControllers();
-
-// SignalR Hub
-app.MapHub<GameHub>("/gamehub");
 
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
