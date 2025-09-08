@@ -73,17 +73,36 @@ export default function CoupleGame({ user, apiService, onExit }) {
         }
       };
 
+      // Listen for session updates (NEW - for card synchronization)
+      const handleSessionUpdated = (updateData) => {
+        console.log('🔄 Session updated:', updateData);
+        
+        if (updateData.type === 'cardDrawn' && updateData.card) {
+          // Update current card for both partners
+          setCurrentCard(updateData.card);
+          
+          // Add to activity log based on who drew the card
+          if (updateData.drawnBy !== user.userId) {
+            addMessage(`🎴 Partner ha pescato: ${updateData.card.content}`, 'success');
+          } else {
+            addMessage(`🎴 Hai pescato: ${updateData.card.content}`, 'success');
+          }
+        }
+      };
+
       // Remove existing listeners to prevent duplicates
       apiService.off('coupleJoined', handleCoupleJoined);
       apiService.off('gameSessionStarted', handleGameSessionStarted);
       apiService.off('cardDrawn', handleCardDrawn);
+      apiService.off('sessionUpdated', handleSessionUpdated);
 
       // Add listeners
       apiService.on('coupleJoined', handleCoupleJoined);
       apiService.on('gameSessionStarted', handleGameSessionStarted);
       apiService.on('cardDrawn', handleCardDrawn);
+      apiService.on('sessionUpdated', handleSessionUpdated);
 
-      return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn };
+      return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated };
     };
 
     const listeners = setupEventListeners();
@@ -93,6 +112,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('coupleJoined', listeners.handleCoupleJoined);
       apiService.off('gameSessionStarted', listeners.handleGameSessionStarted);
       apiService.off('cardDrawn', listeners.handleCardDrawn);
+      apiService.off('sessionUpdated', listeners.handleSessionUpdated);
     };
   }, [user, apiService]); // Removed gameState dependency to prevent re-setup
 
@@ -180,8 +200,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
 
     try {
       const card = await apiService.drawCard(gameSession.id);
-      setCurrentCard(card);
-      addMessage(`🎴 Carta pescata: ${card.content}`, 'success');
+      // Note: setCurrentCard and success message will be handled by sessionUpdated event
+      // This prevents duplicate messages when synchronization occurs
+      console.log('🎴 Card draw successful, waiting for sync update:', card);
     } catch (error) {
       console.error('❌ Error drawing card:', error);
       setError(`Errore nel pescare la carta: ${error.message}`);

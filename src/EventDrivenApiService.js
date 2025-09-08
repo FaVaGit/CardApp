@@ -4,9 +4,12 @@ class EventDrivenApiService {
         this.baseUrl = baseUrl;
         this.userId = null;
         this.connectionId = null;
+        this.sessionId = null;
         this.eventHandlers = new Map();
         this.pollingInterval = null;
         this.pollingFrequency = 2000; // Poll every 2 seconds for updates
+        this.lastKnownCardCount = 0; // Track number of cards drawn
+        this.lastKnownStatus = null;
     }
 
     // Generate unique IDs
@@ -141,6 +144,10 @@ class EventDrivenApiService {
 
         if (response.success) {
             console.log('🎴 Card drawn:', response.card);
+            
+            // Update local card count immediately
+            this.lastKnownCardCount++;
+            
             return response.card;
         } else {
             throw new Error('Failed to draw card');
@@ -213,7 +220,6 @@ class EventDrivenApiService {
         try {
             const status = await this.getUserStatus();
             
-            // Check if user status has changed (couple formation, game session, etc.)
             if (status && this.lastKnownStatus) {
                 // Check for couple changes
                 if (status.coupleId !== this.lastKnownStatus.coupleId && status.coupleId) {
@@ -222,7 +228,35 @@ class EventDrivenApiService {
 
                 // Check for game session changes
                 if (status.sessionId !== this.lastKnownStatus.sessionId && status.sessionId) {
+                    this.sessionId = status.sessionId;
                     this.emit('gameSessionStarted', { sessionId: status.sessionId });
+                }
+                
+                // Check for new shared cards (ENHANCED SYNCHRONIZATION)
+                if (status.gameSession && status.gameSession.sharedCards) {
+                    const currentCardCount = status.gameSession.sharedCards.length;
+                    
+                    if (currentCardCount > this.lastKnownCardCount) {
+                        this.lastKnownCardCount = currentCardCount;
+                        
+                        // Get the latest card
+                        const latestSharedCard = status.gameSession.sharedCards[currentCardCount - 1];
+                        if (latestSharedCard && latestSharedCard.cardData) {
+                            try {
+                                const cardData = JSON.parse(latestSharedCard.cardData);
+                                
+                                // Emit session updated event
+                                this.emit('sessionUpdated', {
+                                    type: 'cardDrawn',
+                                    card: cardData,
+                                    drawnBy: latestSharedCard.sharedById,
+                                    timestamp: latestSharedCard.sharedAt
+                                });
+                            } catch (e) {
+                                console.error('Error parsing shared card data:', e);
+                            }
+                        }
+                    }
                 }
             }
 

@@ -34,8 +34,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// RabbitMQ Event System Services
-builder.Services.AddSingleton<IEventPublisher, RabbitMQEventPublisher>();
+// Mock Event System Services (replaced RabbitMQ for development)
+builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
 builder.Services.AddSingleton<IUserPresenceService, UserPresenceService>();
 builder.Services.AddScoped<ICoupleMatchingService, CoupleMatchingService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();

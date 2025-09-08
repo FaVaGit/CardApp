@@ -3,6 +3,7 @@ using ComplicityGame.Api.Services;
 using ComplicityGame.Api.Events;
 using ComplicityGame.Api.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace ComplicityGame.Api.Controllers
 {
@@ -249,7 +250,42 @@ namespace ComplicityGame.Api.Controllers
             try
             {
                 var status = await _presenceService.GetUserStatusAsync(userId);
-                return Ok(new { success = true, status });
+                
+                // Enhanced status with game session info
+                object? gameSession = null;
+                if (status != null && !string.IsNullOrEmpty(status.CoupleId))
+                {
+                    var activeSession = await _gameService.GetActiveSessionAsync(status.CoupleId);
+                    if (activeSession != null)
+                    {
+                        // Include shared cards for synchronization
+                        using var scope = _serviceProvider.CreateScope();
+                        var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                        
+                        var sharedCards = await context.SharedCards
+                            .Where(sc => sc.SessionId == activeSession.Id)
+                            .OrderBy(sc => sc.SharedAt)
+                            .Select(sc => new {
+                                id = sc.Id,
+                                cardData = sc.CardData,
+                                sharedAt = sc.SharedAt,
+                                sharedById = sc.SharedById
+                            })
+                            .ToListAsync();
+
+                        gameSession = new {
+                            id = activeSession.Id,
+                            isActive = activeSession.IsActive,
+                            sharedCards = sharedCards
+                        };
+                    }
+                }
+                
+                return Ok(new { 
+                    success = true, 
+                    status,
+                    gameSession 
+                });
             }
             catch (Exception ex)
             {
