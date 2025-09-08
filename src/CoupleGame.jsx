@@ -43,7 +43,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     // Setup event-driven listeners for RabbitMQ events (via polling)
     const setupEventListeners = () => {
       // Listen for couple joined events (RabbitMQ: CoupleCreated/CoupleUpdated)
-      apiService.on('coupleJoined', (data) => {
+      const handleCoupleJoined = (data) => {
         console.log('💑 Received couple joined event:', data);
         addMessage('💑 Partner si è collegato alla coppia!', 'success');
         
@@ -51,10 +51,10 @@ export default function CoupleGame({ user, apiService, onExit }) {
           addMessage('⏳ Entrambi i partner collegati, avvio automatico...', 'info');
           // The backend should auto-start the game session here
         }
-      });
+      };
 
       // Listen for game session started events (RabbitMQ: GameSessionStarted)
-      apiService.on('gameSessionStarted', (data) => {
+      const handleGameSessionStarted = (data) => {
         console.log('🎮 Received game session started event:', data);
         setGameState('playing');
         addMessage('🎮 Partita avviata automaticamente!', 'success');
@@ -63,26 +63,38 @@ export default function CoupleGame({ user, apiService, onExit }) {
         if (data.sessionId) {
           setGameSession({ id: data.sessionId, isActive: true });
         }
-      });
+      };
 
       // Listen for card drawn events (RabbitMQ: CardDrawn)
-      apiService.on('cardDrawn', (cardData) => {
+      const handleCardDrawn = (cardData) => {
         console.log('🎴 Received card drawn event from partner:', cardData);
         if (cardData.card) {
           addMessage(`🎴 Partner ha pescato una carta`, 'info');
         }
-      });
+      };
+
+      // Remove existing listeners to prevent duplicates
+      apiService.off('coupleJoined', handleCoupleJoined);
+      apiService.off('gameSessionStarted', handleGameSessionStarted);
+      apiService.off('cardDrawn', handleCardDrawn);
+
+      // Add listeners
+      apiService.on('coupleJoined', handleCoupleJoined);
+      apiService.on('gameSessionStarted', handleGameSessionStarted);
+      apiService.on('cardDrawn', handleCardDrawn);
+
+      return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn };
     };
 
-    setupEventListeners();
+    const listeners = setupEventListeners();
 
     // Cleanup event listeners on unmount
     return () => {
-      apiService.off('coupleJoined');
-      apiService.off('gameSessionStarted');
-      apiService.off('cardDrawn');
+      apiService.off('coupleJoined', listeners.handleCoupleJoined);
+      apiService.off('gameSessionStarted', listeners.handleGameSessionStarted);
+      apiService.off('cardDrawn', listeners.handleCardDrawn);
     };
-  }, [user, apiService, gameState]);
+  }, [user, apiService]); // Removed gameState dependency to prevent re-setup
 
   // Handle partner code input
   const handleJoinCouple = async () => {
@@ -169,7 +181,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     try {
       const card = await apiService.drawCard(gameSession.id);
       setCurrentCard(card);
-      addMessage(`🎴 Carta pescata: ${card.title}`, 'success');
+      addMessage(`🎴 Carta pescata: ${card.content}`, 'success');
     } catch (error) {
       console.error('❌ Error drawing card:', error);
       setError(`Errore nel pescare la carta: ${error.message}`);
@@ -309,11 +321,16 @@ export default function CoupleGame({ user, apiService, onExit }) {
       {/* Current Card Display */}
       {currentCard ? (
         <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white mb-6">
-          <h3 className="text-xl font-bold mb-2">{currentCard.title}</h3>
-          <p className="text-purple-100">{currentCard.description}</p>
+          <h3 className="text-xl font-bold mb-2">Carta #{currentCard.id}</h3>
+          <p className="text-purple-100 text-lg">{currentCard.content}</p>
           {currentCard.category && (
             <span className="inline-block mt-3 px-3 py-1 bg-white/20 rounded-full text-sm">
               {currentCard.category}
+            </span>
+          )}
+          {currentCard.level && (
+            <span className="inline-block mt-3 ml-2 px-3 py-1 bg-white/10 rounded-full text-sm">
+              Livello {currentCard.level}
             </span>
           )}
         </div>

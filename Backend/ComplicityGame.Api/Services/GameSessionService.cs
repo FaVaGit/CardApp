@@ -1,6 +1,7 @@
 using ComplicityGame.Api.Events;
 using ComplicityGame.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace ComplicityGame.Api.Services
 {
@@ -145,11 +146,28 @@ namespace ComplicityGame.Api.Services
                     new GameCard { Id = 20, GameType = "couple", Category = "Intimità", Content = "In che modo ti fa sentire speciale il nostro amore?", Level = 2 }
                 };
                 
-                var sharedCardIds = session.SharedCards.Select(sc => sc.Id).ToList();
+                // Extract card IDs from SharedCards JSON data
+                var sharedCardIds = new List<int>();
+                foreach (var existingCard in session.SharedCards)
+                {
+                    try
+                    {
+                        var cardData = JsonSerializer.Deserialize<JsonElement>(existingCard.CardData);
+                        if (cardData.TryGetProperty("id", out var idProperty))
+                        {
+                            sharedCardIds.Add(idProperty.GetInt32());
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Failed to parse shared card data: {existingCard.CardData}");
+                    }
+                }
+                
                 // Normalize game type comparison (Coppia -> couple)
                 var normalizedGameType = session.Couple.GameType.ToLower() == "coppia" ? "couple" : session.Couple.GameType.ToLower();
                 var availableCards = allCards.Where(gc => gc.GameType.ToLower() == normalizedGameType && 
-                                                          !sharedCardIds.Contains(gc.Id.ToString())).ToList();
+                                                          !sharedCardIds.Contains(gc.Id)).ToList();
 
                 if (!availableCards.Any())
                 {
@@ -166,9 +184,12 @@ namespace ComplicityGame.Api.Services
                 {
                     SessionId = sessionId,
                     SharedById = userId,
-                    CardData = System.Text.Json.JsonSerializer.Serialize(new { 
-                        id = randomCard.Id, 
-                        content = randomCard.Content 
+                    CardData = JsonSerializer.Serialize(new { 
+                        id = randomCard.Id,
+                        gameType = randomCard.GameType,
+                        category = randomCard.Category,
+                        content = randomCard.Content,
+                        level = randomCard.Level
                     }),
                     SharedAt = DateTime.UtcNow
                 };

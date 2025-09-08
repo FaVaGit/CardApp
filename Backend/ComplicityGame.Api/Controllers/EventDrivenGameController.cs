@@ -214,7 +214,10 @@ namespace ComplicityGame.Api.Controllers
                     success = true, 
                     card = new {
                         id = card.Id,
-                        content = card.Content
+                        gameType = card.GameType,
+                        category = card.Category,
+                        content = card.Content,
+                        level = card.Level
                     }
                 });
             }
