@@ -38,7 +38,11 @@ export default function CoupleGame({ user, apiService, onExit }) {
     const displayCode = user.userCode || user.personalCode || 'N/A';
     const displayName = user.nickname || user.name || 'Utente';
     console.log('🚀 Initializing Couple Game for user:', displayName, 'with code:', displayCode);
-    addMessage(`Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, 'info');
+    // Avoid duplicate welcome message
+    setMessages(prev => {
+      if (prev.some(m => m.text.startsWith(`Benvenuto ${displayName}!`))) return prev;
+      return [...prev, { text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: Date.now() }];
+    });
     addMessage('Inserisci il codice del tuo partner per iniziare.', 'info');
 
     // Setup event-driven listeners for RabbitMQ events (via polling)

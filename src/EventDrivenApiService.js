@@ -171,13 +171,8 @@ class EventDrivenApiService {
             throw new Error('No user ID available');
         }
 
-        const response = await this.apiCall(`/user-status/${targetUserId}`);
-        
-        if (response.success) {
-            return response.status;
-        } else {
-            throw new Error('Failed to get user status');
-        }
+        // The full response is now returned by apiCall
+        return this.apiCall(`/user-status/${targetUserId}`);
     }
 
     // Get current user info
@@ -214,67 +209,65 @@ class EventDrivenApiService {
         }
     }
 
-    // Poll for updates (this represents consuming RabbitMQ events)
+        // Poll for updates (this represents consuming RabbitMQ events)
     async pollForUpdates() {
         if (!this.userId) return;
 
         try {
-            const response = await this.getUserStatus();
-            
-            // Extract status from the response object
-            const status = response.status;
-            const gameSession = response.gameSession;
-            const partnerInfo = response.partnerInfo;
-            
-            if (status && this.lastKnownStatus) {
-                // Check for couple changes
-                if (status.coupleId !== this.lastKnownStatus.coupleId && status.coupleId) {
-                    this.emit('coupleJoined', { coupleId: status.coupleId });
-                }
+            const response = await this.apiCall(`/user-status/${this.userId}`);
+            if (!response.success) return;
 
-                // Check for game session changes
-                if (status.sessionId !== this.lastKnownStatus.sessionId && status.sessionId) {
-                    this.sessionId = status.sessionId;
-                    this.emit('gameSessionStarted', { sessionId: status.sessionId });
+            const { status, gameSession, partnerInfo } = response;
+            const prevStatus = this.lastKnownStatus; // keep previous before overwriting
+
+            // Couple change detection (works also on first poll after couple formation)
+            if (status && status.coupleId) {
+                const coupleChanged = !prevStatus || prevStatus.coupleId !== status.coupleId;
+                if (coupleChanged) {
+                    this.emit('coupleJoined', { coupleId: status.coupleId, partner: partnerInfo });
                 }
-                
-                // Check for partner info updates
-                if (partnerInfo && (!this.lastKnownPartner || this.lastKnownPartner.personalCode !== partnerInfo.personalCode)) {
+            }
+
+            // Partner info detection
+            if (partnerInfo) {
+                const newPartner = !this.lastKnownPartner;
+                const partnerChanged = this.lastKnownPartner && this.lastKnownPartner.userId !== partnerInfo.userId;
+                if (newPartner || partnerChanged) {
                     this.lastKnownPartner = partnerInfo;
                     this.emit('partnerUpdated', partnerInfo);
                 }
-                
-                // Check for new shared cards (ENHANCED SYNCHRONIZATION)
-                if (gameSession && gameSession.sharedCards) {
-                    const currentCardCount = gameSession.sharedCards.length;
-                    
-                    if (currentCardCount > this.lastKnownCardCount) {
-                        this.lastKnownCardCount = currentCardCount;
-                        
-                        // Get the latest card
-                        const latestSharedCard = gameSession.sharedCards[currentCardCount - 1];
-                        if (latestSharedCard && latestSharedCard.cardData) {
-                            try {
-                                const cardData = JSON.parse(latestSharedCard.cardData);
-                                
-                                // Emit session updated event
-                                this.emit('sessionUpdated', {
-                                    type: 'cardDrawn',
-                                    card: cardData,
-                                    drawnBy: latestSharedCard.sharedById,
-                                    timestamp: latestSharedCard.sharedAt
-                                });
-                            } catch (e) {
-                                console.error('Error parsing shared card data:', e);
-                            }
+            }
+
+            // Game session detection
+            if (gameSession && (!prevStatus || !prevStatus.sessionId || prevStatus.sessionId !== gameSession.id)) {
+                this.sessionId = gameSession.id;
+                this.emit('gameSessionStarted', { sessionId: gameSession.id });
+            }
+
+            // Card synchronization
+            if (gameSession && gameSession.sharedCards) {
+                const currentCardCount = gameSession.sharedCards.length;
+                if (currentCardCount > this.lastKnownCardCount) {
+                    this.lastKnownCardCount = currentCardCount;
+                    const latestSharedCard = gameSession.sharedCards[currentCardCount - 1];
+                    if (latestSharedCard && latestSharedCard.cardData) {
+                        try {
+                            const cardData = JSON.parse(latestSharedCard.cardData);
+                            this.emit('sessionUpdated', {
+                                type: 'cardDrawn',
+                                card: cardData,
+                                drawnBy: latestSharedCard.sharedById,
+                                timestamp: latestSharedCard.sharedAt
+                            });
+                        } catch (e) {
+                            console.error('Error parsing shared card data:', e);
                         }
                     }
                 }
             }
 
-            this.lastKnownStatus = status;
+            this.lastKnownStatus = status; // update at end
         } catch (error) {
-            // Silently handle polling errors to avoid spam
             if (error.message !== 'Failed to get user status') {
                 console.warn('⚠️ Polling error:', error);
             }
