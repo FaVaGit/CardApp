@@ -10,6 +10,7 @@ class EventDrivenApiService {
         this.pollingFrequency = 2000; // Poll every 2 seconds for updates
         this.lastKnownCardCount = 0; // Track number of cards drawn
         this.lastKnownStatus = null;
+        this.lastKnownPartner = null; // Track partner information
     }
 
     // Generate unique IDs
@@ -218,7 +219,12 @@ class EventDrivenApiService {
         if (!this.userId) return;
 
         try {
-            const status = await this.getUserStatus();
+            const response = await this.getUserStatus();
+            
+            // Extract status from the response object
+            const status = response.status;
+            const gameSession = response.gameSession;
+            const partnerInfo = response.partnerInfo;
             
             if (status && this.lastKnownStatus) {
                 // Check for couple changes
@@ -232,15 +238,21 @@ class EventDrivenApiService {
                     this.emit('gameSessionStarted', { sessionId: status.sessionId });
                 }
                 
+                // Check for partner info updates
+                if (partnerInfo && (!this.lastKnownPartner || this.lastKnownPartner.personalCode !== partnerInfo.personalCode)) {
+                    this.lastKnownPartner = partnerInfo;
+                    this.emit('partnerUpdated', partnerInfo);
+                }
+                
                 // Check for new shared cards (ENHANCED SYNCHRONIZATION)
-                if (status.gameSession && status.gameSession.sharedCards) {
-                    const currentCardCount = status.gameSession.sharedCards.length;
+                if (gameSession && gameSession.sharedCards) {
+                    const currentCardCount = gameSession.sharedCards.length;
                     
                     if (currentCardCount > this.lastKnownCardCount) {
                         this.lastKnownCardCount = currentCardCount;
                         
                         // Get the latest card
-                        const latestSharedCard = status.gameSession.sharedCards[currentCardCount - 1];
+                        const latestSharedCard = gameSession.sharedCards[currentCardCount - 1];
                         if (latestSharedCard && latestSharedCard.cardData) {
                             try {
                                 const cardData = JSON.parse(latestSharedCard.cardData);

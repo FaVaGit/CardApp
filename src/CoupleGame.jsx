@@ -89,19 +89,28 @@ export default function CoupleGame({ user, apiService, onExit }) {
         }
       };
 
+      // Listen for partner updates (NEW - for partner info synchronization)
+      const handlePartnerUpdated = (partnerData) => {
+        console.log('👥 Partner updated:', partnerData);
+        setPartner(partnerData);
+        addMessage(`💕 Partner ${partnerData.name} collegato!`, 'success');
+      };
+
       // Remove existing listeners to prevent duplicates
       apiService.off('coupleJoined', handleCoupleJoined);
       apiService.off('gameSessionStarted', handleGameSessionStarted);
       apiService.off('cardDrawn', handleCardDrawn);
       apiService.off('sessionUpdated', handleSessionUpdated);
+      apiService.off('partnerUpdated', handlePartnerUpdated);
 
       // Add listeners
       apiService.on('coupleJoined', handleCoupleJoined);
       apiService.on('gameSessionStarted', handleGameSessionStarted);
       apiService.on('cardDrawn', handleCardDrawn);
       apiService.on('sessionUpdated', handleSessionUpdated);
+      apiService.on('partnerUpdated', handlePartnerUpdated);
 
-      return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated };
+      return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
     };
 
     const listeners = setupEventListeners();
@@ -112,6 +121,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('gameSessionStarted', listeners.handleGameSessionStarted);
       apiService.off('cardDrawn', listeners.handleCardDrawn);
       apiService.off('sessionUpdated', listeners.handleSessionUpdated);
+      apiService.off('partnerUpdated', listeners.handlePartnerUpdated);
     };
   }, [user, apiService]); // Removed gameState dependency to prevent re-setup
 
