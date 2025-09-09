@@ -17,6 +17,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [partnerCode, setPartnerCode] = useState('');
+  const [partnerInfo, setPartnerInfo] = useState(null); // Stores partner details (personalCode, name)
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
@@ -46,6 +47,17 @@ export default function CoupleGame({ user, apiService, onExit }) {
       const handleCoupleJoined = (data) => {
         console.log('💑 Received couple joined event:', data);
         addMessage('💑 Partner si è collegato alla coppia!', 'success');
+        if (data?.partner) {
+          setPartnerInfo(data.partner);
+          if (!partnerCode) {
+            setPartnerCode(data.partner.personalCode || data.partner.userCode || '');
+          }
+          // Extra confirmation log for clarity (only if not already logged)
+          const partnerDisplay = data.partner.personalCode || data.partner.userCode;
+          if (partnerDisplay) {
+            addMessage(`✅ Coppia formata con ${partnerDisplay}!`, 'success');
+          }
+        }
         
         if (gameState === 'waiting-for-partner') {
           addMessage('⏳ Entrambi i partner collegati, avvio automatico...', 'info');
@@ -92,8 +104,13 @@ export default function CoupleGame({ user, apiService, onExit }) {
       // Listen for partner updates (NEW - for partner info synchronization)
       const handlePartnerUpdated = (partnerData) => {
         console.log('👥 Partner updated:', partnerData);
-        setPartner(partnerData);
-        addMessage(`💕 Partner ${partnerData.name} collegato!`, 'success');
+        if (!partnerData) return;
+        setPartnerInfo(partnerData);
+        // Update partnerCode for second user (who didn't type it)
+        if (!partnerCode) {
+          setPartnerCode(partnerData.personalCode || partnerData.userCode || '');
+        }
+        addMessage(`✅ Coppia formata con ${partnerData.personalCode || partnerData.userCode || 'partner'}!`, 'success');
       };
 
       // Remove existing listeners to prevent duplicates
@@ -110,7 +127,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.on('sessionUpdated', handleSessionUpdated);
       apiService.on('partnerUpdated', handlePartnerUpdated);
 
-      return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
+  return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
     };
 
     const listeners = setupEventListeners();
@@ -148,6 +165,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
       if (response.success) {
         setCouple(response.couple);
         addMessage(`✅ Coppia formata con ${partnerCode}!`, 'success');
+        if (partnerCode && !partnerInfo) {
+          setPartnerInfo({ personalCode: partnerCode });
+        }
         
         // Check if game auto-started
         if (response.gameSession) {
@@ -311,7 +331,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
           ⏳ In Attesa del Partner
         </h2>
         <p className="text-gray-600">
-          Coppia formata! Partner: <span className="font-mono font-bold text-green-600">{partnerCode}</span>
+          Coppia formata! Partner: <span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode}</span>
         </p>
       </div>
 
@@ -347,7 +367,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
         </h2>
         <p className="text-gray-600">
           Tu: <span className="font-mono font-bold text-blue-600">{user.userCode}</span> • 
-          Partner: <span className="font-mono font-bold text-green-600">{partnerCode}</span>
+          Partner: <span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>
         </p>
         <p className="text-sm text-gray-500">
           Sessione: {gameSession?.id}
