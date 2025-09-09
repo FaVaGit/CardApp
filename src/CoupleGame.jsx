@@ -81,12 +81,11 @@ export default function CoupleGame({ user, apiService, onExit }) {
           // Update current card for both partners
           setCurrentCard(updateData.card);
           
-          // Add to activity log based on who drew the card
+          // Add to activity log ONLY for partner actions (avoid duplicates)
           if (updateData.drawnBy !== user.userId) {
             addMessage(`🎴 Partner ha pescato: ${updateData.card.content}`, 'success');
-          } else {
-            addMessage(`🎴 Hai pescato: ${updateData.card.content}`, 'success');
           }
+          // For own actions, the immediate response in handleDrawCard handles the message
         }
       };
 
@@ -200,9 +199,15 @@ export default function CoupleGame({ user, apiService, onExit }) {
 
     try {
       const card = await apiService.drawCard(gameSession.id);
-      // Note: setCurrentCard and success message will be handled by sessionUpdated event
-      // This prevents duplicate messages when synchronization occurs
-      console.log('🎴 Card draw successful, waiting for sync update:', card);
+      
+      // Update card immediately as fallback (sync will handle partner updates)
+      if (card) {
+        setCurrentCard(card);
+        addMessage(`✅ Carta pescata: ${card.content || card.title || 'Carta'} 🎴`, 'success');
+        console.log('🎴 Card draw successful:', card);
+      }
+      
+      // The sessionUpdated event will handle partner synchronization
     } catch (error) {
       console.error('❌ Error drawing card:', error);
       setError(`Errore nel pescare la carta: ${error.message}`);
