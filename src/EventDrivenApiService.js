@@ -164,6 +164,24 @@ class EventDrivenApiService {
         return response.success;
     }
 
+    // ==== Join Request Workflow (approval-based pairing) ====
+    async requestJoin(targetUserId) {
+        if (!this.userId) throw new Error('User not connected');
+        return this.apiCall('/request-join', 'POST', {
+            requestingUserId: this.userId,
+            targetUserId
+        });
+    }
+
+    async respondJoin(requestId, approve) {
+        if (!this.userId) throw new Error('User not connected');
+        return this.apiCall('/respond-join', 'POST', {
+            requestId,
+            targetUserId: this.userId,
+            approve
+        });
+    }
+
     // Get user status
     async getUserStatus(userId = null) {
         const targetUserId = userId || this.userId;

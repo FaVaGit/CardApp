@@ -15,6 +15,7 @@ public class GameDbContext : DbContext
     public DbSet<SharedCard> SharedCards { get; set; }
     public DbSet<GameCard> GameCards { get; set; }
     public DbSet<Card> Cards { get; set; }
+    public DbSet<CoupleJoinRequest> CoupleJoinRequests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,6 +80,14 @@ public class GameDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.SharedById);
         });
+
+        // CoupleJoinRequest configuration
+        modelBuilder.Entity<CoupleJoinRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TargetUserId, e.Status });
+            entity.Property(e => e.Status).HasMaxLength(20);
+        });
     }
 }
 
@@ -95,6 +104,7 @@ public class User
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public string AuthToken { get; set; } = Guid.NewGuid().ToString();
 }
 
 public class Couple
@@ -173,6 +183,16 @@ public class GameCard
     public string Content { get; set; } = string.Empty;
     public int Level { get; set; } = 1;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class CoupleJoinRequest
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string RequestingUserId { get; set; } = string.Empty; // chi chiede
+    public string TargetUserId { get; set; } = string.Empty; // utente che deve approvare
+    public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected, Cancelled
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? RespondedAt { get; set; }
 }
 
 public class Card

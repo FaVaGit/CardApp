@@ -177,6 +177,91 @@ namespace ComplicityGame.Api.Controllers
             }
         }
 
+        // NEW: Request to pair with a user (approval workflow)
+        [HttpPost("request-join")]
+        public async Task<IActionResult> RequestJoin([FromBody] JoinRequestDto dto)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+
+                var requester = await context.Users.FindAsync(dto.RequestingUserId);
+                var target = await context.Users.FindAsync(dto.TargetUserId);
+                if (requester == null || target == null)
+                    return BadRequest(new { error = "Utente non trovato" });
+
+                // Check existing active request
+                var existing = await context.CoupleJoinRequests
+                    .FirstOrDefaultAsync(r => r.RequestingUserId == dto.RequestingUserId && r.TargetUserId == dto.TargetUserId && r.Status == "Pending");
+                if (existing != null)
+                    return Ok(new { success = true, requestId = existing.Id, status = existing.Status });
+
+                var joinReq = new CoupleJoinRequest
+                {
+                    RequestingUserId = dto.RequestingUserId,
+                    TargetUserId = dto.TargetUserId,
+                    Status = "Pending",
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.CoupleJoinRequests.Add(joinReq);
+                await context.SaveChangesAsync();
+
+                // Emit event (reuse publisher) - simplified
+                await _eventPublisher.PublishToUserAsync(new CoupleCreatedEvent
+                {
+                    UserId = dto.TargetUserId,
+                    CoupleId = joinReq.Id,
+                    CoupleCode = "JOIN_REQUEST",
+                    CreatedAt = DateTime.UtcNow
+                }, dto.TargetUserId);
+
+                return Ok(new { success = true, requestId = joinReq.Id, status = joinReq.Status });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create join request");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("respond-join")]
+        public async Task<IActionResult> RespondJoin([FromBody] RespondJoinDto dto)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                var req = await context.CoupleJoinRequests.FindAsync(dto.RequestId);
+                if (req == null || req.Status != "Pending")
+                    return BadRequest(new { error = "Richiesta non trovata o già gestita" });
+                if (req.TargetUserId != dto.TargetUserId)
+                    return BadRequest(new { error = "Non autorizzato" });
+
+                req.Status = dto.Approve ? "Approved" : "Rejected";
+                req.RespondedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+
+                if (dto.Approve)
+                {
+                    // After approval, create couple logically: requester uses target's code
+                    var target = await context.Users.FindAsync(req.TargetUserId);
+                    if (target != null)
+                    {
+                        var couple = await _coupleService.CreateOrJoinCoupleAsync(target.PersonalCode, req.RequestingUserId);
+                        return Ok(new { success = true, approved = true, coupleId = couple?.Id });
+                    }
+                }
+
+                return Ok(new { success = true, approved = dto.Approve });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to respond to join request");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost("start-game")]
         public async Task<IActionResult> StartGame([FromBody] StartGameRequest request)
         {
@@ -357,5 +442,19 @@ namespace ComplicityGame.Api.Controllers
     public class EndGameRequest
     {
         public string SessionId { get; set; } = string.Empty;
+    }
+
+    // Join approval workflow DTOs
+    public class JoinRequestDto
+    {
+        public string RequestingUserId { get; set; } = string.Empty;
+        public string TargetUserId { get; set; } = string.Empty;
+    }
+
+    public class RespondJoinDto
+    {
+        public string RequestId { get; set; } = string.Empty;
+        public string TargetUserId { get; set; } = string.Empty; // who approves
+        public bool Approve { get; set; }
     }
 }
