@@ -65,11 +65,37 @@ class EventDrivenApiService {
             // Return the full response including personalCode
             return {
                 ...response.status,
-                personalCode: response.personalCode
+                personalCode: response.personalCode,
+                authToken: response.authToken
             };
         } else {
             throw new Error('Failed to connect user');
         }
+    }
+
+    async reconnect(userId, authToken) {
+        const response = await this.apiCall('/reconnect', 'POST', { userId, authToken });
+        if (response.success && response.status) {
+            this.userId = response.status.userId;
+            this.connectionId = response.status.connectionId;
+            this.startEventPolling();
+            return {
+                ...response.status,
+                personalCode: response.personalCode,
+                authToken: response.authToken
+            };
+        }
+        throw new Error('Reconnect failed');
+    }
+
+    async listAvailableUsers() {
+        if (!this.userId) throw new Error('User not connected');
+        return this.apiCall(`/available-users/${this.userId}`);
+    }
+
+    async listJoinRequests() {
+        if (!this.userId) throw new Error('User not connected');
+        return this.apiCall(`/join-requests/${this.userId}`);
     }
 
     // Disconnect user

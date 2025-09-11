@@ -65,21 +65,23 @@ namespace ComplicityGame.Api.Controllers
                     await UpdateUserNameAsync(userId, request.Name, request.GameType);
                 }
                 
-                // Get user's personal code for frontend display
+                // Get user's personal code & auth token for frontend display
                 string? personalCode = null;
+                string? authToken = null;
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
                     var user = await context.Users.FindAsync(userId);
                     personalCode = user?.PersonalCode;
+                    authToken = user?.AuthToken;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, $"Failed to get personal code for user {userId}");
                 }
                 
-                return Ok(new { success = true, status, personalCode });
+                return Ok(new { success = true, status, personalCode, authToken });
             }
             catch (Exception ex)
             {
@@ -406,6 +408,95 @@ namespace ComplicityGame.Api.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        // ==== New authentication & pairing support endpoints ==== 
+        [HttpPost("reconnect")]
+        public async Task<IActionResult> Reconnect([FromBody] ReconnectRequest req)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == req.UserId && u.AuthToken == req.AuthToken);
+                if (user == null) return BadRequest(new { error = "Token o utente non valido" });
+
+                var status = await _presenceService.ConnectUserAsync(user.Id, Guid.NewGuid().ToString());
+                return Ok(new { success = true, status, personalCode = user.PersonalCode, authToken = user.AuthToken });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Reconnect failed");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("available-users/{userId}")]
+        public async Task<IActionResult> GetAvailableUsers(string userId)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+
+                var users = await context.Users
+                    .Where(u => u.Id != userId && u.IsOnline)
+                    .OrderBy(u => u.Name)
+                    .Select(u => new {
+                        u.Id,
+                        u.Name,
+                        u.PersonalCode,
+                        u.IsOnline,
+                        u.AvailableForPairing
+                    }).ToListAsync();
+
+                var outbound = await context.CoupleJoinRequests
+                    .Where(r => r.RequestingUserId == userId && r.Status == "Pending")
+                    .Select(r => r.TargetUserId).ToListAsync();
+
+                var inbound = await context.CoupleJoinRequests
+                    .Where(r => r.TargetUserId == userId && r.Status == "Pending")
+                    .Select(r => r.RequestingUserId).ToListAsync();
+
+                return Ok(new { success = true, users, outbound, inbound });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to list available users");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("join-requests/{userId}")]
+        public async Task<IActionResult> GetJoinRequests(string userId)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                var incoming = await context.CoupleJoinRequests
+                    .Where(r => r.TargetUserId == userId && r.Status == "Pending")
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Select(r => new { r.Id, r.RequestingUserId, r.CreatedAt })
+                    .ToListAsync();
+                var outgoing = await context.CoupleJoinRequests
+                    .Where(r => r.RequestingUserId == userId && r.Status == "Pending")
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Select(r => new { r.Id, r.TargetUserId, r.CreatedAt })
+                    .ToListAsync();
+                return Ok(new { success = true, incoming, outgoing });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get join requests");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        public class ReconnectRequest
+        {
+            public string UserId { get; set; } = string.Empty;
+            public string AuthToken { get; set; } = string.Empty;
+        }
     }
 
     // Request DTOs
@@ -439,11 +530,9 @@ namespace ComplicityGame.Api.Controllers
         public string UserId { get; set; } = string.Empty;
     }
 
-    public class EndGameRequest
-    {
-        public string SessionId { get; set; } = string.Empty;
-    }
+    public class EndGameRequest { public string SessionId { get; set; } = string.Empty; }
 
+    public class ReconnectRequest { public string UserId { get; set; } = string.Empty; public string AuthToken { get; set; } = string.Empty; }
     // Join approval workflow DTOs
     public class JoinRequestDto
     {

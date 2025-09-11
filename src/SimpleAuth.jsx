@@ -17,12 +17,32 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
       const stored = localStorage.getItem('complicity_auth');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed?.name && parsed?.userId && parsed?.personalCode) {
-          setReuseSession(parsed);
+        if (parsed?.name && parsed?.userId && parsed?.personalCode && parsed?.authToken) {
+          // Try silent reconnect
+            apiService.reconnect(parsed.userId, parsed.authToken)
+              .then(res => {
+                const user = {
+                  id: res.userId,
+                  name: parsed.name,
+                  nickname: parsed.nickname,
+                  gameType: 'Coppia',
+                  userId: res.userId,
+                  connectionId: res.connectionId,
+                  userCode: res.personalCode,
+                  personalCode: res.personalCode,
+                  status: res
+                };
+                onAuthSuccess(user);
+              })
+              .catch(() => {
+                setReuseSession(parsed); // fallback to manual
+              });
+        } else if (parsed?.name && parsed?.userId) {
+          setReuseSession(parsed); // legacy stored without token
         }
       }
     } catch (_) {}
-  }, []);
+  }, [apiService, onAuthSuccess]);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -59,7 +79,8 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
         userId: user.userId,
         personalCode: user.personalCode,
         name: user.name,
-        nickname: user.nickname
+        nickname: user.nickname,
+        authToken: response.authToken
       }));
       
       // Notify parent with the authenticated user
