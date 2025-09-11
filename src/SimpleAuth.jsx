@@ -9,6 +9,20 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [reuseSession, setReuseSession] = useState(null);
+
+  // Check for stored auth data
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('complicity_auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.name && parsed?.userId && parsed?.personalCode) {
+          setReuseSession(parsed);
+        }
+      }
+    } catch (_) {}
+  }, []);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -39,6 +53,14 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
         personalCode: response.personalCode || 'N/A',
         status: response
       };
+
+      // Persist minimal auth context
+      localStorage.setItem('complicity_auth', JSON.stringify({
+        userId: user.userId,
+        personalCode: user.personalCode,
+        name: user.name,
+        nickname: user.nickname
+      }));
       
       // Notify parent with the authenticated user
       onAuthSuccess(user);
@@ -61,6 +83,11 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
           <p className="text-gray-600">
             Accedi per iniziare
           </p>
+          {reuseSession && (
+            <div className="mt-4 p-3 border border-green-200 bg-green-50 rounded text-sm text-green-700">
+              Sessione precedente trovata per <strong>{reuseSession.name}</strong> (codice <span className="font-mono">{reuseSession.personalCode}</span>). Reinserisci il nome per riconnetterti.
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">

@@ -59,6 +59,42 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
     context.Database.EnsureCreated();
+
+    // Simple runtime schema patching for new columns (SQLite only)
+    try
+    {
+        using var conn = context.Database.GetDbConnection();
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info('Users')";
+        var existingCols = new List<string>();
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                existingCols.Add(reader.GetString(1)); // name column
+            }
+        }
+        if (!existingCols.Contains("AuthToken"))
+        {
+            // Add AuthToken column
+            using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Users ADD COLUMN AuthToken TEXT";
+            await alter.ExecuteNonQueryAsync();
+
+            // Populate tokens for existing users
+            var users = context.Users.ToList();
+            foreach (var u in users)
+            {
+                u.AuthToken = Guid.NewGuid().ToString();
+            }
+            await context.SaveChangesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[SchemaPatch] Warning: {ex.Message}");
+    }
 }
 
 app.Run();
