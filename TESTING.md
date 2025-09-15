@@ -161,19 +161,12 @@ Il test crea due utenti, invia 6 richieste rapide: le prime 5 devono andare a bu
 
 Nota: Implementazione in‑memory non è adatta a deployment multi‑istanza; per ambienti distribuiti sostituire con Redis / database centralizzato.
 
-## Debounce Client Richiesta Pairing
-Il bottone "Richiedi" ora applica un debounce locale di 2 secondi: dopo un click viene disabilitato (testo `...`) per evitare burst di click consecutivi prima che intervenga il rate limit server.
-
-Verifica manuale:
-1. Apri due utenti A e B
-2. Clicca rapidamente più volte su Richiedi verso B
-3. Osserva che dopo il primo click il bottone mostra `...` e ignora gli altri per ~2s.
-
-## Snapshot Cache-Control
-L'endpoint `GET /api/EventDrivenGame/snapshot/{userId}` invia header:
+## Caching Snapshot
+L'endpoint `GET /api/EventDrivenGame/snapshot/{userId}` imposta ora header anti-cache:
 ```
 Cache-Control: no-store, no-cache, must-revalidate
 Pragma: no-cache
 Expires: 0
 ```
-Questo impedisce a browser / proxy di servire snapshot stali durante polling rapido.
+Motivo: lo snapshot aggrega più sottorisorse dinamiche (stato partner, richieste, sessione); qualsiasi caching potrebbe mostrare stato obsoleto dopo join / accept.
+Nei test E2E non sono richieste modifiche: Playwright effettua già fetch fresh.

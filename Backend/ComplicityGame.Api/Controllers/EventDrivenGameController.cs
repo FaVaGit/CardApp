@@ -719,7 +719,7 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
-                // Evita caching intermedio (CDN / browser) per snapshot altamente dinamico
+                // Anti caching headers (client must always fetch fresh snapshot)
                 Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
                 Response.Headers["Pragma"] = "no-cache";
                 Response.Headers["Expires"] = "0";
