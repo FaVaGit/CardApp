@@ -42,8 +42,10 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     expect(service.userId).toBe('U1');
     expect(service.joinRequestCache.outgoing).toHaveLength(0);
 
-    await service.requestJoin('U2');
-    expect(service.joinRequestCache.outgoing).toHaveLength(1);
+  await service.requestJoin('U2');
+  // Allow any immediate snapshot poll to run and preserve optimistic record
+  await new Promise(r => setTimeout(r, 0));
+  expect(service.joinRequestCache.outgoing).toHaveLength(1);
     expect(service.joinRequestCache.outgoing[0]).toMatchObject({ targetUserId: 'U2' });
   });
 
@@ -52,8 +54,9 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
       { success: true, status: { userId: 'U1', connectionId: 'C1' }, personalCode: '123456', authToken: 'T' },
       { success: true, users: [], available: [], },
       { success: true, incoming: [], outgoing: [] },
-      { requestId: 'R1', success: true }, // request-join
-      { success: true } // cancel-join
+  { success: true, users: [], available: [], incoming: [], outgoing: [] }, // snapshot after connect
+  { requestId: 'R1', success: true }, // request-join
+  { success: true } // cancel-join
     ]);
 
     await service.connectUser('Alice');

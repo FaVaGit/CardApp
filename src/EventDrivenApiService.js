@@ -155,9 +155,9 @@ class EventDrivenApiService {
     
     async listUsersWithRequests() {
         if (!this.userId) throw new Error('User not connected');
-        const usersResp = await this.listAvailableUsers();
-        const reqResp = await this.listJoinRequests();
-        return { ...usersResp, ...reqResp };
+    const usersResp = await this.listAvailableUsers();
+    const reqResp = await this.listJoinRequests();
+    return { ...usersResp, ...reqResp };
     }
 
     async logout(authToken) {
@@ -231,9 +231,9 @@ class EventDrivenApiService {
             requestingUserId: this.userId,
             targetUserId
         });
-        // Optimistic: add to outgoing cache if success
+        // Optimistic: add to outgoing cache if success. Mark with _optimistic so snapshot reconciliation won't drop it prematurely.
         if (resp && resp.requestId) {
-            const record = { requestId: resp.requestId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString() };
+            const record = { requestId: resp.requestId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString(), _optimistic: true };
             this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, record];
             this.emit('joinRequestsUpdated', this.joinRequestCache);
         }
@@ -339,13 +339,18 @@ class EventDrivenApiService {
                     }
                     // Requests delta
                     const inc = snap.incomingRequests || [];
-                    const out = snap.outgoingRequests || [];
+                    let out = snap.outgoingRequests || [];
+                    // Preserve optimistic outgoing requests if snapshot returns empty before backend processes them
+                    if (out.length === 0 && this.joinRequestCache.outgoing.some(r => r._optimistic)) {
+                        out = this.joinRequestCache.outgoing;
+                    } else {
+                        // If backend echoes them back, drop the _optimistic flag
+                        out = out.map(r => ({ ...r, _optimistic: false }));
+                    }
                     if (JSON.stringify(inc) !== JSON.stringify(this.joinRequestCache.incoming) || JSON.stringify(out) !== JSON.stringify(this.joinRequestCache.outgoing)) {
                         this.joinRequestCache = { incoming: inc, outgoing: out };
                         this.emit('joinRequestsUpdated', this.joinRequestCache);
-                        // Also emit usersUpdated with current snapshot to refresh dependent UI (keep both naming variants)
                         if (snap.users) {
-                            // Debug users in usersUpdated event
                             console.log('🔄 Re-emitting usersUpdated after join requests change:', snap.users);
                             this.emit('usersUpdated', { users: snap.users, outbound: out, inbound: inc, outgoing: out, incoming: inc });
                         }
