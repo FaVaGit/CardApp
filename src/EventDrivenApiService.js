@@ -16,6 +16,7 @@ class EventDrivenApiService {
     this.lastUsersSnapshot = [];
     // Configurable TTL (ms) for optimistic join requests that never get confirmed by backend
     this.optimisticJoinTTL = 30000; // 30s default
+    this.prunedJoinCount = 0; // metrics counter
     }
 
     // Generate unique IDs
@@ -226,6 +227,13 @@ class EventDrivenApiService {
     }
 
     // ==== Join Request Workflow (approval-based pairing) ====
+    setOptimisticJoinTTL(ms) {
+        if (typeof ms === 'number' && ms >= 0) this.optimisticJoinTTL = ms;
+    }
+
+    getMetrics() {
+        return { prunedJoinCount: this.prunedJoinCount, optimisticJoinTTL: this.optimisticJoinTTL };
+    }
     async requestJoin(targetUserId) {
         if (!this.userId) throw new Error('User not connected');
     if (targetUserId === this.userId) throw new Error('Non puoi inviarti una richiesta');
@@ -383,6 +391,8 @@ class EventDrivenApiService {
                         return true;
                     });
                     if (pruned.length) {
+                        this.prunedJoinCount += pruned.length;
+                        this.emit('metricsUpdated', { prunedJoinCount: this.prunedJoinCount });
                         pruned.forEach(r => this.emit('joinRequestExpired', { request: r }));
                     }
                     out = kept;

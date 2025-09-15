@@ -8,6 +8,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
   const [expiresAfter, setExpiresAfter] = useState(10);
   const [now, setNow] = useState(Date.now());
   const [messages, setMessages] = useState([]);
+  const [expiredTargets, setExpiredTargets] = useState(new Set());
 
   useEffect(() => {
     if (!apiService || !currentUser) return;
@@ -49,15 +50,25 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
       // Coppia formata: rimuovi immediatamente badge 'In attesa' pulendo outbound/inbound
       setInbound([]);
       setOutbound([]);
+      setExpiredTargets(new Set());
     };
     apiService.on('coupleJoined', handleCouple);
+    const handleExpired = ({ request }) => {
+      const tgt = request?.targetUserId || request?.TargetUserId;
+      if (tgt) {
+        setExpiredTargets(prev => new Set([...Array.from(prev), tgt]));
+        addMsg('Richiesta scaduta', 'error');
+      }
+    };
+    apiService.on('joinRequestExpired', handleExpired);
     return () => {
       apiService.off('usersUpdated', handleUsers);
       apiService.off('joinRequestsUpdated', handleReq);
       apiService.off('coupleJoined', handleCouple);
+      apiService.off('joinRequestExpired', handleExpired);
       clearInterval(tick);
     };
-  }, [apiService, currentUser]);
+  }, [apiService, currentUser, inbound, outbound]);
 
   // Debug data in component
   useEffect(() => {
@@ -169,6 +180,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
               const createdOut = pendingOut ? pendingCreatedAt(uid, false) : null;
               const createdIn = pendingIn ? pendingCreatedAt(uid, true) : null;
               const rs = remainingSeconds(createdOut || createdIn);
+        const isExpired = expiredTargets.has(uid);
               return (
                 <li key={`user-${uid}`} className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
                   <div className="min-w-0">
@@ -178,7 +190,8 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
                         <span className="truncate max-w-[120px]" title={getName(u)}>{getName(u) || 'Senza nome'}</span>
                       </span>
                       {pendingIn && <span data-testid="incoming-request-badge" className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Richiesta per te</span>}
-                      {pendingOut && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">In attesa</span>}
+          {pendingOut && !isExpired && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">In attesa</span>}
+          {pendingOut && isExpired && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded" title="Richiesta scaduta">Scaduta</span>}
                       {rs !== null && <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded" title="Tempo alla scadenza">{formatSeconds(rs)}</span>}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
@@ -209,8 +222,11 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
                         >Richiedi</button>
                       )
                     )}
-                    {pendingOut && (
+                    {pendingOut && !isExpired && (
                       <button data-testid="cancel-request" onClick={() => handleCancel(uid)} className="text-[10px] bg-gray-300 hover:bg-gray-400 text-gray-700 px-2 py-1 rounded">Annulla</button>
+                    )}
+                    {pendingOut && isExpired && (
+                      <button onClick={() => handleSend(uid)} className="text-[10px] bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded">Riprova</button>
                     )}
                   </div>
                 </li>

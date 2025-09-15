@@ -45,6 +45,14 @@ Per evitare che un placeholder `_optimistic` rimanga indefinitamente (es. perdit
 - Per ogni record rimosso viene emesso `joinRequestExpired` con payload `{ request }`.
 - Le UI possono ascoltare questo evento per mostrare un messaggio tipo: "Richiesta scaduta, riprova".
 
+### Configurazione
+Metodo: `apiService.setOptimisticJoinTTL(ms)` per override runtime.
+Metriche disponibili via `apiService.getMetrics()` che restituisce:
+```js
+{ prunedJoinCount, optimisticJoinTTL }
+```
+Evento aggiuntivo: `metricsUpdated` emesso quando `prunedJoinCount` cambia.
+
 Motivazione: evita badge bloccati quando il backend non conferma mai la richiesta (es. crash intermedio).
 
 ## Approvazione / Coppia Formata
@@ -60,6 +68,7 @@ Il file `tests/unit/EventDrivenApiService.spec.js` copre:
 - Fallimento `cancelJoin` (mantiene entry)
 - Rollback su fallimento `requestJoin` (rimozione placeholder temp)
 - Pruning automatico TTL + evento `joinRequestExpired`
+- Configurazione TTL & metriche (`setOptimisticJoinTTL`, `getMetrics`, evento `metricsUpdated`)
 
 ## E2E
 Gli scenari Playwright (`join-approve`, `cancel-flow`, `reject-flow`, `reconnect-flow`) verificano la coerenza UI, incluso:

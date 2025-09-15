@@ -180,4 +180,27 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     expect(expired.length).toBeGreaterThanOrEqual(1);
     expect(expired[0].request.targetUserId).toBe('TARGETTTL');
   });
+
+  it('increments metrics and emits metricsUpdated on pruning', async () => {
+    const metricEvents = [];
+    service.on('metricsUpdated', m => metricEvents.push(m));
+    mockFetchSequence([
+      { success: true, status: { userId: 'UMET', connectionId: 'CMET' }, personalCode: 'MET001', authToken: 'TKMET' },
+      { success: true, users: [], available: [], },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, incomingRequests: [], outgoingRequests: [] },
+      { requestId: 'REQMET', success: true },
+      { success: true, incomingRequests: [], outgoingRequests: [] },
+      { success: true, incomingRequests: [], outgoingRequests: [] }
+    ]);
+    await service.connectUser('MetricUser');
+    service.setOptimisticJoinTTL(5);
+    await service.requestJoin('TARGETM');
+    await new Promise(r => setTimeout(r, 12));
+    await service.pollForUpdates();
+    await service.pollForUpdates();
+    const metrics = service.getMetrics();
+    expect(metrics.prunedJoinCount).toBeGreaterThanOrEqual(1);
+    expect(metricEvents.length).toBeGreaterThanOrEqual(1);
+  });
 });
