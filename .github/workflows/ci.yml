@@ -57,6 +57,10 @@ jobs:
           ./tests/reject-flow.test.sh
           ./tests/cancel-flow.test.sh
 
+      - name: Frontend unit tests
+        run: npm run test:unit -- --run
+        continue-on-error: false
+
       - name: Backend unit tests
         run: |
           dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release --collect:"XPlat Code Coverage" --logger trx

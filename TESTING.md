@@ -37,6 +37,9 @@ bash tests/cancel-flow.test.sh
 
 # E2E UI
 npx playwright test
+
+# Frontend unit tests
+npm run test:unit
 ```
 
 Per vedere un singolo spec:
