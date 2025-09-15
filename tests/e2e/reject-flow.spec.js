@@ -17,10 +17,7 @@ test('Flusso rifiuto: richiesta rimossa e nessuna coppia', async ({ browser }) =
   const pageA = await ctxA.newPage();
   const pageB = await ctxB.newPage();
 
-  // Reset ambiente utenti via API client
-  try {
-    await pageA.request.post('http://localhost:5000/api/admin/clear-users');
-  } catch (_) { /* non-blocking */ }
+  // Global setup già esegue eventuale clear-users
 
   await connectUser(pageA, 'RaffaE2E');
   await connectUser(pageB, 'LiaE2E');

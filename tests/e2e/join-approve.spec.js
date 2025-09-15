@@ -39,10 +39,7 @@ test.describe('Flusso join approvazione', () => {
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
 
-  // Pulisce utenti pre-esistenti per ambiente deterministico usando APIRequestContext
-    try {
-      await pageA.request.post('http://localhost:5000/api/admin/clear-users');
-    } catch(_) { /* ignore reset failure */ }
+  // Global setup ora gestisce eventuale clear-users (rimosso reset locale)
 
     await connectUser(pageA, 'AliceE2E');
     await connectUser(pageB, 'BobE2E');

@@ -77,7 +77,16 @@ Il frontend marca una richiesta inviata come "In attesa" senza attendere il poll
 Endpoint admin:
 - `POST /api/admin/clear-users`
 
-Nei test E2E il reset è "best effort": eventuale 404 o timing non fallisce lo scenario.
+### Global Setup Playwright
+Dal global setup (`tests/e2e/global-setup.js`) eseguiamo *una sola volta* `clear-users` prima degli spec se `CLEAR_USERS_ON_SETUP` non è impostata a `false`.
+
+Variabili:
+| Nome | Default | Effetto |
+|------|---------|---------|
+| CLEAR_USERS_ON_SETUP | true | Esegue pulizia utenti una volta all'avvio test |
+| CLEAR_USERS_ON_START | true | Pulizia opzionale nel server e2e (`scripts/e2e-server.js`) |
+
+Nei test E2E il reset manuale per spec è stato rimosso; rimane sempre "best effort" (errori ignorati).
 
 ## Troubleshooting
 | Sintomo | Causa Probabile | Soluzione |
