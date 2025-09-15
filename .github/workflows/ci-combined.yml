@@ -189,6 +189,10 @@ jobs:
     if: github.event_name == 'push'
     env:
       MIN_COVERAGE_PCT: '5' # adjust threshold as needed
+      MAX_STATEMENT_DROP: '1'
+      MAX_BRANCH_DROP: '1.5'
+  # NOTE: Strategy plan (not yet automated): Periodically raise MIN_COVERAGE_PCT after baseline improves.
+  # Option: compute rolling median of last N main builds and set threshold = floor(median - 0.5) to avoid flakiness.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -220,6 +224,21 @@ jobs:
           PCT=$(jq -r '.combinedPct' combined-coverage.json || echo 0)
           echo "Combined coverage: $PCT% (min $MIN_COVERAGE_PCT%)"
           awk "BEGIN {exit !($PCT >= $MIN_COVERAGE_PCT)}" || { echo "Coverage below threshold"; exit 1; }
+      - name: Coverage baseline (generate or compare)
+        run: |
+          if [ "$GITHUB_REF_NAME" = "Evolution" ]; then
+            echo "On Evolution branch: generating / updating baseline";
+            node scripts/coverage-baseline.mjs generate || true
+            if git diff --quiet .coverage-baseline.json; then echo "Baseline unchanged"; else \
+              git config user.name "github-actions[bot]"; \
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"; \
+              git add .coverage-baseline.json; \
+              git commit -m "chore(ci): update coverage baseline [skip ci]" || true; \
+              git push || echo "Push skipped"; fi
+          else
+            echo "Comparing against baseline";
+            if [ -f .coverage-baseline.json ]; then node scripts/coverage-baseline.mjs compare; else echo "No baseline file present"; fi
+          fi
 
   coverage-comment:
     name: Coverage PR Comment

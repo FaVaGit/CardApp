@@ -13,29 +13,41 @@ function parseAttributes(tag) {
 }
 
 function summarize(xml){
-  // Try overall line-rate attribute on root <coverage>
+  // Root <coverage> can have: lines-valid, lines-covered, line-rate, branches-covered, branches-valid, branch-rate
   const rootMatch = xml.match(/<coverage[^>]*>/);
+  let linePct=0,lineCovered=0,lineTotal=0,branchPct=0,branchCovered=0,branchTotal=0;
   if(rootMatch){
     const attrs = parseAttributes(rootMatch[0]);
     if(attrs['lines-valid'] && attrs['lines-covered']){
-      const total = parseInt(attrs['lines-valid'],10)||0;
-      const covered = parseInt(attrs['lines-covered'],10)||0;
-      return { total: { statements: { pct: total? (covered/total*100):0, covered, total } } };
+      lineTotal = parseInt(attrs['lines-valid'],10)||0;
+      lineCovered = parseInt(attrs['lines-covered'],10)||0;
+      linePct = lineTotal? (lineCovered/lineTotal*100):0;
+    } else if(attrs['line-rate']) {
+      linePct = parseFloat(attrs['line-rate'])*100 || 0;
     }
-    if(attrs['line-rate']){
-      const pct = parseFloat(attrs['line-rate'])*100 || 0;
-      return { total: { statements: { pct, covered: 0, total: 0 } } };
+    if(attrs['branches-covered'] && attrs['branches-valid']){
+      branchTotal = parseInt(attrs['branches-valid'],10)||0;
+      branchCovered = parseInt(attrs['branches-covered'],10)||0;
+      branchPct = branchTotal? (branchCovered/branchTotal*100):0;
+    } else if(attrs['branch-rate']) {
+      branchPct = parseFloat(attrs['branch-rate'])*100 || 0;
     }
   }
-  // Fallback: sum from <class line-rate="...">
-  let covered=0,total=0; let any=false;
-  const classRegex=/<class [^>]*line-rate="([0-9.]+)"[^>]*>/g; let c;
-  while((c=classRegex.exec(xml))){ any=true; const rate=parseFloat(c[1]); total+=1; covered+=rate; }
-  if(any){
-    const pct = total? (covered/total*100):0;
-    return { total:{ statements:{ pct, covered:0, total:0 } } };
+  // If no root totals, fallback accumulating class nodes for lines
+  if(lineTotal === 0){
+    let covered=0,total=0; let any=false;
+    const classRegex=/<class [^>]*line-rate="([0-9.]+)"[^>]*>/g; let c;
+    while((c=classRegex.exec(xml))){ any=true; const rate=parseFloat(c[1]); total+=1; covered+=rate; }
+    if(any){
+      linePct = total? (covered/total*100):0;
+    }
   }
-  return { total:{ statements:{ pct:0, covered:0, total:0 } } };
+  return {
+    total: {
+      statements: { pct: linePct, covered: lineCovered, total: lineTotal },
+      branches: { pct: branchPct, covered: branchCovered, total: branchTotal }
+    }
+  };
 }
 
 function run(){
