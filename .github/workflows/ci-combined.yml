@@ -45,7 +45,15 @@ jobs:
 
       - name: Test Backend (backend only)
         if: matrix.job == 'backend'
-        run: dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release --logger trx --results-directory test-results
+        run: |
+          dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release \
+            --logger trx --results-directory test-results \
+            /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./Coverage/
+
+      - name: Generate Backend Coverage Summary (backend only)
+        if: matrix.job == 'backend'
+        run: |
+          node scripts/backend-cobertura-summary.mjs test-results
 
       - name: Upload Backend Test Results (backend only)
         if: matrix.job == 'backend' && always()
@@ -122,9 +130,7 @@ jobs:
       - name: Collect backend coverage (backend only)
         if: matrix.job == 'backend'
         run: |
-          # Attempt to locate coverage file (if any) - placeholder for future instrumentation
-          echo "Backend coverage aggregation placeholder (no instrumentation configured)"
-          echo '{"total": {"statements": {"pct": 0}}}' > backend-coverage-summary.json
+          cp backend-coverage-summary.json backend-coverage-summary.json || true
       - name: Upload backend coverage (backend only)
         if: matrix.job == 'backend'
         uses: actions/upload-artifact@v4
