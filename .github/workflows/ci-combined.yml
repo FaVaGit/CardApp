@@ -111,26 +111,26 @@ jobs:
         if: matrix.job == 'unit'
         run: npm run test:unit:coverage
 
-      - name: Update coverage badge (unit only)
-        if: matrix.job == 'unit' && success()
-        run: |
-          node scripts/update-coverage-badge.mjs
-          if git diff --quiet README.md; then
-            echo "No badge change";
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add README.md
-            git commit -m "chore(ci): update coverage badge [skip ci]" || echo "Nothing to commit"
-            git push || echo "Push skipped (likely PR context)"
-          fi
-
       - name: Upload coverage (unit only)
         if: matrix.job == 'unit'
         uses: actions/upload-artifact@v4
         with:
           name: unit-coverage
           path: coverage
+          if-no-files-found: ignore
+
+      - name: Collect backend coverage (backend only)
+        if: matrix.job == 'backend'
+        run: |
+          # Attempt to locate coverage file (if any) - placeholder for future instrumentation
+          echo "Backend coverage aggregation placeholder (no instrumentation configured)"
+          echo '{"total": {"statements": {"pct": 0}}}' > backend-coverage-summary.json
+      - name: Upload backend coverage (backend only)
+        if: matrix.job == 'backend'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend-coverage-summary.json
           if-no-files-found: ignore
 
       # E2E job steps
@@ -175,3 +175,34 @@ jobs:
         run: |
           if [ -f Backend/ComplicityGame.Api/backend.pid ]; then kill $(cat Backend/ComplicityGame.Api/backend.pid) || true; fi
           if [ -f frontend.pid ]; then kill $(cat frontend.pid) || true; fi
+
+  aggregate:
+    name: Aggregate Coverage
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage
+          path: unit-coverage
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend-coverage
+        continue-on-error: true
+      - name: Combine & update badge
+        run: |
+          node scripts/update-combined-coverage-badge.mjs || true
+          if git diff --quiet README.md; then echo "No combined badge change"; else \
+            git config user.name "github-actions[bot]"; \
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"; \
+            git add README.md; \
+            git commit -m "chore(ci): update combined coverage badge [skip ci]" || true; \
+            git push || echo "Push skipped"; fi
