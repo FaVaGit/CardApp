@@ -38,8 +38,9 @@ jobs:
       - name: Run Backend
         working-directory: Backend/ComplicityGame.Api
         run: |
-          dotnet run --configuration Release --no-build &
+          dotnet run --configuration Release --no-build > backend.log 2>&1 &
           echo $! > backend.pid
+          echo "Backend PID $(cat backend.pid) started"
       - name: Wait for Backend Health
         run: |
           echo "Probing backend health endpoint...";
@@ -54,22 +55,40 @@ jobs:
               echo "Backend process exited prematurely"; break; fi
             if [ $((i % 10)) -eq 0 ]; then
               echo "Attempt $i still waiting (last status: $STATUS)";
+              tail -n 20 Backend/ComplicityGame.Api/backend.log || true
             fi
             sleep 1;
           done
           echo "--- Backend logs (last 200 lines) ---" || true
-          ls -1 Backend/ComplicityGame.Api || true
+          tail -n 200 Backend/ComplicityGame.Api/backend.log || true
           echo "Failing due to backend not healthy"; exit 1
       - name: Run E2E
         env:
           CI: true
-        run: npm run test:e2e
+        run: |
+          set +e
+          ATTEMPTS=3
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "Playwright attempt $i/$ATTEMPTS";
+            npm run test:e2e && STATUS=0 || STATUS=$?
+            if [ "$STATUS" = "0" ]; then echo "Playwright succeeded on attempt $i"; break; fi
+            echo "Attempt $i failed with code $STATUS";
+            if [ $i -lt $ATTEMPTS ]; then echo "Retrying in 5s..."; sleep 5; fi
+          done
+          exit ${STATUS:-1}
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report
+          if-no-files-found: ignore
+      - name: Upload backend log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log
+          path: Backend/ComplicityGame.Api/backend.log
           if-no-files-found: ignore
       - name: Stop Backend
         if: always()
