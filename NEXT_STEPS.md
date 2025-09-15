@@ -51,9 +51,14 @@ Roadmap sintetica e priorità dopo stabilizzazione flusso join & test E2E.
 - Husky pre-commit: lint + vitest --changed
 
 ## 11. Sicurezza & Performance
-- Rate limit su request-join (es: max 5 ogni 30s)
+- (COMPLETATO) Rate limit su request-join (5 ogni 30s, in-memory)
 - Debounce client su invio multiplo
 - Header `Cache-Control: no-store` su snapshot
+
+### Follow-up Hardening
+- Spostare rate limiting su storage distribuito (Redis) per scaling multi istanza
+- Aggiungere unit test per logica cleanup finestra rate limit
+- Metriche: contatore richieste limitate (esporre endpoint /metrics futura integrazione Prometheus)
 
 ## 12. Documentazione
 - Diagramma sequence join (PlantUML) in `docs/` + embed README

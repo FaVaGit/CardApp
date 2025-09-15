@@ -52,10 +52,12 @@ jobs:
 
       - name: Shell tests
         run: |
-          chmod +x tests/*.sh || true
+          chmod +x tests/*.sh tests/shell/*.sh || true
           ./tests/join-flow.test.sh
           ./tests/reject-flow.test.sh
           ./tests/cancel-flow.test.sh
+          # Nuovo test rate limiting request-join
+          ./tests/shell/rate-limit-request-join.test.sh
 
       - name: Frontend unit tests
         run: npm run test:unit -- --run --coverage
