@@ -1,0 +1,150 @@
+name: CI Combined
+
+on:
+  push:
+    branches: [ Evolution ]
+  pull_request:
+    branches: [ Evolution ]
+
+jobs:
+  test:
+    name: ${{ matrix.job }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [unit, e2e]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Install Playwright Browsers (e2e only)
+        if: matrix.job == 'e2e'
+        run: npx playwright install --with-deps
+
+      - name: Setup .NET (e2e only)
+        if: matrix.job == 'e2e'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore & Build Backend (e2e only)
+        if: matrix.job == 'e2e'
+        working-directory: Backend/ComplicityGame.Api
+        run: |
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+
+      - name: Run Backend (e2e only)
+        if: matrix.job == 'e2e'
+        working-directory: Backend/ComplicityGame.Api
+        run: |
+          dotnet run --configuration Release --no-build > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Wait for Backend Health (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          echo "Probing backend health endpoint...";
+          for i in {1..60}; do
+            STATUS=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:5000/api/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health OK (HTTP 200) at attempt $i";
+              curl -fsS http://localhost:5000/api/health || true
+              exit 0;
+            fi
+            if ! ps -p $(cat Backend/ComplicityGame.Api/backend.pid) > /dev/null 2>&1; then
+              echo "Backend process exited prematurely"; break; fi
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "Attempt $i still waiting (last status: $STATUS)";
+              tail -n 20 Backend/ComplicityGame.Api/backend.log || true
+            fi
+            sleep 1;
+          done
+          echo "--- Backend logs (last 200 lines) ---" || true
+          tail -n 200 Backend/ComplicityGame.Api/backend.log || true
+          echo "Failing due to backend not healthy"; exit 1
+
+      # Unit job steps
+      - name: Lint (unit only)
+        if: matrix.job == 'unit'
+        run: npm run lint --if-present
+
+      - name: Unit tests with coverage (unit only)
+        if: matrix.job == 'unit'
+        run: npm run test:unit:coverage
+
+      - name: Update coverage badge (unit only)
+        if: matrix.job == 'unit' && success()
+        run: |
+          node scripts/update-coverage-badge.mjs
+          if git diff --quiet README.md; then
+            echo "No badge change";
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "chore(ci): update coverage badge [skip ci]" || echo "Nothing to commit"
+            git push || echo "Push skipped (likely PR context)"
+          fi
+
+      - name: Upload coverage (unit only)
+        if: matrix.job == 'unit'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage
+          if-no-files-found: ignore
+
+      # E2E job steps
+      - name: Start frontend dev server (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          npm run dev -- --host &
+          echo $! > frontend.pid
+          npx wait-on http://localhost:5173
+
+      - name: Playwright tests (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          set +e
+          ATTEMPTS=2
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "Playwright attempt $i/$ATTEMPTS";
+            npx playwright test --reporter=list,html && STATUS=0 || STATUS=$?
+            if [ "$STATUS" = "0" ]; then echo "Playwright succeeded on attempt $i"; break; fi
+            if [ $i -lt $ATTEMPTS ]; then echo "Retrying in 5s..."; sleep 5; fi
+          done
+          exit ${STATUS:-1}
+
+      - name: Upload Playwright report (e2e only)
+        if: matrix.job == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload backend log (e2e only)
+        if: matrix.job == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log
+          path: Backend/ComplicityGame.Api/backend.log
+          if-no-files-found: ignore
+
+      - name: Stop services
+        if: always()
+        run: |
+          if [ -f Backend/ComplicityGame.Api/backend.pid ]; then kill $(cat Backend/ComplicityGame.Api/backend.pid) || true; fi
+          if [ -f frontend.pid ]; then kill $(cat frontend.pid) || true; fi
