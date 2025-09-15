@@ -160,3 +160,20 @@ bash tests/shell/rate-limit-request-join.test.sh
 Il test crea due utenti, invia 6 richieste rapide: le prime 5 devono andare a buon fine (200) e la sesta deve restituire 429.
 
 Nota: Implementazione in‑memory non è adatta a deployment multi‑istanza; per ambienti distribuiti sostituire con Redis / database centralizzato.
+
+## Debounce Client Richiesta Pairing
+Il bottone "Richiedi" ora applica un debounce locale di 2 secondi: dopo un click viene disabilitato (testo `...`) per evitare burst di click consecutivi prima che intervenga il rate limit server.
+
+Verifica manuale:
+1. Apri due utenti A e B
+2. Clicca rapidamente più volte su Richiedi verso B
+3. Osserva che dopo il primo click il bottone mostra `...` e ignora gli altri per ~2s.
+
+## Snapshot Cache-Control
+L'endpoint `GET /api/EventDrivenGame/snapshot/{userId}` invia header:
+```
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Expires: 0
+```
+Questo impedisce a browser / proxy di servire snapshot stali durante polling rapido.

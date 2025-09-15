@@ -8,6 +8,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
   const [expiresAfter, setExpiresAfter] = useState(10);
   const [now, setNow] = useState(Date.now());
   const [messages, setMessages] = useState([]);
+  const [sendingTargets, setSendingTargets] = useState({}); // { userId: timestamp }
 
   useEffect(() => {
     if (!apiService || !currentUser) return;
@@ -83,7 +84,20 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
   };
 
   const handleSend = async (id) => {
-    try { await onSendJoin(id); addMsg('Richiesta inviata'); } catch(e){ addMsg('Errore invio richiesta','error'); }
+    // Debounce locale: se già inviato negli ultimi 2s, ignora
+    const nowTs = Date.now();
+    const last = sendingTargets[id];
+    if (last && nowTs - last < 2000) {
+      addMsg('Richiesta già inviata (debounce)','info');
+      return;
+    }
+    setSendingTargets(s => ({ ...s, [id]: nowTs }));
+    try { await onSendJoin(id); addMsg('Richiesta inviata'); }
+    catch(e){ addMsg('Errore invio richiesta','error'); }
+    finally {
+      // Mantieni il timestamp per 2s così il bottone resta disabilitato visivamente
+      setTimeout(() => setSendingTargets(s => { const c = { ...s }; delete c[id]; return c; }), 2000);
+    }
   };
   const handleRespond = async (id, approve) => {
     try { await onRespondJoin(id, approve); addMsg(approve?'Richiesta accettata':'Richiesta rifiutata'); } catch(e){ addMsg('Errore risposta','error'); }
@@ -190,7 +204,13 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
                       uid === (currentUser?.userId) ? (
                         <span className="text-[10px] text-gray-400 px-2 py-1">(tu)</span>
                       ) : (
-                        <button data-testid="send-request" onClick={() => handleSend(uid)} className="text-[11px] bg-pink-500 hover:bg-pink-600 text-white px-3 py-1 rounded shadow-sm">Richiedi</button>
+                        <button
+                          data-testid="send-request"
+                          onClick={() => handleSend(uid)}
+                          disabled={!!sendingTargets[uid]}
+                          className={`text-[11px] px-3 py-1 rounded shadow-sm text-white transition-colors ${sendingTargets[uid] ? 'bg-pink-300 cursor-not-allowed' : 'bg-pink-500 hover:bg-pink-600'}`}
+                          title={sendingTargets[uid] ? 'Attendi un attimo...' : 'Invia richiesta'}
+                        >{sendingTargets[uid] ? '...' : 'Richiedi'}</button>
                       )
                     )}
                     {pendingOut && (

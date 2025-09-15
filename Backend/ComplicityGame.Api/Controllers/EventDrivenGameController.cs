@@ -719,6 +719,10 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
+                // Evita caching intermedio (CDN / browser) per snapshot altamente dinamico
+                Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+                Response.Headers["Pragma"] = "no-cache";
+                Response.Headers["Expires"] = "0";
                 // Reuse status logic
                 var statusResult = await GetUserStatus(userId) as OkObjectResult;
                 if (statusResult == null) return BadRequest(new { error = "Status non disponibile" });
