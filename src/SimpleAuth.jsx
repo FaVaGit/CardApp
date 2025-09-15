@@ -12,31 +12,44 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
   const [reuseSession, setReuseSession] = useState(null);
 
   // Check for stored auth data
+  const reconnectAttemptedRef = React.useRef(false);
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('complicity_auth');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed?.name && parsed?.userId && parsed?.personalCode && parsed?.authToken) {
-          // Try silent reconnect
+          if (!reconnectAttemptedRef.current) {
+            reconnectAttemptedRef.current = true;
             apiService.reconnect(parsed.userId, parsed.authToken)
               .then(res => {
-                const user = {
-                  id: res.userId,
-                  name: parsed.name,
-                  nickname: parsed.nickname,
-                  gameType: 'Coppia',
-                  userId: res.userId,
-                  connectionId: res.connectionId,
-                  userCode: res.personalCode,
-                  personalCode: res.personalCode,
-                  status: res
-                };
-                onAuthSuccess(user);
+                if (res?.invalidToken) {
+                  // token invalid => clear stored session silently
+                  localStorage.removeItem('complicity_auth');
+                  setReuseSession(null);
+                  return;
+                }
+                if (res && res.success !== false && res.userId) {
+                  const user = {
+                    id: res.userId,
+                    name: parsed.name,
+                    nickname: parsed.nickname,
+                    gameType: 'Coppia',
+                    userId: res.userId,
+                    connectionId: res.connectionId,
+                    userCode: res.personalCode,
+                    personalCode: res.personalCode,
+                    status: res
+                  };
+                  onAuthSuccess(user);
+                } else {
+                  setReuseSession(parsed); // fallback manual
+                }
               })
               .catch(() => {
                 setReuseSession(parsed); // fallback to manual
               });
+          }
         } else if (parsed?.name && parsed?.userId) {
           setReuseSession(parsed); // legacy stored without token
         }

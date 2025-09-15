@@ -3,92 +3,94 @@ using ComplicityGame.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+// Forza l'hosting esplicito sulla porta 5000 (React usa baseUrl http://localhost:5000)
+builder.WebHost.UseUrls("http://localhost:5000");
 
-// Add services to the container.
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-    });
+// Services
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Entity Framework
-builder.Services.AddDbContext<GameDbContext>(options =>
-    options.UseSqlite("Data Source=game.db"));
+builder.Services.AddDbContext<GameDbContext>(opt => opt.UseSqlite("Data Source=game.db"));
 
-// CORS for React frontend
+// CORS (dev permissive)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("ReactPolicy", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5175", 
-                          "http://localhost:5176", "http://localhost:5177", "http://localhost:5178", 
-                          "http://localhost:5179", "http://localhost:5180",
-                          "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175", 
-                          "http://127.0.0.1:5176", "http://127.0.0.1:5177", "http://127.0.0.1:5178", 
-                          "http://127.0.0.1:5179", "http://127.0.0.1:5180")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
+    options.AddPolicy("DevAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
-// Mock Event System Services (replaced RabbitMQ for development)
+// App services
 builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
 builder.Services.AddSingleton<IUserPresenceService, UserPresenceService>();
 builder.Services.AddScoped<ICoupleMatchingService, CoupleMatchingService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
 
 var app = builder.Build();
+Console.WriteLine("[BOOT] ComplicityGame.Api avviato. URL: http://localhost:5000");
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseCors("ReactPolicy");
+app.UseCors("DevAll");
 app.UseAuthorization();
-
 app.MapControllers();
 
-// Ensure database is created
+// Ensure DB + lightweight runtime patching
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
-    context.Database.EnsureCreated();
-
-    // Simple runtime schema patching for new columns (SQLite only)
+    var ctx = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+    ctx.Database.EnsureCreated();
     try
     {
-        using var conn = context.Database.GetDbConnection();
+        using var conn = ctx.Database.GetDbConnection();
         await conn.OpenAsync();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info('Users')";
+        // AuthToken column
         var existingCols = new List<string>();
-        using (var reader = await cmd.ExecuteReaderAsync())
+        using (var cmd = conn.CreateCommand())
         {
-            while (await reader.ReadAsync())
-            {
-                existingCols.Add(reader.GetString(1)); // name column
-            }
+            cmd.CommandText = "PRAGMA table_info('Users')";
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync()) existingCols.Add(r.GetString(1));
         }
         if (!existingCols.Contains("AuthToken"))
         {
-            // Add AuthToken column
             using var alter = conn.CreateCommand();
             alter.CommandText = "ALTER TABLE Users ADD COLUMN AuthToken TEXT";
             await alter.ExecuteNonQueryAsync();
-
-            // Populate tokens for existing users
-            var users = context.Users.ToList();
-            foreach (var u in users)
+            foreach (var u in ctx.Users) u.AuthToken = Guid.NewGuid().ToString();
+            await ctx.SaveChangesAsync();
+        }
+        // CoupleJoinRequests table
+        using (var chk = conn.CreateCommand())
+        {
+            chk.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CoupleJoinRequests'";
+            var exists = await chk.ExecuteScalarAsync();
+            if (exists == null)
             {
-                u.AuthToken = Guid.NewGuid().ToString();
+                using (var create = conn.CreateCommand())
+                {
+                    create.CommandText = @"CREATE TABLE CoupleJoinRequests (
+Id TEXT PRIMARY KEY,
+RequestingUserId TEXT NOT NULL,
+TargetUserId TEXT NOT NULL,
+Status TEXT NOT NULL,
+CreatedAt TEXT NOT NULL,
+RespondedAt TEXT NULL
+);";
+                    await create.ExecuteNonQueryAsync();
+                }
+                using (var idx = conn.CreateCommand())
+                {
+                    idx.CommandText = "CREATE INDEX IDX_CoupleJoin_Target_Status ON CoupleJoinRequests (TargetUserId, Status);";
+                    await idx.ExecuteNonQueryAsync();
+                }
             }
-            await context.SaveChangesAsync();
         }
     }
     catch (Exception ex)

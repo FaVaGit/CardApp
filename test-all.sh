@@ -198,6 +198,26 @@ echo "   Users: $USERS_COUNT"
 echo "   Couples: $COUPLES_COUNT"
 echo "   Game Sessions: $SESSIONS_COUNT"
 
+cd ../../
+if [ -x tests/join-flow.test.sh ]; then
+    echo ""
+    echo "🔁 Eseguo test flusso join/approvazione..."
+    bash tests/join-flow.test.sh || { echo -e "${RED}❌ Join flow test failed${NC}"; TESTS_FAILED=$((TESTS_FAILED+1)); }
+fi
+
+# Additional negative path tests (reject & cancel)
+if [ -x tests/reject-flow.test.sh ]; then
+    echo ""
+    echo "🔁 Eseguo test flusso rifiuto..."
+    bash tests/reject-flow.test.sh || { echo -e "${RED}❌ Reject flow test failed${NC}"; TESTS_FAILED=$((TESTS_FAILED+1)); }
+fi
+
+if [ -x tests/cancel-flow.test.sh ]; then
+    echo ""
+    echo "🔁 Eseguo test flusso cancellazione..."
+    bash tests/cancel-flow.test.sh || { echo -e "${RED}❌ Cancel flow test failed${NC}"; TESTS_FAILED=$((TESTS_FAILED+1)); }
+fi
+
 cd - > /dev/null
 
 echo ""

@@ -66,10 +66,11 @@ CardApp/
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 18+
+### Prerequisiti
+- Node.js 20.19.0+ (consigliato via `.nvmrc` / `nvm use`)
 - .NET 8 SDK
 - SQLite
+- (Opzionale) RabbitMQ se si abilita la messaggistica reale (il polling snapshot è fallback)
 
 ### Installation & Startup
 
@@ -94,41 +95,84 @@ CardApp/
 2. Enter your name and select "Gioco Singolo"
 3. Start drawing cards and enjoy!
 
-### Couple Mode
-1. **Player 1**: Open http://localhost:5173 in browser tab 1
-2. **Player 2**: Open http://localhost:5173 in browser tab 2  
-3. Both players: Enter names and select "Gioco di Coppia"
-4. **Player 1**: Share your personal code with Player 2
-5. **Player 2**: Enter Player 1's code to join the couple
-6. Game session starts automatically - enjoy together!
+### Modalità Coppia (Flusso con approvazione richiesta)
+Flusso moderno (request / approve) implementato per evitare accoppiamenti involontari:
+1. Entrambi gli utenti si connettono ("Gioco di Coppia").
+2. L'utente A preme "Richiedi" accanto al nome di B.
+3. B vede un badge "Richiesta per te" e i pulsanti `Accetta` / `Rifiuta`.
+4. Se B accetta:
+   - La richiesta viene rimossa da entrambi i lati.
+   - Si crea (o completa) la coppia.
+   - Se la coppia ha due membri il sistema avvia automaticamente una Game Session.
+5. Se B rifiuta: la richiesta scompare, nessuna coppia viene creata.
+6. A può anche `Annulla` prima della risposta di B.
+
+Note tecniche:
+- Le richieste pendono per 10 minuti prima di scadere (expire) automaticamente.
+- Optimistic UI: A vede subito lo stato "In attesa" senza attendere il polling.
+- Se una richiesta viene approvata vengono ripulite eventuali richieste incrociate residue.
 
 ## 🧪 Testing
 
-### Run All Tests
+### Tipologie di test
+| Livello | Strumento | Percorso | Cosa valida |
+|---------|-----------|----------|-------------|
+| Shell integration | bash + curl + jq | `tests/*.test.sh` | Flussi API (join approve / reject / cancel, snapshot) |
+| End‑to‑End UI | Playwright | `tests/e2e/*.spec.js` | Interazioni reali browser (richiesta, accetta, rifiuta, annulla, reconnect) |
+
+### Esecuzione rapida
 ```bash
+# Tutti i test shell + (se configurato) eventuali altri script
 ./test-all.sh
+
+# Solo flussi join API (approve / reject / cancel)
+bash tests/join-flow.test.sh
+bash tests/reject-flow.test.sh
+bash tests/cancel-flow.test.sh
+
+# Test E2E Playwright (richiede Node >=20 e browsers Playwright installati)
+npx playwright test
 ```
 
-### Test Partner Matching Only
+Per generare il report HTML Playwright:
 ```bash
-./test-partner-matching.sh
+npx playwright show-report
 ```
 
-### Stop Services
-```bash
-./stop.sh
-```
+### Politica sui selettori E2E
+Sono stati introdotti `data-testid` in `UserDirectory.jsx` per ridurre la fragilità:
+- `incoming-request-badge`
+- `send-request`
+- `accept-request`
+- `reject-request`
+- `cancel-request`
+
+### Troubleshooting
+- Messaggio `Please upgrade your Node.js version`: assicurati di usare `nvm use` (20.19.0+).
+- Se i test E2E trovano molti utenti "fantasma", l'endpoint `POST /api/admin/clear-users` può pulire lo stato.
+- Flakiness ridotta aggiungendo polling con `expect.poll` e testids stabili.
 
 ## 🎯 API Endpoints
 
-### Core Game API
-- `POST /api/EventDrivenGame/connect` - Connect user to the system
-- `POST /api/EventDrivenGame/join-couple` - Join/create a couple
-- `POST /api/EventDrivenGame/draw-card` - Draw a card from the deck
-- `POST /api/EventDrivenGame/start-game` - Start a game session
+### Core Game & Join Workflow API
+- `POST /api/EventDrivenGame/connect` - Connessione utente
+- `POST /api/EventDrivenGame/reconnect` - Riconnessione con auth token
+- `GET  /api/EventDrivenGame/available-users/{userId}` - Lista utenti disponibili (esclude self)
+- `POST /api/EventDrivenGame/request-join` - Crea richiesta join (A->B)
+- `POST /api/EventDrivenGame/respond-join` - Approvazione / rifiuto richiesta (B risponde)
+- `POST /api/EventDrivenGame/cancel-join` - Annulla richiesta in pending (A)
+- `GET  /api/EventDrivenGame/join-requests/{userId}` - Incoming / outgoing requests
+- `GET  /api/EventDrivenGame/snapshot/{userId}` - Snapshot aggregato (users + requests + stato + sessione)
+- `POST /api/EventDrivenGame/start-game` - Avvio manuale game (fallback se non auto)
+- `POST /api/EventDrivenGame/draw-card` - Pesca carta
 
-### Health Check
-- `GET /api/health` - Service health status
+### Admin / Utility API
+- `POST /api/admin/clear-users` - Pulisce utenti, coppie, sessioni (usato nei test)
+- `POST /api/admin/reset-system` - Alias di reset completo
+- `POST /api/admin/force-refresh` - Segnale soft di refresh (no-op logico)
+- `POST /api/admin/seed-test-cards` - Inserisce carte di test
+- `GET  /api/admin/cards-status` - Stato deck carte
+- `GET  /api/health` - Health check
 
 ## 🎮 Game Flow
 
@@ -189,36 +233,35 @@ The application uses RabbitMQ for real-time events:
 - **GameSessionStarted** - New game begins
 - **CardDrawn** - Card drawn by player
 
-## 🏆 Features
+## 🏆 Stato Funzionalità
 
-### ✅ Implemented
-- Event-driven architecture with RabbitMQ
-- User authentication and management
-- Partner matching system
-- Real-time couple formation
-- Automatic game session creation
-- Card drawing with event publishing
-- Comprehensive testing suite
-- Clean, modern UI/UX
-- Mobile-responsive design
+### ✅ Implementate
+- Workflow richieste coppia (request / approve / reject / cancel) con auto-start game
+- Ottimistic UI per richieste (aggiornamento immediato senza attendere polling)
+- Snapshot endpoint aggregato (riduce chiamate multiple)
+- Test shell negativi & positivi (approve, reject, cancel)
+- Test E2E Playwright stabili con `data-testid`
+- Auto pulizia richieste pendenti incrociate dopo approvazione
+- Avvio automatico Game Session al completamento coppia
 
-### 🔮 Future Enhancements
-- Card sharing between partners
-- Game history and statistics
-- Custom card decks
-- Voice/video integration
-- Multi-language support
+### 🔮 Miglioramenti Futuri
+- CI pipeline (GitHub Actions) con matrix Node / OS
+- Global Playwright setup per `clear-users` unico
+- Coverage report (nyc per frontend, coverlet per backend)
+- Persistenza carte / progressi per sessioni multiple
+- Internationalizzazione dinamica (i18n)
+- Notifiche WebSocket / SignalR come alternativa al polling
 
-## 🧹 Recent Cleanup
-
-This version represents a major cleanup and modernization:
-
-- ✅ **Simplified Architecture**: Removed unnecessary components
-- ✅ **Event-Driven Pattern**: RabbitMQ integration for real-time features  
-- ✅ **Clean Codebase**: Archived legacy files and unused components
-- ✅ **Modern Scripts**: Consolidated and improved build/test scripts
-- ✅ **Comprehensive Testing**: Full test suite for all functionality
-- ✅ **Updated Documentation**: Clear, accurate documentation
+## 🧹 Aggiornamenti Recenti
+| Area | Aggiornamento |
+|------|---------------|
+| Join Workflow | Introdotto flusso approvazione con cleanup richieste incrociate |
+| UI | Stato ottimistico per richieste e badge testabili |
+| Testing | Aggiunti Playwright E2E (approve / reject / cancel / reconnect) |
+| Selettori | Migrazione a `data-testid` per stabilità test |
+| Node Version | Aggiunto `.nvmrc` (20.19.0) e engines in `package.json` |
+| Script e2e | `scripts/e2e-server.js` riusa backend già avviato evitando conflitti porta |
+| Documentazione | README ampliato (workflow join, admin endpoints, test) |
 
 ## 📝 Contributing
 

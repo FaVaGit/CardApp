@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
  * Modern Couple Game Component - Event-Driven Architecture
@@ -21,11 +21,13 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
+  const msgIdRef = useRef(0);
+  const nextMsgId = () => `${Date.now()}-${msgIdRef.current++}`;
 
   // Add status message helper
   const addMessage = (text, type = 'info') => {
     const message = {
-      id: Date.now(),
+      id: nextMsgId(),
       text,
       type, // 'info', 'success', 'error'
       timestamp: new Date().toLocaleTimeString()
@@ -41,7 +43,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     // Avoid duplicate welcome message
     setMessages(prev => {
       if (prev.some(m => m.text.startsWith(`Benvenuto ${displayName}!`))) return prev;
-      return [...prev, { text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: Date.now() }];
+      return [...prev, { id: nextMsgId(), text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: new Date().toLocaleTimeString() }];
     });
     addMessage('Inserisci il codice del tuo partner per iniziare.', 'info');
 

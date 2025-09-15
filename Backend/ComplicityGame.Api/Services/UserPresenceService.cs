@@ -37,18 +37,18 @@ namespace ComplicityGame.Api.Services
     {
         private readonly ConcurrentDictionary<string, UserPresenceStatus> _usersByConnection = new();
         private readonly ConcurrentDictionary<string, UserPresenceStatus> _usersByUserId = new();
-        private readonly IEventPublisher _eventPublisher;
-        private readonly ILogger<UserPresenceService> _logger;
-        private readonly GameDbContext _context;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<UserPresenceService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
         public UserPresenceService(
-            IEventPublisher eventPublisher, 
+            IEventPublisher eventPublisher,
             ILogger<UserPresenceService> logger,
-            GameDbContext context)
+            IServiceScopeFactory scopeFactory)
         {
             _eventPublisher = eventPublisher;
             _logger = logger;
-            _context = context;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task<UserPresenceStatus> ConnectUserAsync(string userId, string connectionId)
@@ -61,7 +61,9 @@ namespace ComplicityGame.Api.Services
             }
 
             // Get user from database or create if not exists
-            var user = await _context.Users.FindAsync(userId);
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+            var user = await context.Users.FindAsync(userId);
             if (user == null)
             {
                 // Create new user with unique PersonalCode
@@ -77,8 +79,8 @@ namespace ComplicityGame.Api.Services
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
                 _logger.LogInformation($"👤 Created new user {userId} with code {personalCode}");
             }
             else
@@ -87,18 +89,18 @@ namespace ComplicityGame.Api.Services
                 user.IsOnline = true;
                 user.LastSeen = DateTime.UtcNow;
                 user.UpdatedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
 
             // Check for couple membership
-            var coupleUser = await _context.CoupleUsers
+            var coupleUser = await context.CoupleUsers
                 .FirstOrDefaultAsync(cu => cu.UserId == userId);
 
             // Get active session information if in a couple
             string? sessionId = null;
             if (coupleUser != null)
             {
-                var activeSession = await _context.GameSessions
+                var activeSession = await context.GameSessions
                     .FirstOrDefaultAsync(gs => gs.CoupleId == coupleUser.CoupleId && gs.IsActive);
                 sessionId = activeSession?.Id;
             }
@@ -139,6 +141,23 @@ namespace ComplicityGame.Api.Services
             {
                 _usersByUserId.TryRemove(status.UserId, out _);
 
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                    var user = await context.Users.FindAsync(status.UserId);
+                    if (user != null)
+                    {
+                        user.IsOnline = false;
+                        user.LastSeen = DateTime.UtcNow;
+                        await context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to mark user offline in DB {UserId}", status.UserId);
+                }
+
                 // Publish user disconnected event
                 var userDisconnectedEvent = new UserDisconnectedEvent
                 {
@@ -163,14 +182,16 @@ namespace ComplicityGame.Api.Services
             }
 
             // Re-query database for updated couple/session information
-            var coupleUser = await _context.CoupleUsers
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+            var coupleUser = await context.CoupleUsers
                 .FirstOrDefaultAsync(cu => cu.UserId == userId);
             
             // Get active session information if in a couple
             string? sessionId = null;
             if (coupleUser != null)
             {
-                var activeSession = await _context.GameSessions
+                var activeSession = await context.GameSessions
                     .FirstOrDefaultAsync(gs => gs.CoupleId == coupleUser.CoupleId && gs.IsActive);
                 sessionId = activeSession?.Id;
             }
@@ -210,15 +231,17 @@ namespace ComplicityGame.Api.Services
                 _usersByUserId.Clear();
                 
                 // Clear database
-                var users = await _context.Users.ToListAsync();
-                var couples = await _context.Couples.ToListAsync();
-                var sessions = await _context.GameSessions.ToListAsync();
-                
-                _context.GameSessions.RemoveRange(sessions);
-                _context.Couples.RemoveRange(couples);
-                _context.Users.RemoveRange(users);
-                
-                await _context.SaveChangesAsync();
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                var users = await context.Users.ToListAsync();
+                var couples = await context.Couples.ToListAsync();
+                var sessions = await context.GameSessions.ToListAsync();
+
+                context.GameSessions.RemoveRange(sessions);
+                context.Couples.RemoveRange(couples);
+                context.Users.RemoveRange(users);
+
+                await context.SaveChangesAsync();
                 
                 _logger.LogInformation("✅ All users cleared successfully. Removed {UserCount} users, {CoupleCount} couples, {SessionCount} sessions", 
                     users.Count, couples.Count, sessions.Count);

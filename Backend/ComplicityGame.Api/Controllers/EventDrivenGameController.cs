@@ -46,6 +46,9 @@ namespace ComplicityGame.Api.Controllers
                     userId = Guid.NewGuid().ToString();
                 }
                 
+                // Log incoming request for debugging
+                _logger.LogInformation($"ConnectUser received: UserId={userId}, Name={request.Name}");
+                
                 // Use a default connection ID if not provided
                 string connectionId = string.IsNullOrEmpty(request.ConnectionId) 
                     ? Guid.NewGuid().ToString() 
@@ -75,6 +78,7 @@ namespace ComplicityGame.Api.Controllers
                     var user = await context.Users.FindAsync(userId);
                     personalCode = user?.PersonalCode;
                     authToken = user?.AuthToken;
+                    _logger.LogInformation($"User from DB: Id={user?.Id}, Name={user?.Name}, PersonalCode={personalCode}");
                 }
                 catch (Exception ex)
                 {
@@ -190,6 +194,7 @@ namespace ComplicityGame.Api.Controllers
 
                 var requester = await context.Users.FindAsync(dto.RequestingUserId);
                 var target = await context.Users.FindAsync(dto.TargetUserId);
+                _logger.LogInformation($"RequestJoin: requester={requester?.Id} ({requester?.Name}), target={target?.Id} ({target?.Name})");
                 if (requester == null || target == null)
                     return BadRequest(new { error = "Utente non trovato" });
 
@@ -246,20 +251,77 @@ namespace ComplicityGame.Api.Controllers
 
                 if (dto.Approve)
                 {
-                    // After approval, create couple logically: requester uses target's code
+                    // Dopo approvazione: crea/aggancia la coppia
                     var target = await context.Users.FindAsync(req.TargetUserId);
                     if (target != null)
                     {
                         var couple = await _coupleService.CreateOrJoinCoupleAsync(target.PersonalCode, req.RequestingUserId);
-                        return Ok(new { success = true, approved = true, coupleId = couple?.Id });
+                        string? coupleId = couple?.Id.ToString();
+
+                        // Se coppia completata (2 membri) avvia automaticamente la sessione di gioco
+                        object? gameSession = null;
+                        if (couple != null && couple.Members.Count == 2)
+                        {
+                            var started = await _gameService.StartGameAsync(couple.Id.ToString());
+                            if (started != null)
+                            {
+                                gameSession = new { id = started.Id, isActive = started.IsActive, createdAt = started.CreatedAt };
+                            }
+                        }
+
+                        // Pulisci eventuali richieste pendenti incrociate rimaste tra i due utenti per evitare stato sporco
+                        try
+                        {
+                            var leftovers = await context.CoupleJoinRequests
+                                .Where(r => (r.RequestingUserId == req.RequestingUserId && r.TargetUserId == req.TargetUserId) ||
+                                            (r.RequestingUserId == req.TargetUserId && r.TargetUserId == req.RequestingUserId))
+                                .Where(r => r.Status == "Pending")
+                                .ToListAsync();
+                            if (leftovers.Any())
+                            {
+                                foreach (var l in leftovers)
+                                {
+                                    l.Status = "Cancelled"; l.RespondedAt = DateTime.UtcNow;
+                                }
+                                await context.SaveChangesAsync();
+                            }
+                        }
+                        catch (Exception cleanEx)
+                        {
+                            _logger.LogWarning(cleanEx, "Cleanup richieste join pendenti fallito (non bloccante)");
+                        }
+
+                        return Ok(new { success = true, approved = true, coupleId, gameSession });
                     }
                 }
 
-                return Ok(new { success = true, approved = dto.Approve });
+                return Ok(new { success = true, approved = false });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to respond to join request");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("cancel-join")]
+        public async Task<IActionResult> CancelJoin([FromBody] CancelJoinDto dto)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                var req = await context.CoupleJoinRequests
+                    .FirstOrDefaultAsync(r => r.RequestingUserId == dto.RequestingUserId && r.TargetUserId == dto.TargetUserId && r.Status == "Pending");
+                if (req == null) return Ok(new { success = true, cancelled = false });
+                req.Status = "Cancelled";
+                req.RespondedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+                return Ok(new { success = true, cancelled = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to cancel join request");
                 return BadRequest(new { error = ex.Message });
             }
         }
@@ -415,13 +477,21 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
-                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == req.UserId && u.AuthToken == req.AuthToken);
-                if (user == null) return BadRequest(new { error = "Token o utente non valido" });
+                string? personalCode = null; string? authToken = null; string? userId = null;
+                // First scope only for DB lookup
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                    var user = await context.Users.FirstOrDefaultAsync(u => u.Id == req.UserId && u.AuthToken == req.AuthToken);
+                    if (user == null)
+                    {
+                        return Ok(new { success = false, error = "Token o utente non valido" });
+                    }
+                    personalCode = user.PersonalCode; authToken = user.AuthToken; userId = user.Id;
+                } // dispose context before presence connect to avoid concurrency
 
-                var status = await _presenceService.ConnectUserAsync(user.Id, Guid.NewGuid().ToString());
-                return Ok(new { success = true, status, personalCode = user.PersonalCode, authToken = user.AuthToken });
+                var status = await _presenceService.ConnectUserAsync(userId!, Guid.NewGuid().ToString());
+                return Ok(new { success = true, status, personalCode, authToken });
             }
             catch (Exception ex)
             {
@@ -437,16 +507,21 @@ namespace ComplicityGame.Api.Controllers
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                await EnsureCoupleJoinRequestsTableAsync();
 
+                // Include also the requesting user (so frontend can show "Tu")
                 var users = await context.Users
-                    .Where(u => u.Id != userId && u.IsOnline)
+                    // Solo altri utenti (escludi se stesso)
+                    .Where(u => u.IsOnline && u.Id != userId)
                     .OrderBy(u => u.Name)
                     .Select(u => new {
-                        u.Id,
-                        u.Name,
-                        u.PersonalCode,
-                        u.IsOnline,
-                        u.AvailableForPairing
+                        // Use a single consistent casing to avoid System.Text.Json collisions
+                        id = u.Id,
+                        name = u.Name,
+                        personalCode = u.PersonalCode,
+                        isOnline = u.IsOnline,
+                        availableForPairing = u.AvailableForPairing,
+                        isSelf = false
                     }).ToListAsync();
 
                 var outbound = await context.CoupleJoinRequests
@@ -461,6 +536,42 @@ namespace ComplicityGame.Api.Controllers
             }
             catch (Exception ex)
             {
+                // Auto-create table if missing (dev convenience when model evolves)
+                if (ex.Message.Contains("no such table: CoupleJoinRequests", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        await EnsureCoupleJoinRequestsTableAsync();
+                        // Retry once
+                        using var scope2 = _serviceProvider.CreateScope();
+                        var context2 = scope2.ServiceProvider.GetRequiredService<GameDbContext>();
+                        var users = await context2.Users
+                            .Where(u => u.IsOnline && u.Id != userId)
+                            .OrderBy(u => u.Name)
+                            .Select(u => new {
+                                id = u.Id,
+                                name = u.Name,
+                                personalCode = u.PersonalCode,
+                                isOnline = u.IsOnline,
+                                availableForPairing = u.AvailableForPairing,
+                                isSelf = false
+                            }).ToListAsync();
+
+                        var outbound = await context2.CoupleJoinRequests
+                            .Where(r => r.RequestingUserId == userId && r.Status == "Pending")
+                            .Select(r => r.TargetUserId).ToListAsync();
+
+                        var inbound = await context2.CoupleJoinRequests
+                            .Where(r => r.TargetUserId == userId && r.Status == "Pending")
+                            .Select(r => r.RequestingUserId).ToListAsync();
+                        return Ok(new { success = true, users, outbound, inbound, createdTable = true });
+                    }
+                    catch (Exception ex2)
+                    {
+                        _logger.LogError(ex2, "Failed after creating CoupleJoinRequests table");
+                        return BadRequest(new { error = ex2.Message });
+                    }
+                }
                 _logger.LogError(ex, "Failed to list available users");
                 return BadRequest(new { error = ex.Message });
             }
@@ -473,6 +584,20 @@ namespace ComplicityGame.Api.Controllers
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                await EnsureCoupleJoinRequestsTableAsync();
+                var expiryMinutes = 10; // configurable
+                var expiryThreshold = DateTime.UtcNow.AddMinutes(-expiryMinutes);
+
+                // Expire old pending requests
+                var expired = await context.CoupleJoinRequests
+                    .Where(r => r.Status == "Pending" && r.CreatedAt < expiryThreshold)
+                    .ToListAsync();
+                if (expired.Any())
+                {
+                    foreach (var e in expired) e.Status = "Expired";
+                    await context.SaveChangesAsync();
+                }
+
                 var incoming = await context.CoupleJoinRequests
                     .Where(r => r.TargetUserId == userId && r.Status == "Pending")
                     .OrderByDescending(r => r.CreatedAt)
@@ -483,11 +608,158 @@ namespace ComplicityGame.Api.Controllers
                     .OrderByDescending(r => r.CreatedAt)
                     .Select(r => new { r.Id, r.TargetUserId, r.CreatedAt })
                     .ToListAsync();
-                return Ok(new { success = true, incoming, outgoing });
+                return Ok(new { success = true, incoming, outgoing, expiresAfterMinutes = expiryMinutes });
             }
             catch (Exception ex)
             {
+                if (ex.Message.Contains("no such table: CoupleJoinRequests", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        await EnsureCoupleJoinRequestsTableAsync();
+                        // Retry once
+                        using var scope2 = _serviceProvider.CreateScope();
+                        var context2 = scope2.ServiceProvider.GetRequiredService<GameDbContext>();
+                        var incoming = await context2.CoupleJoinRequests
+                            .Where(r => r.TargetUserId == userId && r.Status == "Pending")
+                            .OrderByDescending(r => r.CreatedAt)
+                            .Select(r => new { r.Id, r.RequestingUserId, r.CreatedAt })
+                            .ToListAsync();
+                        var outgoing = await context2.CoupleJoinRequests
+                            .Where(r => r.RequestingUserId == userId && r.Status == "Pending")
+                            .OrderByDescending(r => r.CreatedAt)
+                            .Select(r => new { r.Id, r.TargetUserId, r.CreatedAt })
+                            .ToListAsync();
+                        return Ok(new { success = true, incoming, outgoing, expiresAfterMinutes = 10, createdTable = true });
+                    }
+                    catch (Exception ex2)
+                    {
+                        _logger.LogError(ex2, "Failed after creating CoupleJoinRequests table (join-requests)");
+                        return BadRequest(new { error = ex2.Message });
+                    }
+                }
                 _logger.LogError(ex, "Failed to get join requests");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        private async Task EnsureCoupleJoinRequestsTableAsync()
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                using var conn = context.Database.GetDbConnection();
+                await conn.OpenAsync();
+                using var check = conn.CreateCommand();
+                check.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CoupleJoinRequests'";
+                var exists = await check.ExecuteScalarAsync();
+                if (exists == null)
+                {
+                    // Split creation to avoid multi-statement issues
+                    using (var createTbl = conn.CreateCommand())
+                    {
+                        createTbl.CommandText = @"CREATE TABLE CoupleJoinRequests (
+ Id TEXT PRIMARY KEY,
+ RequestingUserId TEXT NOT NULL,
+ TargetUserId TEXT NOT NULL,
+ Status TEXT NOT NULL,
+ CreatedAt TEXT NOT NULL,
+ RespondedAt TEXT NULL
+);";
+                        await createTbl.ExecuteNonQueryAsync();
+                    }
+                    using (var createIdx = conn.CreateCommand())
+                    {
+                        createIdx.CommandText = "CREATE INDEX IDX_CoupleJoin_Target_Status ON CoupleJoinRequests (TargetUserId, Status);";
+                        await createIdx.ExecuteNonQueryAsync();
+                    }
+                    _logger.LogInformation("[SchemaPatch] Created CoupleJoinRequests table on demand");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "EnsureCoupleJoinRequestsTableAsync failed");
+                throw;
+            }
+        }
+
+        // Aggregated snapshot to reduce polling calls
+        [HttpGet("snapshot/{userId}")]
+        public async Task<IActionResult> GetSnapshot(string userId)
+        {
+            try
+            {
+                // Reuse status logic
+                var statusResult = await GetUserStatus(userId) as OkObjectResult;
+                if (statusResult == null) return BadRequest(new { error = "Status non disponibile" });
+                dynamic statusPayload = statusResult.Value!;
+
+                // Available users (including self)
+                var usersResult = await GetAvailableUsers(userId) as OkObjectResult;
+                dynamic? usersPayload = usersResult?.Value;
+
+                // Join requests
+                var jrResult = await GetJoinRequests(userId) as OkObjectResult;
+                dynamic? jrPayload = jrResult?.Value;
+
+                // Make sure we add lowercase duplicates for compatibility
+                var users = usersPayload?.users;
+                if (users != null)
+                {
+                    try
+                    {
+                        _logger.LogInformation($"Snapshot returning {users.Count} users for userId={userId}");
+                        foreach (var u in users)
+                        {
+                            // Proprietà in minuscolo dopo la semplificazione
+                            _logger.LogDebug($"User in snapshot: {u.name}({u.personalCode}) id={u.id}");
+                        }
+                    }
+                    catch (Exception logEx)
+                    {
+                        _logger.LogDebug(logEx, "Snapshot logging failed (non blocking)");
+                    }
+                }
+                
+                return Ok(new {
+                    success = true,
+                    status = statusPayload.status,
+                    gameSession = statusPayload.gameSession,
+                    partnerInfo = statusPayload.partnerInfo,
+                    users = usersPayload?.users,
+                    outbound = usersPayload?.outbound,
+                    inbound = usersPayload?.inbound,
+                    incomingRequests = jrPayload?.incoming,
+                    outgoingRequests = jrPayload?.outgoing,
+                    expiresAfterMinutes = jrPayload?.expiresAfterMinutes
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to build snapshot");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest req)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == req.UserId && u.AuthToken == req.AuthToken);
+                if (user == null) return BadRequest(new { error = "Token non valido" });
+                // Rotate token to invalidate old sessions
+                user.AuthToken = Guid.NewGuid().ToString();
+                user.IsOnline = false;
+                await context.SaveChangesAsync();
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Logout failed");
                 return BadRequest(new { error = ex.Message });
             }
         }
@@ -533,6 +805,7 @@ namespace ComplicityGame.Api.Controllers
     public class EndGameRequest { public string SessionId { get; set; } = string.Empty; }
 
     public class ReconnectRequest { public string UserId { get; set; } = string.Empty; public string AuthToken { get; set; } = string.Empty; }
+    public class LogoutRequest { public string UserId { get; set; } = string.Empty; public string AuthToken { get; set; } = string.Empty; }
     // Join approval workflow DTOs
     public class JoinRequestDto
     {
@@ -545,5 +818,10 @@ namespace ComplicityGame.Api.Controllers
         public string RequestId { get; set; } = string.Empty;
         public string TargetUserId { get; set; } = string.Empty; // who approves
         public bool Approve { get; set; }
+    }
+    public class CancelJoinDto
+    {
+        public string RequestingUserId { get; set; } = string.Empty;
+        public string TargetUserId { get; set; } = string.Empty;
     }
 }

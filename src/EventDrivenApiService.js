@@ -5,12 +5,15 @@ class EventDrivenApiService {
         this.userId = null;
         this.connectionId = null;
         this.sessionId = null;
+    this.authToken = null; // store auth token for logout / reconnect
         this.eventHandlers = new Map();
         this.pollingInterval = null;
         this.pollingFrequency = 2000; // Poll every 2 seconds for updates
         this.lastKnownCardCount = 0; // Track number of cards drawn
         this.lastKnownStatus = null;
         this.lastKnownPartner = null; // Track partner information
+    this.joinRequestCache = { incoming: [], outgoing: [] };
+    this.lastUsersSnapshot = [];
     }
 
     // Generate unique IDs
@@ -19,9 +22,10 @@ class EventDrivenApiService {
     }
 
     // API call helper
-    async apiCall(endpoint, method = 'GET', body = null) {
+    async apiCall(endpoint, method = 'GET', body = null, options = {}) {
+        const { suppressErrorLog = false } = options;
         const url = `${this.baseUrl}/api/EventDrivenGame${endpoint}`;
-        const options = {
+        const fetchOptions = {
             method,
             headers: {
                 'Content-Type': 'application/json',
@@ -29,11 +33,11 @@ class EventDrivenApiService {
         };
 
         if (body) {
-            options.body = JSON.stringify(body);
+            fetchOptions.body = JSON.stringify(body);
         }
 
         try {
-            const response = await fetch(url, options);
+            const response = await fetch(url, fetchOptions);
             const data = await response.json();
             
             if (!response.ok) {
@@ -42,7 +46,9 @@ class EventDrivenApiService {
             
             return data;
         } catch (error) {
-            console.error(`API call failed: ${method} ${endpoint}`, error);
+            if (!suppressErrorLog) {
+                console.error(`API call failed: ${method} ${endpoint}`, error);
+            }
             throw error;
         }
     }
@@ -57,10 +63,28 @@ class EventDrivenApiService {
         if (response.success && response.status) {
             this.userId = response.status.userId;
             this.connectionId = response.status.connectionId;
+            this.authToken = response.authToken || null;
             console.log('✅ User connected:', response.status);
+            
+            // Debug connection response data
+            console.log('📋 Connect response:', {
+                userId: response.status.userId,
+                personalCode: response.personalCode,
+                name: name
+            });
             
             // Start polling for events (RabbitMQ events will be processed by backend)
             this.startEventPolling();
+            // Seed initial users & requests immediately
+            try {
+                const merged = await this.listUsersWithRequests();
+                if (merged.success) {
+                    this.lastUsersSnapshot = merged.users || [];
+                    this.joinRequestCache = { incoming: merged.incoming || [], outgoing: merged.outgoing || [] };
+                    this.emit('usersUpdated', { users: merged.users || [], inbound: merged.incoming || [], outbound: merged.outgoing || [], incoming: merged.incoming || [], outgoing: merged.outgoing || [] });
+                    this.emit('joinRequestsUpdated', this.joinRequestCache);
+                }
+            } catch (_) { /* ignore seed errors */ }
             
             // Return the full response including personalCode
             return {
@@ -74,18 +98,49 @@ class EventDrivenApiService {
     }
 
     async reconnect(userId, authToken) {
-        const response = await this.apiCall('/reconnect', 'POST', { userId, authToken });
-        if (response.success && response.status) {
-            this.userId = response.status.userId;
-            this.connectionId = response.status.connectionId;
-            this.startEventPolling();
-            return {
-                ...response.status,
-                personalCode: response.personalCode,
-                authToken: response.authToken
-            };
+        try {
+            const response = await this.apiCall('/reconnect', 'POST', { userId, authToken }, { suppressErrorLog: true });
+            if (response.success && response.status) {
+                this.userId = response.status.userId;
+                this.connectionId = response.status.connectionId;
+                this.authToken = response.authToken || authToken || null;
+                this.startEventPolling();
+                return {
+                    ...response.status,
+                    personalCode: response.personalCode,
+                    authToken: response.authToken
+                };
+            }
+            return { success: false };
+        } catch (e) {
+            if (e.message && e.message.includes('Token o utente non valido')) {
+                return { success: false, invalidToken: true };
+            }
+            throw e;
         }
-        throw new Error('Reconnect failed');
+    }
+
+    // Graceful disconnect without clearing auth token (used for component unmount or reset)
+    async disconnectUser() {
+        if (!this.connectionId) {
+            // Nothing to do
+            return;
+        }
+        try {
+            await this.apiCall('/disconnect', 'POST', { connectionId: this.connectionId });
+            console.log('👤 Disconnected user connectionId=', this.connectionId);
+        } catch (e) {
+            // Non-fatal – we still clear local state
+            console.warn('Disconnect warning:', e.message);
+        } finally {
+            this.stopEventPolling();
+            this.connectionId = null;
+            this.userId = null;
+            this.sessionId = null;
+            this.lastKnownStatus = null;
+            this.lastKnownPartner = null;
+            this.lastKnownCardCount = 0;
+        }
     }
 
     async listAvailableUsers() {
@@ -97,22 +152,28 @@ class EventDrivenApiService {
         if (!this.userId) throw new Error('User not connected');
         return this.apiCall(`/join-requests/${this.userId}`);
     }
+    
+    async listUsersWithRequests() {
+        if (!this.userId) throw new Error('User not connected');
+        const usersResp = await this.listAvailableUsers();
+        const reqResp = await this.listJoinRequests();
+        return { ...usersResp, ...reqResp };
+    }
 
-    // Disconnect user
-    async disconnectUser() {
-        if (!this.connectionId) return;
-
-        // Stop polling
-        this.stopEventPolling();
-
-        const response = await this.apiCall('/disconnect', 'POST', {
-            connectionId: this.connectionId
-        });
-
-        if (response.success) {
-            console.log('✅ User disconnected');
+    async logout(authToken) {
+        if (!this.userId) return;
+        try {
+            const token = authToken || this.authToken;
+            if (!token) throw new Error('No auth token available');
+            await this.apiCall('/logout', 'POST', { userId: this.userId, authToken: token });
+        } catch (e) {
+            console.warn('Logout warning:', e.message);
+        } finally {
+            this.stopEventPolling();
             this.userId = null;
             this.connectionId = null;
+            this.sessionId = null;
+            this.authToken = null;
         }
     }
 
@@ -146,42 +207,14 @@ class EventDrivenApiService {
 
     // Start a game session
     async startGame(coupleId) {
-        const response = await this.apiCall('/start-game', 'POST', {
-            coupleId: coupleId
-        });
-
+        const response = await this.apiCall('/start-game', 'POST', { coupleId });
         if (response.success) {
             console.log('🎮 Game started:', response.gameSession);
             return response.gameSession;
-        } else {
-            throw new Error('Failed to start game');
         }
+        throw new Error('Failed to start game');
     }
 
-    // Draw a card
-    async drawCard(sessionId) {
-        if (!this.userId) {
-            throw new Error('User not connected. Call connectUser() first.');
-        }
-
-        const response = await this.apiCall('/draw-card', 'POST', {
-            sessionId: sessionId,
-            userId: this.userId
-        });
-
-        if (response.success) {
-            console.log('🎴 Card drawn:', response.card);
-            
-            // Update local card count immediately
-            this.lastKnownCardCount++;
-            
-            return response.card;
-        } else {
-            throw new Error('Failed to draw card');
-        }
-    }
-
-    // End game session
     async endGame(sessionId) {
         const response = await this.apiCall('/end-game', 'POST', {
             sessionId: sessionId
@@ -193,19 +226,53 @@ class EventDrivenApiService {
     // ==== Join Request Workflow (approval-based pairing) ====
     async requestJoin(targetUserId) {
         if (!this.userId) throw new Error('User not connected');
-        return this.apiCall('/request-join', 'POST', {
+    if (targetUserId === this.userId) throw new Error('Non puoi inviarti una richiesta');
+        const resp = await this.apiCall('/request-join', 'POST', {
             requestingUserId: this.userId,
             targetUserId
         });
+        // Optimistic: add to outgoing cache if success
+        if (resp && resp.requestId) {
+            const record = { requestId: resp.requestId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString() };
+            this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, record];
+            this.emit('joinRequestsUpdated', this.joinRequestCache);
+        }
+        return resp;
     }
 
     async respondJoin(requestId, approve) {
         if (!this.userId) throw new Error('User not connected');
-        return this.apiCall('/respond-join', 'POST', {
+        const resp = await this.apiCall('/respond-join', 'POST', {
             requestId,
             targetUserId: this.userId,
             approve
         });
+        // Optimistic: remove from incoming cache
+        this.joinRequestCache.incoming = this.joinRequestCache.incoming.filter(r => (r.requestId||r.RequestId) !== requestId);
+        // If approved, clear outgoing too (pair formed) and trigger couple event early
+        if (approve && resp && resp.coupleId) {
+            this.joinRequestCache.outgoing = [];
+            // Emit coupleJoined immediately
+            this.emit('coupleJoined', { coupleId: resp.coupleId, partner: resp.partnerInfo });
+            if (resp.gameSession?.id) {
+                this.sessionId = resp.gameSession.id;
+                this.emit('gameSessionStarted', { sessionId: resp.gameSession.id });
+            }
+        }
+        this.emit('joinRequestsUpdated', this.joinRequestCache);
+        return resp;
+    }
+
+    async cancelJoin(targetUserId) {
+        if (!this.userId) throw new Error('User not connected');
+        const resp = await this.apiCall('/cancel-join', 'POST', {
+            requestingUserId: this.userId,
+            targetUserId
+        });
+        // Optimistic removal
+        this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.filter(r => (r.targetUserId||r.TargetUserId) !== targetUserId);
+        this.emit('joinRequestsUpdated', this.joinRequestCache);
+        return resp;
     }
 
     // Get user status
@@ -229,22 +296,15 @@ class EventDrivenApiService {
 
     // Start polling for events (simulates RabbitMQ event consumption)
     startEventPolling() {
-        if (this.pollingInterval) {
-            clearInterval(this.pollingInterval);
-        }
-
-        this.pollingInterval = setInterval(async () => {
-            try {
-                await this.pollForUpdates();
-            } catch (error) {
-                console.error('❌ Error polling for updates:', error);
-            }
+        if (this.pollingInterval) clearInterval(this.pollingInterval);
+        this.pollingInterval = setInterval(() => {
+            this.pollForUpdates().catch(err => console.error('❌ Error polling for updates:', err));
         }, this.pollingFrequency);
-
         console.log('🔄 Started event polling for RabbitMQ updates');
+    // Perform an immediate poll so UI updates without initial delay
+    this.pollForUpdates().catch(err => console.warn('Initial poll error:', err));
     }
 
-    // Stop polling
     stopEventPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
@@ -253,68 +313,80 @@ class EventDrivenApiService {
         }
     }
 
-        // Poll for updates (this represents consuming RabbitMQ events)
     async pollForUpdates() {
         if (!this.userId) return;
-
         try {
-            const response = await this.apiCall(`/user-status/${this.userId}`);
-            if (!response.success) return;
-
-            const { status, gameSession, partnerInfo } = response;
-            const prevStatus = this.lastKnownStatus; // keep previous before overwriting
-
-            // Couple change detection (works also on first poll after couple formation)
-            if (status && status.coupleId) {
-                const coupleChanged = !prevStatus || prevStatus.coupleId !== status.coupleId;
-                if (coupleChanged) {
-                    this.emit('coupleJoined', { coupleId: status.coupleId, partner: partnerInfo });
-                }
-            }
-
-            // Partner info detection
-            if (partnerInfo) {
-                const newPartner = !this.lastKnownPartner;
-                const partnerChanged = this.lastKnownPartner && this.lastKnownPartner.userId !== partnerInfo.userId;
-                if (newPartner || partnerChanged) {
-                    this.lastKnownPartner = partnerInfo;
-                    this.emit('partnerUpdated', partnerInfo);
-                }
-            }
-
-            // Game session detection
-            if (gameSession && (!prevStatus || !prevStatus.sessionId || prevStatus.sessionId !== gameSession.id)) {
-                this.sessionId = gameSession.id;
-                this.emit('gameSessionStarted', { sessionId: gameSession.id });
-            }
-
-            // Card synchronization
-            if (gameSession && gameSession.sharedCards) {
-                const currentCardCount = gameSession.sharedCards.length;
-                if (currentCardCount > this.lastKnownCardCount) {
-                    this.lastKnownCardCount = currentCardCount;
-                    const latestSharedCard = gameSession.sharedCards[currentCardCount - 1];
-                    if (latestSharedCard && latestSharedCard.cardData) {
-                        try {
-                            const cardData = JSON.parse(latestSharedCard.cardData);
-                            this.emit('sessionUpdated', {
-                                type: 'cardDrawn',
-                                card: cardData,
-                                drawnBy: latestSharedCard.sharedById,
-                                timestamp: latestSharedCard.sharedAt
-                            });
-                        } catch (e) {
-                            console.error('Error parsing shared card data:', e);
+            let status, gameSession, partnerInfo;
+            let usedSnapshot = false;
+            try {
+                const snap = await this.apiCall(`/snapshot/${this.userId}`);
+                if (snap && snap.success) {
+                    usedSnapshot = true;
+                    status = snap.status;
+                    gameSession = snap.gameSession;
+                    partnerInfo = snap.partnerInfo;
+                    
+                    // Log user data for debugging
+                    if (snap.users) console.log('📡 Utenti ricevuti:', snap.users);
+                    
+                    // Users delta
+                    if (snap.users) {
+                        const str = JSON.stringify(snap.users);
+                        if (str !== JSON.stringify(this.lastUsersSnapshot)) {
+                            this.lastUsersSnapshot = snap.users;
+                this.emit('usersUpdated', { users: snap.users, outbound: snap.outbound, inbound: snap.inbound, outgoing: snap.outbound, incoming: snap.inbound });
+                        }
+                    }
+                    // Requests delta
+                    const inc = snap.incomingRequests || [];
+                    const out = snap.outgoingRequests || [];
+                    if (JSON.stringify(inc) !== JSON.stringify(this.joinRequestCache.incoming) || JSON.stringify(out) !== JSON.stringify(this.joinRequestCache.outgoing)) {
+                        this.joinRequestCache = { incoming: inc, outgoing: out };
+                        this.emit('joinRequestsUpdated', this.joinRequestCache);
+                        // Also emit usersUpdated with current snapshot to refresh dependent UI (keep both naming variants)
+                        if (snap.users) {
+                            // Debug users in usersUpdated event
+                            console.log('🔄 Re-emitting usersUpdated after join requests change:', snap.users);
+                            this.emit('usersUpdated', { users: snap.users, outbound: out, inbound: inc, outgoing: out, incoming: inc });
                         }
                     }
                 }
+            } catch (err) {
+                console.error('❌ Error in pollForUpdates snapshot:', err);
             }
-
-            this.lastKnownStatus = status; // update at end
+            if (!usedSnapshot) {
+                const resp = await this.apiCall(`/user-status/${this.userId}`);
+                if (!resp.success) return;
+                status = resp.status; gameSession = resp.gameSession; partnerInfo = resp.partnerInfo;
+            }
+            const prevStatus = this.lastKnownStatus;
+            if (status && status.coupleId && (!prevStatus || prevStatus.coupleId !== status.coupleId)) {
+                this.emit('coupleJoined', { coupleId: status.coupleId, partner: partnerInfo });
+            }
+            if (partnerInfo && (!this.lastKnownPartner || this.lastKnownPartner.userId !== partnerInfo.userId)) {
+                this.lastKnownPartner = partnerInfo;
+                this.emit('partnerUpdated', partnerInfo);
+            }
+            if (gameSession && (!prevStatus || prevStatus.sessionId !== gameSession.id)) {
+                this.sessionId = gameSession.id;
+                this.emit('gameSessionStarted', { sessionId: gameSession.id });
+            }
+            if (gameSession?.sharedCards) {
+                const count = gameSession.sharedCards.length;
+                if (count > this.lastKnownCardCount) {
+                    this.lastKnownCardCount = count;
+                    const latest = gameSession.sharedCards[count - 1];
+                    if (latest?.cardData) {
+                        try {
+                            const cardData = JSON.parse(latest.cardData);
+                            this.emit('sessionUpdated', { type: 'cardDrawn', card: cardData, drawnBy: latest.sharedById, timestamp: latest.sharedAt });
+                        } catch (e) { console.error('Error parsing shared card data:', e); }
+                    }
+                }
+            }
+            this.lastKnownStatus = status;
         } catch (error) {
-            if (error.message !== 'Failed to get user status') {
-                console.warn('⚠️ Polling error:', error);
-            }
+            if (error.message !== 'Failed to get user status') console.warn('⚠️ Polling error:', error);
         }
     }
 

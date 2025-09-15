@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
+
+function ErrorBoundary({ children }) {
+  const [err, setErr] = useState(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { const orig = console.error; console.error = (...a) => { orig(...a); if (!err && a[0] instanceof Error) setErr(a[0]); }; return () => { console.error = orig; }; });
+  if (err) {
+    return <div className="p-6 text-sm text-red-700 bg-red-50">Errore runtime: {String(err.message || err)}<pre className="mt-2 text-xs whitespace-pre-wrap">{err.stack}</pre></div>;
+  }
+  return children;
+}
 import SimpleAuth from './SimpleAuth';
 import SimpleCardGame from './SimpleCardGame';
 import CoupleGame from './CoupleGame';
 import EventDrivenApiService from './EventDrivenApiService';
+import UserDirectory from './UserDirectory';
 
 /**
  * MODERNIZED APP ARCHITECTURE - Event-Driven RabbitMQ
@@ -69,11 +80,29 @@ export default function SimpleApp() {
     console.log('🔄 Logging out...');
     
     try {
-      await apiService.disconnectUser();
+      // Attempt backend logout if token stored
+      try {
+        const stored = localStorage.getItem('complicity_auth');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.authToken && apiService?.userId === parsed.userId) {
+            await apiService.logout(parsed.authToken);
+          } else {
+            await apiService.disconnectUser();
+          }
+        } else {
+          await apiService.disconnectUser();
+        }
+      } catch (e) {
+        console.warn('Fallback disconnect:', e.message);
+        await apiService.disconnectUser();
+      }
     } catch (error) {
       console.error('❌ Error during logout:', error);
     }
     
+    // Clear stored auth to allow new registration
+    localStorage.removeItem('complicity_auth');
     setCurrentScreen('auth');
     setAuthenticatedUser(null);
     setSelectedGameType(null);
@@ -114,11 +143,42 @@ export default function SimpleApp() {
             💕 Gioco di Coppia
           </button>
 
+          <div className="pt-4 border-t border-gray-200">
+            <UserDirectory
+              apiService={apiService}
+              currentUser={authenticatedUser}
+              onSendJoin={async (targetId) => {
+                try {
+                  await apiService.requestJoin(targetId);
+                } catch (e) { console.error(e); }
+              }}
+              onRespondJoin={async (requestingUserId, approve) => {
+                try {
+                  const jr = await apiService.listJoinRequests();
+                  const incoming = jr.incoming || [];
+                  const match = incoming.find(r => (r.RequestingUserId || r.requestingUserId) === requestingUserId);
+                  if (match) {
+                    const reqId = match.Id || match.id;
+                    if (reqId) await apiService.respondJoin(reqId, approve);
+                  } else {
+                    console.warn('Join request not found for requestingUserId', requestingUserId, incoming);
+                  }
+                } catch (e) { console.error('respondJoin error', e); }
+              }}
+            />
+          </div>
+
           <button
             onClick={handleLogout}
             className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
           >
             ← Logout
+          </button>
+          <button
+            onClick={() => { localStorage.removeItem('complicity_auth'); setAuthenticatedUser(null); setCurrentScreen('auth'); }}
+            className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 text-sm"
+          >
+            🔄 Nuovo Utente
           </button>
         </div>
       </div>
@@ -129,34 +189,40 @@ export default function SimpleApp() {
   switch (currentScreen) {
     case 'auth':
       return (
-        <SimpleAuth
-          onAuthSuccess={handleAuthSuccess}
-          onClearUsers={clearAllUsers}
-          apiService={apiService}
-        />
+        <ErrorBoundary>
+          <SimpleAuth
+            onAuthSuccess={handleAuthSuccess}
+            onClearUsers={clearAllUsers}
+            apiService={apiService}
+          />
+        </ErrorBoundary>
       );
 
     case 'game-selection':
-      return renderGameSelection();
+  return <ErrorBoundary>{renderGameSelection()}</ErrorBoundary>;
 
     case 'playing':
       // Render different components based on game type
       if (selectedGameType && selectedGameType.id === 'Couple') {
         return (
-          <CoupleGame
-            user={authenticatedUser}
-            apiService={apiService}
-            onExit={handleBackToGameSelection}
-          />
+          <ErrorBoundary>
+            <CoupleGame
+              user={authenticatedUser}
+              apiService={apiService}
+              onExit={handleBackToGameSelection}
+            />
+          </ErrorBoundary>
         );
       } else {
         return (
-          <SimpleCardGame
-            user={authenticatedUser}
-            gameType={selectedGameType}
-            apiService={apiService}
-            onExit={handleBackToGameSelection}
-          />
+          <ErrorBoundary>
+            <SimpleCardGame
+              user={authenticatedUser}
+              gameType={selectedGameType}
+              apiService={apiService}
+              onExit={handleBackToGameSelection}
+            />
+          </ErrorBoundary>
         );
       }
 
