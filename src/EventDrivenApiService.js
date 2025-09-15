@@ -227,17 +227,33 @@ class EventDrivenApiService {
     async requestJoin(targetUserId) {
         if (!this.userId) throw new Error('User not connected');
     if (targetUserId === this.userId) throw new Error('Non puoi inviarti una richiesta');
-        const resp = await this.apiCall('/request-join', 'POST', {
-            requestingUserId: this.userId,
-            targetUserId
-        });
-        // Optimistic: add to outgoing cache if success. Mark with _optimistic so snapshot reconciliation won't drop it prematurely.
-        if (resp && resp.requestId) {
-            const record = { requestId: resp.requestId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString(), _optimistic: true };
-            this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, record];
+        // Pre-add an optimistic placeholder so UI reacts instantly.
+        // We'll replace the temporary requestId once server responds.
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+        const optimisticRecord = { requestId: tempId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString(), _optimistic: true };
+        this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, optimisticRecord];
+        this.emit('joinRequestsUpdated', this.joinRequestCache);
+        try {
+            const resp = await this.apiCall('/request-join', 'POST', {
+                requestingUserId: this.userId,
+                targetUserId
+            });
+            if (resp && resp.requestId) {
+                // Replace temp record with real one, keep optimistic flag until snapshot confirms
+                this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.map(r => r.requestId === tempId ? { ...r, requestId: resp.requestId } : r);
+                this.emit('joinRequestsUpdated', this.joinRequestCache);
+            } else {
+                // No requestId returned -> remove optimistic entry
+                this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.filter(r => r.requestId !== tempId);
+                this.emit('joinRequestsUpdated', this.joinRequestCache);
+            }
+            return resp;
+        } catch (e) {
+            // Rollback optimistic record on failure
+            this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.filter(r => r.requestId !== tempId);
             this.emit('joinRequestsUpdated', this.joinRequestCache);
+            throw e;
         }
-        return resp;
     }
 
     async respondJoin(requestId, approve) {

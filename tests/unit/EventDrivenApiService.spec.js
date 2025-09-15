@@ -108,4 +108,27 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     expect(service.joinRequestCache.outgoing).toHaveLength(1);
     expect(service.joinRequestCache.outgoing[0]).toMatchObject({ targetUserId: 'U_TARGET' });
   });
+
+  it('cancelJoin failure keeps optimistic outgoing entry intact', async () => {
+    // Sequence: connect -> lists -> (immediate poll snapshot empty) -> request-join -> cancel-join failure (500)
+    mockFetchSequence([
+      { success: true, status: { userId: 'UX', connectionId: 'CX' }, personalCode: 'ABC123', authToken: 'TK' },
+      { success: true, users: [], available: [], },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, incomingRequests: [], outgoingRequests: [] }, // snapshot poll right after connect
+      { requestId: 'REQFAIL', success: true }, // request-join success
+      { error: 'Server error', status: 500 } // cancel-join failure
+    ]);
+
+    await service.connectUser('FailUser');
+    await service.requestJoin('TARGET');
+  // Allow any immediate snapshot poll to reconcile (should preserve optimistic)
+  await new Promise(r => setTimeout(r, 0));
+  expect(service.joinRequestCache.outgoing).toHaveLength(1);
+    // Attempt cancellation (will throw)
+    await expect(service.cancelJoin('TARGET')).rejects.toThrow();
+    // Optimistic removal should NOT have happened due to failure (current logic removes after API call; if failure thrown before assignment we ensure revert)
+    // Current implementation removes after successful call, so cache must still contain the entry.
+    expect(service.joinRequestCache.outgoing).toHaveLength(1);
+  });
 });
