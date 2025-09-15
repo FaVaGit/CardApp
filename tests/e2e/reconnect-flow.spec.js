@@ -49,15 +49,23 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
     console.log('⚠️ Sessione non immediatamente visibile, proseguo test (soft check)');
   }
 
-  // Snapshot API validation: conferma partnerInfo e (se presente) sessionId
-  const snapshot = await pageA.request.get('http://localhost:5000/api/EventDrivenGame/snapshot/' + storedAuth && JSON.parse(storedAuth).userId);
-  let snapJson = null;
-  try { snapJson = await snapshot.json(); } catch { /* ignore */ }
-  if (snapJson && snapJson.success) {
-    expect(snapJson.status?.coupleId).toBeTruthy();
-    // partnerInfo può arrivare come campo partnerInfo oppure dentro snapshot
-    if (snapJson.partnerInfo) {
-      expect([snapJson.partnerInfo.name, snapJson.partnerInfo.userId, snapJson.partnerInfo.personalCode].some(v => String(v||'').includes('RecB'))).toBeTruthy();
+  // Snapshot API validation: conferma partnerInfo e sessione se presente
+  let authObj = null;
+  try { authObj = storedAuth ? JSON.parse(storedAuth) : null; } catch { /* ignore */ }
+  if (authObj?.userId) {
+    const snapshotResp = await pageA.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${authObj.userId}`);
+    let snapJson = null;
+    try { snapJson = await snapshotResp.json(); } catch { /* ignore */ }
+    if (snapJson && snapJson.success) {
+      expect(snapJson.status?.coupleId).toBeTruthy();
+      if (snapJson.partnerInfo) {
+        expect(snapJson.partnerInfo.name).toBe('RecB');
+      }
+      // Se esiste una gameSession attiva, verificare id e array sharedCards
+      if (snapJson.gameSession) {
+        expect(snapJson.gameSession.id).toBeTruthy();
+        expect(Array.isArray(snapJson.gameSession.sharedCards)).toBeTruthy();
+      }
     }
   }
 });

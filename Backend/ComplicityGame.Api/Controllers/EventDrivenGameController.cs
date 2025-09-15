@@ -189,6 +189,31 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
+                // Simple in-memory rate limiting (per process). For multi-instance deployment replace with distributed cache.
+                // Key: requester|target  Value: list of timestamps within window
+                const int RATE_LIMIT = 5; // max attempts
+                var window = TimeSpan.FromSeconds(30);
+                var key = $"{dto.RequestingUserId}|{dto.TargetUserId}";
+                var now = DateTime.UtcNow;
+                // Use static dictionary to persist across requests in same process
+                var store = RateLimitStore.JoinRequestAttempts;
+                lock (store)
+                {
+                    if (!store.TryGetValue(key, out var list))
+                    {
+                        list = new List<DateTime>();
+                        store[key] = list;
+                    }
+                    // Remove expired entries
+                    list.RemoveAll(t => now - t > window);
+                    if (list.Count >= RATE_LIMIT)
+                    {
+                        var retryAfter = (int)Math.Ceiling((window - (now - list.First())).TotalSeconds);
+                        Response.Headers["Retry-After"] = retryAfter.ToString();
+                        return StatusCode(StatusCodes.Status429TooManyRequests, new { error = "Limite richieste pairing superato", limit = RATE_LIMIT, windowSeconds = (int)window.TotalSeconds, retryAfterSeconds = retryAfter });
+                    }
+                    list.Add(now);
+                }
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
 
@@ -230,6 +255,10 @@ namespace ComplicityGame.Api.Controllers
                 _logger.LogError(ex, "Failed to create join request");
                 return BadRequest(new { error = ex.Message });
             }
+        }
+        private static class RateLimitStore
+        {
+            public static readonly Dictionary<string, List<DateTime>> JoinRequestAttempts = new();
         }
 
         [HttpPost("respond-join")]

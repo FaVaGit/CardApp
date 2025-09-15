@@ -140,3 +140,23 @@ cat coverage-summary.json
 In CI vengono pubblicati artifact: `backend-coverage`, `frontend-coverage`, `coverage-summary`.
 
 Aggiornare questo file quando cambia il flusso join, le API snapshot, o la strategia selettori.
+
+## Rate Limiting Richieste Pairing
+È stato introdotto un semplice rate limit in‑memory sull'endpoint `POST /api/event-driven/request-join` per evitare spam massivo di richieste pairing.
+
+Parametri (process scoped):
+- Finestra: 30 secondi
+- Limite: 5 richieste per coppia (requestingUserId + targetUserId)
+- Risposta al superamento: HTTP 429 con JSON:
+```json
+{ "error": "Limite richieste pairing superato", "limit": 5, "windowSeconds": 30, "retryAfterSeconds": <stima> }
+```
+Header: `Retry-After` valorizzato in secondi.
+
+Test shell dedicato:
+```bash
+bash tests/shell/rate-limit-request-join.test.sh
+```
+Il test crea due utenti, invia 6 richieste rapide: le prime 5 devono andare a buon fine (200) e la sesta deve restituire 429.
+
+Nota: Implementazione in‑memory non è adatta a deployment multi‑istanza; per ambienti distribuiti sostituire con Redis / database centralizzato.
