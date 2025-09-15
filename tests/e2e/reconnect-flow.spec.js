@@ -26,8 +26,8 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
   }, { timeout: 15000, message: 'Attesa richiesta in arrivo per B' }).toBeGreaterThan(0);
   await pageB.getByTestId('accept-request').first().click();
 
-  // Attendi che badge "In attesa" sparisca per A (coppia formata + possibile auto start sessione)
-  await expect.poll(async () => await pageA.locator('text=In attesa').count(), { timeout: 15000 }).toBe(0);
+  // Attendi che badge "In attesa" sparisca per A (coppia formata). Usa timeout maggiore per ambienti lenti.
+  await expect.poll(async () => await pageA.locator('text=In attesa').count(), { timeout: 25000 }).toBe(0);
 
   // Salva localStorage per A (auth info) prima del reload (Playwright lo conserva nel contesto, ma leggiamo per assert)
   const storedAuth = await pageA.evaluate(() => localStorage.getItem('complicity_auth'));

@@ -45,9 +45,16 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
     };
     apiService.on('usersUpdated', handleUsers);
     apiService.on('joinRequestsUpdated', handleReq);
+    const handleCouple = () => {
+      // Coppia formata: rimuovi immediatamente badge 'In attesa' pulendo outbound/inbound
+      setInbound([]);
+      setOutbound([]);
+    };
+    apiService.on('coupleJoined', handleCouple);
     return () => {
       apiService.off('usersUpdated', handleUsers);
       apiService.off('joinRequestsUpdated', handleReq);
+      apiService.off('coupleJoined', handleCouple);
       clearInterval(tick);
     };
   }, [apiService, currentUser]);
