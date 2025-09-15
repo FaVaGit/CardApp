@@ -26,10 +26,25 @@ jobs:
         run: npm ci || npm install
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-      - name: Start Backend (placeholder)
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore & Build Backend
+        working-directory: Backend/ComplicityGame.Api
         run: |
-          echo "Avvia backend esterno prima di eseguire questi test se necessario" \
-            && echo "Se esiste script npm backend aggiungerlo qui"
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+      - name: Run Backend
+        working-directory: Backend/ComplicityGame.Api
+        run: |
+          dotnet run --configuration Release --no-build &
+          echo $! > backend.pid
+      - name: Wait for Backend Health
+        run: |
+          for i in {1..40}; do
+            if curl -fsS http://localhost:5000/api/EventDrivenGame/connect -X POST -H 'Content-Type: application/json' -d '{"Name":"Probe","GameType":"Coppia"}' >/dev/null 2>&1; then
+              echo "Backend ready"; exit 0; fi; sleep 1; done; echo "Backend not ready"; cat backend.pid; exit 1
       - name: Run E2E
         env:
           CI: true
@@ -41,3 +56,7 @@ jobs:
           name: playwright-report
           path: playwright-report
           if-no-files-found: ignore
+      - name: Stop Backend
+        if: always()
+        run: |
+          if [ -f Backend/ComplicityGame.Api/backend.pid ]; then kill $(cat Backend/ComplicityGame.Api/backend.pid) || true; fi

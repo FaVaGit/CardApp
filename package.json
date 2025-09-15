@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:unit": "vitest run",
+  "test:unit:coverage": "vitest run --coverage",
     "coverage:summary": "node scripts/coverage-summary.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
