@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job: [unit, e2e]
+        job: [unit, backend, e2e]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +27,33 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci || npm install
+
+      # Backend job specific setup
+      - name: Setup .NET (backend only)
+        if: matrix.job == 'backend'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Backend (backend only)
+        if: matrix.job == 'backend'
+        run: dotnet restore Backend/ComplicityGame.Api/ComplicityGame.Api.csproj
+
+      - name: Build Backend (backend only)
+        if: matrix.job == 'backend'
+        run: dotnet build Backend/ComplicityGame.Api/ComplicityGame.Api.csproj -c Release --no-restore
+
+      - name: Test Backend (backend only)
+        if: matrix.job == 'backend'
+        run: dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release --logger trx --results-directory test-results
+
+      - name: Upload Backend Test Results (backend only)
+        if: matrix.job == 'backend' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: test-results
+          if-no-files-found: ignore
 
       - name: Install Playwright Browsers (e2e only)
         if: matrix.job == 'e2e'
