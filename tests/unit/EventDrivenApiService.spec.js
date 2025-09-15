@@ -4,7 +4,7 @@ import EventDrivenApiService from '../../src/EventDrivenApiService.js';
 // Minimal mock for fetch
 function mockFetchSequence(responses) {
   let call = 0;
-  global.fetch = async (url, opts = {}) => {
+  global.fetch = async (url, _opts = {}) => {
     const current = responses[Math.min(call, responses.length - 1)];
     call++;
     if (current.error) {

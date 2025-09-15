@@ -16,7 +16,6 @@ async function connectUser(page, name) {
 
 async function waitForUsers(page, min = 1) {
   await expect.poll(async () => {
-    const countBadges = await page.locator('h3:has-text("Utenti") span').last().textContent().catch(()=>null);
     const listItems = await page.locator('li[class*="p-3"]').count();
     return listItems;
   }, { message: 'Attesa utenti disponibili' }).toBeGreaterThanOrEqual(min);
