@@ -131,4 +131,22 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     // Current implementation removes after successful call, so cache must still contain the entry.
     expect(service.joinRequestCache.outgoing).toHaveLength(1);
   });
+
+  it('requestJoin failure rolls back optimistic placeholder', async () => {
+    // Sequence: connect -> lists -> snapshot -> request-join error
+    mockFetchSequence([
+      { success: true, status: { userId: 'URB', connectionId: 'CRB' }, personalCode: 'RB1234', authToken: 'TKRB' },
+      { success: true, users: [], available: [], },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, incomingRequests: [], outgoingRequests: [] },
+      { error: 'Backend failure', status: 500 } // request-join fails
+    ]);
+
+    await service.connectUser('RollbackUser');
+    // Trigger requestJoin (will optimistically add then rollback)
+    await expect(service.requestJoin('TARGET2')).rejects.toThrow();
+    // Allow microtask flush
+    await new Promise(r => setTimeout(r, 0));
+    expect(service.joinRequestCache.outgoing).toHaveLength(0);
+  });
 });

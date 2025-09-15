@@ -17,10 +17,14 @@ joinRequestCache = {
 ```
 
 ## Inserimento Optimistic
-Quando `requestJoin(targetUserId)` ha successo (risposta con `requestId`), aggiunge un record:
+Quando `requestJoin(targetUserId)` viene chiamato, il client ora inserisce SUBITO un placeholder ottimistico con `requestId` temporaneo che inizia con `temp-`:
 ```js
-{ requestId, requestingUserId, targetUserId, createdAt, _optimistic: true }
+{ requestId: 'temp-<timestamp>-<rand>', requestingUserId, targetUserId, createdAt, _optimistic: true }
 ```
+Alla risposta del backend:
+1. Se arriva un `requestId` reale, il placeholder viene sostituito mantenendo `_optimistic: true` finché lo snapshot lo ri-echoa (a quel punto il flag viene rimosso).
+2. Se la chiamata fallisce (errore HTTP), il placeholder viene rollbackato (rimosso) per non lasciare richieste zombie.
+
 Il flag `_optimistic` indica che il backend potrebbe non aver ancora propagato la richiesta nello snapshot.
 
 ## Reconciliation con Snapshot
@@ -30,6 +34,8 @@ Durante `pollForUpdates()` lo snapshot può restituire liste vuote (race inizial
 
 ## Cancellazione
 `cancelJoin(targetUserId)` rimuove in modo ottimistico il record da `outgoing` e emette `joinRequestsUpdated`.
+
+In caso di errore della chiamata `cancel-join`, la rimozione NON avviene perché avviene solo dopo risposta positiva; l'entry rimane visibile evitando stato incoerente.
 
 ## Approvazione / Coppia Formata
 `respondJoin(requestId, true)` pulisce entrambe le liste e emette `coupleJoined`.
@@ -41,6 +47,8 @@ Il file `tests/unit/EventDrivenApiService.spec.js` copre:
 - Cancellazione
 - Approvazione (clear cache + evento)
 - Preservazione optimistica con snapshot precoce vuoto
+- Fallimento `cancelJoin` (mantiene entry)
+- Rollback su fallimento `requestJoin` (rimozione placeholder temp)
 
 ## E2E
 Gli scenari Playwright (`join-approve`, `cancel-flow`, `reject-flow`, `reconnect-flow`) verificano la coerenza UI, incluso:
@@ -52,3 +60,4 @@ Gli scenari Playwright (`join-approve`, `cancel-flow`, `reject-flow`, `reconnect
 - Evitare di aggiungere logica condizionale duplicata nei componenti: centralizzare in `EventDrivenApiService`.
 - Se si introduce WebSocket/SSE in futuro, mantenere la semantica del flag `_optimistic` per transizione graduale.
 - Considerare TTL locale per richieste stale se il backend definisce una scadenza.
+- Possibile pruning periodico dei placeholder `temp-*` che restano `_optimistic` oltre una finestra (es. 30s) come fallback di sicurezza.
