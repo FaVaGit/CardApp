@@ -45,3 +45,5 @@ if(!badgeRegex.test(md)) { console.warn('Coverage badge not found in README'); p
 const updated = md.replace(badgeRegex, newBadge);
 writeFileSync('README.md', updated, 'utf8');
 console.log('Updated combined coverage badge ->', format(finalPct));
+// Emit machine readable summary
+try { writeFileSync('combined-coverage.json', JSON.stringify({ combinedPct: finalPct }, null, 2)); } catch {}
