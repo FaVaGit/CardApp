@@ -149,4 +149,35 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     await new Promise(r => setTimeout(r, 0));
     expect(service.joinRequestCache.outgoing).toHaveLength(0);
   });
+
+  it('prunes stale optimistic request after TTL and emits event', async () => {
+    const expired = [];
+    service.on('joinRequestExpired', e => expired.push(e));
+    // Sequence: connect -> lists -> snapshot -> (no backend echo so stays optimistic) -> subsequent polls with empty snapshots
+    mockFetchSequence([
+      { success: true, status: { userId: 'UTTL', connectionId: 'CTTL' }, personalCode: 'TTL001', authToken: 'TKTTL' },
+      { success: true, users: [], available: [], },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, incomingRequests: [], outgoingRequests: [] }, // initial snapshot
+      { requestId: 'REQTTL', success: true }, // request-join success (so placeholder replaced with real id but still _optimistic until backend echoes)
+      // poll 1 (no echo yet)
+      { success: true, incomingRequests: [], outgoingRequests: [] },
+      // poll 2 (triggers pruning)
+      { success: true, incomingRequests: [], outgoingRequests: [] }
+    ]);
+
+    await service.connectUser('TTLUser');
+    // Riduci TTL per il test (5ms)
+    service.optimisticJoinTTL = 5;
+  await service.requestJoin('TARGETTTL');
+    expect(service.joinRequestCache.outgoing).toHaveLength(1);
+    // Avanza tempo reale
+    await new Promise(r => setTimeout(r, 15));
+    // Forza due poll consecutivi manualmente (usa snapshot vuoti dal mock)
+    await service.pollForUpdates();
+    await service.pollForUpdates();
+    expect(service.joinRequestCache.outgoing).toHaveLength(0);
+    expect(expired.length).toBeGreaterThanOrEqual(1);
+    expect(expired[0].request.targetUserId).toBe('TARGETTTL');
+  });
 });

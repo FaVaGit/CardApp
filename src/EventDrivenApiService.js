@@ -14,6 +14,8 @@ class EventDrivenApiService {
         this.lastKnownPartner = null; // Track partner information
     this.joinRequestCache = { incoming: [], outgoing: [] };
     this.lastUsersSnapshot = [];
+    // Configurable TTL (ms) for optimistic join requests that never get confirmed by backend
+    this.optimisticJoinTTL = 30000; // 30s default
     }
 
     // Generate unique IDs
@@ -243,9 +245,13 @@ class EventDrivenApiService {
                 this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.map(r => r.requestId === tempId ? { ...r, requestId: resp.requestId } : r);
                 this.emit('joinRequestsUpdated', this.joinRequestCache);
             } else {
-                // No requestId returned -> remove optimistic entry
-                this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.filter(r => r.requestId !== tempId);
-                this.emit('joinRequestsUpdated', this.joinRequestCache);
+                // No requestId returned: keep optimistic placeholder; backend may be delayed.
+                // Will be pruned by TTL if never confirmed.
+                if (!resp || !resp.success) {
+                    // Defensive: if outright failure semantic without throwing, rollback.
+                    this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.filter(r => r.requestId !== tempId);
+                    this.emit('joinRequestsUpdated', this.joinRequestCache);
+                }
             }
             return resp;
         } catch (e) {
@@ -363,6 +369,23 @@ class EventDrivenApiService {
                         // If backend echoes them back, drop the _optimistic flag
                         out = out.map(r => ({ ...r, _optimistic: false }));
                     }
+                    // Prune stale optimistic entries (never confirmed by backend within TTL)
+                    const now = Date.now();
+                    const pruned = [];
+                    const kept = out.filter(r => {
+                        if (r._optimistic) {
+                            const created = new Date(r.createdAt).getTime();
+                            if (!isNaN(created) && (now - created) > this.optimisticJoinTTL) {
+                                pruned.push(r);
+                                return false; // drop
+                            }
+                        }
+                        return true;
+                    });
+                    if (pruned.length) {
+                        pruned.forEach(r => this.emit('joinRequestExpired', { request: r }));
+                    }
+                    out = kept;
                     if (JSON.stringify(inc) !== JSON.stringify(this.joinRequestCache.incoming) || JSON.stringify(out) !== JSON.stringify(this.joinRequestCache.outgoing)) {
                         this.joinRequestCache = { incoming: inc, outgoing: out };
                         this.emit('joinRequestsUpdated', this.joinRequestCache);
