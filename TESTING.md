@@ -124,5 +124,19 @@ Stabilità > Velocità: preferiamo 1s extra di polling rispetto a test flaky.
 | .NET SDK | 8.x
 | Playwright Browsers | ultima installazione (`npx playwright install`)
 
----
+## Coverage
+Generare coverage locale:
+```bash
+# Frontend (lcov + text)
+npm run test:unit -- --coverage
+
+# Backend (cobertura)
+dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release --collect:"XPlat Code Coverage"
+
+# Riepilogo combinato
+npm run coverage:summary
+cat coverage-summary.json
+```
+In CI vengono pubblicati artifact: `backend-coverage`, `frontend-coverage`, `coverage-summary`.
+
 Aggiornare questo file quando cambia il flusso join, le API snapshot, o la strategia selettori.

@@ -11,6 +11,7 @@
   "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
   "preview": "vite preview",
   "test:unit": "vitest run",
+  "coverage:summary": "node scripts/coverage-summary.mjs",
   "test:e2e": "playwright test",
   "test:e2e:headed": "playwright test --headed",
   "test:e2e:report": "playwright show-report"
