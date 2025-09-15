@@ -17,6 +17,7 @@ import SimpleCardGame from './SimpleCardGame';
 import CoupleGame from './CoupleGame';
 import EventDrivenApiService from './EventDrivenApiService';
 import UserDirectory from './UserDirectory';
+import TTLSettings from './TTLSettings';
 
 /**
  * MODERNIZED APP ARCHITECTURE - Event-Driven RabbitMQ
@@ -132,6 +133,7 @@ export default function SimpleApp() {
         </div>
 
         <div className="space-y-4">
+          <TTLSettings apiService={apiService} />
           <button
             onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)}
             className="w-full bg-blue-500 text-white py-4 px-6 rounded-lg hover:bg-blue-600 text-lg font-semibold"

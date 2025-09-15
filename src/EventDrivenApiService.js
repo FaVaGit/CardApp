@@ -17,6 +17,12 @@ class EventDrivenApiService {
     // Configurable TTL (ms) for optimistic join requests that never get confirmed by backend
     this.optimisticJoinTTL = 30000; // 30s default
     this.prunedJoinCount = 0; // metrics counter
+    // Load persisted config/metrics if available
+    try {
+        const stored = JSON.parse(localStorage.getItem('complicity_join_settings')||'{}');
+        if (typeof stored.optimisticJoinTTL === 'number') this.optimisticJoinTTL = stored.optimisticJoinTTL;
+        if (typeof stored.prunedJoinCount === 'number') this.prunedJoinCount = stored.prunedJoinCount;
+    } catch { /* ignore */ }
     }
 
     // Generate unique IDs
@@ -229,10 +235,30 @@ class EventDrivenApiService {
     // ==== Join Request Workflow (approval-based pairing) ====
     setOptimisticJoinTTL(ms) {
         if (typeof ms === 'number' && ms >= 0) this.optimisticJoinTTL = ms;
+    this.persistSettings();
+    this.emit('settingsUpdated', { optimisticJoinTTL: this.optimisticJoinTTL });
     }
 
     getMetrics() {
         return { prunedJoinCount: this.prunedJoinCount, optimisticJoinTTL: this.optimisticJoinTTL };
+    }
+
+    incrementMetric(key, value = 1) {
+        if (key === 'prunedJoinCount') {
+            this.prunedJoinCount += value;
+            this.persistSettings();
+            this.emit('metricsUpdated', { prunedJoinCount: this.prunedJoinCount });
+        }
+        this.emit('telemetry', { type: 'metricIncrement', key, value, at: Date.now() });
+    }
+
+    persistSettings() {
+        try {
+            localStorage.setItem('complicity_join_settings', JSON.stringify({
+                optimisticJoinTTL: this.optimisticJoinTTL,
+                prunedJoinCount: this.prunedJoinCount
+            }));
+        } catch { /* ignore */ }
     }
     async requestJoin(targetUserId) {
         if (!this.userId) throw new Error('User not connected');
@@ -391,8 +417,7 @@ class EventDrivenApiService {
                         return true;
                     });
                     if (pruned.length) {
-                        this.prunedJoinCount += pruned.length;
-                        this.emit('metricsUpdated', { prunedJoinCount: this.prunedJoinCount });
+                        this.incrementMetric('prunedJoinCount', pruned.length);
                         pruned.forEach(r => this.emit('joinRequestExpired', { request: r }));
                     }
                     out = kept;

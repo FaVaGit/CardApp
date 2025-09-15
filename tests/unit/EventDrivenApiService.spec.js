@@ -203,4 +203,12 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     expect(metrics.prunedJoinCount).toBeGreaterThanOrEqual(1);
     expect(metricEvents.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('loads persisted TTL from localStorage', () => {
+    const key = 'complicity_join_settings';
+    global.localStorage.setItem(key, JSON.stringify({ optimisticJoinTTL: 12345, prunedJoinCount: 7 }));
+    const fresh = new EventDrivenApiService('http://localhost:5000');
+    expect(fresh.optimisticJoinTTL).toBe(12345);
+    expect(fresh.prunedJoinCount).toBe(7);
+  });
 });

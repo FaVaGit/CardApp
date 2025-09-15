@@ -53,6 +53,14 @@ Metriche disponibili via `apiService.getMetrics()` che restituisce:
 ```
 Evento aggiuntivo: `metricsUpdated` emesso quando `prunedJoinCount` cambia.
 
+### Persistenza & UI
+Le impostazioni (TTL e metrica `prunedJoinCount`) vengono salvate in `localStorage` sotto la chiave `complicity_join_settings` e ricaricate all'avvio.
+Il componente `TTLSettings` (integrato nella schermata di selezione gioco) consente:
+- Input TTL (ms) con Apply
+- Visualizzazione metrica Pruned
+- Reset metrica
+Eventi emessi: `settingsUpdated`, `telemetry` (per incrementi metriche).
+
 Motivazione: evita badge bloccati quando il backend non conferma mai la richiesta (es. crash intermedio).
 
 ## Approvazione / Coppia Formata
