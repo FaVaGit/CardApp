@@ -84,7 +84,7 @@ class EventDrivenApiService {
                     this.emit('usersUpdated', { users: merged.users || [], inbound: merged.incoming || [], outbound: merged.outgoing || [], incoming: merged.incoming || [], outgoing: merged.outgoing || [] });
                     this.emit('joinRequestsUpdated', this.joinRequestCache);
                 }
-            } catch (_) { /* ignore seed errors */ }
+            } catch { /* ignore seed errors */ }
             
             // Return the full response including personalCode
             return {

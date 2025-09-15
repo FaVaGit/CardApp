@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 /**
  * Simple Authentication Component
@@ -12,8 +12,8 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
   const [reuseSession, setReuseSession] = useState(null);
 
   // Check for stored auth data
-  const reconnectAttemptedRef = React.useRef(false);
-  React.useEffect(() => {
+  const reconnectAttemptedRef = useRef(false);
+  useEffect(() => {
     try {
       const stored = localStorage.getItem('complicity_auth');
       if (stored) {
@@ -54,7 +54,9 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
           setReuseSession(parsed); // legacy stored without token
         }
       }
-    } catch (_) {}
+    } catch {
+      // ignora errori di parsing dello storage
+    }
   }, [apiService, onAuthSuccess]);
 
   const handleAuth = async (e) => {
