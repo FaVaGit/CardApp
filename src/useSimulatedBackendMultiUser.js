@@ -51,8 +51,8 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     }
   }, [isBackendEnabled]); // Aggiunta dipendenza
 
-  // NOTE: Alcune funzioni usano closure stabili; dipendenze mancanti intenzionali:
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // NOTE: Hook dependencies per initializeBackend limitate a isBackendEnabled (currentUser non necessario perché non usato internamente),
+  // eventuali listener aggiornano state tramite funzioni set* sicure.
 
   // Setup listeners per eventi del backend
   const setupBackendListeners = () => {

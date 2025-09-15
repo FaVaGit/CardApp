@@ -89,4 +89,23 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     expect(events.find(e => e[0] === 'coupleJoined')).toBeTruthy();
     expect(service.sessionId).toBe('S1');
   });
+
+  it('preserves optimistic outgoing request if early snapshot is empty', async () => {
+    // Sequence: connect -> lists -> snapshot empty (no outgoing yet) -> request-join
+    mockFetchSequence([
+      { success: true, status: { userId: 'U9', connectionId: 'C9' }, personalCode: '999999', authToken: 'TOK9' },
+      { success: true, users: [], available: [], },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, incomingRequests: [], outgoingRequests: [] }, // early snapshot poll returns empty
+      { requestId: 'R-OPT', success: true }
+    ]);
+
+    await service.connectUser('AliceX');
+    expect(service.joinRequestCache.outgoing).toHaveLength(0);
+    await service.requestJoin('U_TARGET');
+    // Allow microtask queue for potential immediate snapshot reconciliation
+    await new Promise(r => setTimeout(r, 0));
+    expect(service.joinRequestCache.outgoing).toHaveLength(1);
+    expect(service.joinRequestCache.outgoing[0]).toMatchObject({ targetUserId: 'U_TARGET' });
+  });
 });

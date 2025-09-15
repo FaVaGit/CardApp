@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 
 function ErrorBoundary({ children }) {
   const [err, setErr] = useState(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { const orig = console.error; console.error = (...a) => { orig(...a); if (!err && a[0] instanceof Error) setErr(a[0]); }; return () => { console.error = orig; }; });
+  useEffect(() => {
+    const orig = console.error;
+    console.error = (...a) => { orig(...a); if (!err && a[0] instanceof Error) setErr(a[0]); };
+    return () => { console.error = orig; };
+  }, [err]);
   if (err) {
     return <div className="p-6 text-sm text-red-700 bg-red-50">Errore runtime: {String(err.message || err)}<pre className="mt-2 text-xs whitespace-pre-wrap">{err.stack}</pre></div>;
   }
