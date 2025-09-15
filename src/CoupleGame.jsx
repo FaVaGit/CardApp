@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Modern Couple Game Component - Event-Driven Architecture
@@ -13,7 +13,6 @@ import React, { useState, useEffect, useRef } from 'react';
 export default function CoupleGame({ user, apiService, onExit }) {
   const [gameState, setGameState] = useState('finding-partner'); // 'finding-partner', 'waiting-for-partner', 'playing', 'game-over'
   const [couple, setCouple] = useState(null);
-  const [currentCouple, setCurrentCouple] = useState(null); // Track current couple for real-time updates
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [partnerCode, setPartnerCode] = useState('');

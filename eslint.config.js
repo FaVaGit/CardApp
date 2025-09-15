@@ -36,8 +36,10 @@ export default [
   clearInterval: 'readonly',
   process: 'readonly',
   module: 'readonly',
-  require: 'readonly'
+  require: 'readonly',
+  global: 'readonly'
       }
+  ,parserOptions: { ecmaFeatures: { jsx: true } }
     },
     plugins: {
       react: reactPlugin,
@@ -49,6 +51,8 @@ export default [
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-undef': 'error',
       'react/react-in-jsx-scope': 'off',
+  'react/jsx-uses-react': 'off',
+  'react/jsx-uses-vars': 'error',
       'react/prop-types': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn'

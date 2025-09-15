@@ -51,6 +51,9 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     }
   }, [isBackendEnabled]); // Aggiunta dipendenza
 
+  // NOTE: Alcune funzioni usano closure stabili; dipendenze mancanti intenzionali:
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   // Setup listeners per eventi del backend
   const setupBackendListeners = () => {
     simulatedBackend.on('userUpdate', (user) => {
@@ -63,7 +66,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
       });
     });
 
-    simulatedBackend.on('coupleCreated', (couple) => {
+  simulatedBackend.on('coupleCreated', (couple) => {
       console.log('💑 Nuova coppia creata:', couple.name);
       setAllCouples(prev => {
         const filtered = prev.filter(c => c.id !== couple.id);
@@ -90,7 +93,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
       }
     });
 
-    simulatedBackend.on('sessionCreated', (session) => {
+  simulatedBackend.on('sessionCreated', (session) => {
       console.log('🎮 Nuova sessione di gioco:', session.id);
       if (currentCouple && session.coupleId === currentCouple.id) {
         setGameSession(session);

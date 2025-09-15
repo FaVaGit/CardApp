@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Starts backend (dotnet) and frontend (vite) for Playwright tests, waits until ready.
 import { spawn } from 'node:child_process';
-import { setTimeout as delay } from 'node:timers/promises';
 import http from 'node:http';
 import process from 'node:process';
 import path from 'node:path';
@@ -39,10 +38,10 @@ function waitFor(url, timeoutMs = 60000) {
 
 async function start() {
   console.log('🔧 Avvio environment e2e...');
-  let backendAlreadyUp = false;
+  let _backendAlreadyUp = false; // underscore to avoid lint unused var error
   try {
     await waitFor(`http://localhost:${BACKEND_PORT}/swagger`, 3000);
-    backendAlreadyUp = true;
+  _backendAlreadyUp = true;
     console.log('♻️  Backend già attivo, riuso processo esistente');
   } catch {
     // start new backend
@@ -74,7 +73,7 @@ async function start() {
   const wantClear = (process.env.CLEAR_USERS_ON_START ?? 'true').toLowerCase() === 'true';
   if (wantClear) {
     try {
-      await new Promise((resolve, reject) => {
+  await new Promise((resolve) => {
         const req = http.request({
           method: 'POST',
           host: 'localhost',

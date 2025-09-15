@@ -1,4 +1,4 @@
-import React from 'react'
+import { StrictMode as _StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import SimpleApp from './SimpleApp.jsx'
 import './index.css'
@@ -13,7 +13,7 @@ if(!rootEl){
 
 // Use simplified, decoupled app architecture
 ReactDOM.createRoot(rootEl).render(
-  <React.StrictMode>
+  <_StrictMode>
     <SimpleApp />
-  </React.StrictMode>,
+  </_StrictMode>
 )

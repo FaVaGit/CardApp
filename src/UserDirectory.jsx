@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function UserDirectory({ apiService, currentUser, onSendJoin, onRespondJoin }) {
   const [users, setUsers] = useState([]);
@@ -21,7 +21,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
           setOutbound(data.outgoing || []);
           if (data.expiresAfterMinutes) setExpiresAfter(data.expiresAfterMinutes);
         }
-      } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
       finally { setLoading(false); }
     };
     load();
@@ -53,7 +53,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
   }, [apiService, currentUser]);
 
   // Debug data in component
-  React.useEffect(() => {
+  useEffect(() => {
     if (users.length > 0 || inbound.length > 0 || outbound.length > 0) {
       console.log('UserDirectory data:', {users, inbound, outbound});
     }
@@ -83,13 +83,13 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
   };
 
   const handleSend = async (id) => {
-    try { await onSendJoin(id); addMsg('Richiesta inviata'); } catch(e){ addMsg('Errore invio richiesta','error'); }
+  try { await onSendJoin(id); addMsg('Richiesta inviata'); } catch{ addMsg('Errore invio richiesta','error'); }
   };
   const handleRespond = async (id, approve) => {
-    try { await onRespondJoin(id, approve); addMsg(approve?'Richiesta accettata':'Richiesta rifiutata'); } catch(e){ addMsg('Errore risposta','error'); }
+  try { await onRespondJoin(id, approve); addMsg(approve?'Richiesta accettata':'Richiesta rifiutata'); } catch{ addMsg('Errore risposta','error'); }
   };
   const handleCancel = async (id) => {
-    try { await apiService.cancelJoin(id); addMsg('Richiesta annullata'); } catch(e){ addMsg('Errore annullamento','error'); }
+  try { await apiService.cancelJoin(id); addMsg('Richiesta annullata'); } catch{ addMsg('Errore annullamento','error'); }
   };
 
   if (loading) return <div className="text-sm text-gray-500">Caricamento elenco utenti...</div>;
