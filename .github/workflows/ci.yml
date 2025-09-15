@@ -57,6 +57,19 @@ jobs:
           ./tests/reject-flow.test.sh
           ./tests/cancel-flow.test.sh
 
+      - name: Backend unit tests
+        run: |
+          dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release --collect:"XPlat Code Coverage" --logger trx
+        continue-on-error: false
+
+      - name: Upload coverage (backend)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: '**/coverage.cobertura.xml'
+          if-no-files-found: warn
+
       - name: Start frontend dev server
         run: |
           npm run dev -- --host &
