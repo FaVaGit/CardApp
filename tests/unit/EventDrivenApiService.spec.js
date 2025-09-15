@@ -194,7 +194,8 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
       { success: true, incomingRequests: [], outgoingRequests: [] }
     ]);
     await service.connectUser('MetricUser');
-    service.setOptimisticJoinTTL(5);
+  // Directly set a very small TTL to force pruning quickly (bypass min enforcement)
+  service.optimisticJoinTTL = 5;
     await service.requestJoin('TARGETM');
     await new Promise(r => setTimeout(r, 12));
     await service.pollForUpdates();
@@ -210,5 +211,25 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     const fresh = new EventDrivenApiService('http://localhost:5000');
     expect(fresh.optimisticJoinTTL).toBe(12345);
     expect(fresh.prunedJoinCount).toBe(7);
+  });
+
+  it('enforces minimum TTL when setting lower value', () => {
+    const s = new EventDrivenApiService('http://localhost:5000');
+    const min = s.minOptimisticTTL;
+    s.setOptimisticJoinTTL(10); // below min
+    expect(s.optimisticJoinTTL).toBe(min);
+  });
+
+  it('batches telemetry events and flushes on threshold', () => {
+    const s = new EventDrivenApiService('http://localhost:5000');
+    const batches = [];
+    s.on('telemetryBatch', b => batches.push(b));
+    for (let i = 0; i < 21; i++) {
+      s.incrementMetric('prunedJoinCount', 0); // just emit metricIncrement telemetry without changing count (adding 0)
+    }
+    // Should have flushed at least one batch
+    expect(batches.length).toBeGreaterThanOrEqual(1);
+    const totalEvents = batches.reduce((acc,b)=>acc + b.events.length,0);
+    expect(totalEvents).toBeGreaterThanOrEqual(20);
   });
 });

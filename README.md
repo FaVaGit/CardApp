@@ -112,6 +112,9 @@ Note tecniche:
 - Optimistic UI: A vede subito lo stato "In attesa" senza attendere il polling.
 - Se una richiesta viene approvata vengono ripulite eventuali richieste incrociate residue.
 
+#### Documentazione dettagliata Join Requests
+Per dettagli su caching locale, flag `_optimistic` e riconciliazione snapshot consultare il file `JOIN_REQUESTS.md`.
+
 ## 🧪 Testing
 
 ### Tipologie di test

@@ -84,6 +84,38 @@ Gli scenari Playwright (`join-approve`, `cancel-flow`, `reject-flow`, `reconnect
 - Rimozione dopo approvazione / cancellazione / rifiuto
 - Persistenza stato dopo reload (reconnect)
 
+### Scenario di Scadenza (Expiry)
+Lo scenario `expiry-flow` forza (tramite interception snapshot di test) la mancata eco della richiesta in modo che resti `_optimistic` fino al pruning TTL. Verifica:
+- Comparsa badge `Scaduta`
+- Presenza bottone `Riprova`
+- TTL minimo clampato (>= minOptimisticTTL = 500ms)
+
+## Telemetria & Batching
+Il servizio emette eventi di telemetria buffered:
+- Ogni incremento metrica (`incrementMetric`) accoda un evento `{ type: 'metricIncrement', key, value, at }`.
+- Buffer flush automatico quando la lunghezza raggiunge **20 eventi** oppure ogni **15s** (timer avviato su start polling) o allo stop (disconnect / stopEventPolling).
+- L'evento emesso è `telemetryBatch` con payload:
+```json
+{
+  "events": [ { "type": "metricIncrement", "key": "prunedJoinCount", "value": 1, "at": 1710000000000 }, ... ],
+  "at": 1710000000500
+}
+```
+Uso previsto: pipeline di invio centralizzata o logging diagnostico (non implementata nel test environment). Il batching riduce sovraccarico e rumore rispetto ad emissioni singole.
+
+### Eventi Rilevanti Riepilogo
+| Evento | Quando | Payload |
+|--------|--------|---------|
+| `joinRequestsUpdated` | Cache inbound/outbound mutata | `{ incoming, outgoing }` |
+| `joinRequestExpired` | Placeholder `_optimistic` oltre TTL | `{ request }` |
+| `metricsUpdated` | `prunedJoinCount` cambia | `{ prunedJoinCount }` |
+| `settingsUpdated` | TTL aggiornato | `{ optimisticJoinTTL }` |
+| `telemetryBatch` | Flush buffer | `{ events, at }` |
+| `coupleJoined` | Coppia formata | `{ coupleId, partner }` |
+
+### Minimo TTL
+Chiamate a `setOptimisticJoinTTL(ms)` vengono clampate a `minOptimisticTTL` (500ms) per evitare UI incoerente dovuta a scadenze troppo veloci.
+
 ## Linee Guida Future
 - Evitare di aggiungere logica condizionale duplicata nei componenti: centralizzare in `EventDrivenApiService`.
 - Se si introduce WebSocket/SSE in futuro, mantenere la semantica del flag `_optimistic` per transizione graduale.

@@ -17,6 +17,9 @@ class EventDrivenApiService {
     // Configurable TTL (ms) for optimistic join requests that never get confirmed by backend
     this.optimisticJoinTTL = 30000; // 30s default
     this.prunedJoinCount = 0; // metrics counter
+    this.telemetryBuffer = [];
+    this.telemetryFlushIntervalMs = 15000; // 15s default flush
+    this.minOptimisticTTL = 500; // enforce reasonable lower bound
     // Load persisted config/metrics if available
     try {
         const stored = JSON.parse(localStorage.getItem('complicity_join_settings')||'{}');
@@ -234,7 +237,9 @@ class EventDrivenApiService {
 
     // ==== Join Request Workflow (approval-based pairing) ====
     setOptimisticJoinTTL(ms) {
-        if (typeof ms === 'number' && ms >= 0) this.optimisticJoinTTL = ms;
+        if (typeof ms === 'number' && ms >= 0) {
+            this.optimisticJoinTTL = Math.max(this.minOptimisticTTL, ms);
+        }
     this.persistSettings();
     this.emit('settingsUpdated', { optimisticJoinTTL: this.optimisticJoinTTL });
     }
@@ -249,7 +254,7 @@ class EventDrivenApiService {
             this.persistSettings();
             this.emit('metricsUpdated', { prunedJoinCount: this.prunedJoinCount });
         }
-        this.emit('telemetry', { type: 'metricIncrement', key, value, at: Date.now() });
+    this.queueTelemetry({ type: 'metricIncrement', key, value, at: Date.now() });
     }
 
     persistSettings() {
@@ -259,6 +264,19 @@ class EventDrivenApiService {
                 prunedJoinCount: this.prunedJoinCount
             }));
         } catch { /* ignore */ }
+    }
+
+    queueTelemetry(evt) {
+        this.telemetryBuffer.push(evt);
+        if (this.telemetryBuffer.length >= 20) {
+            this.flushTelemetry();
+        }
+    }
+
+    flushTelemetry() {
+        if (!this.telemetryBuffer.length) return;
+        const batch = this.telemetryBuffer.splice(0, this.telemetryBuffer.length);
+        this.emit('telemetryBatch', { events: batch, at: Date.now() });
     }
     async requestJoin(targetUserId) {
         if (!this.userId) throw new Error('User not connected');
@@ -356,6 +374,10 @@ class EventDrivenApiService {
         this.pollingInterval = setInterval(() => {
             this.pollForUpdates().catch(err => console.error('❌ Error polling for updates:', err));
         }, this.pollingFrequency);
+    // start telemetry flush timer
+    if (!this.telemetryTimer) {
+        this.telemetryTimer = setInterval(() => this.flushTelemetry(), this.telemetryFlushIntervalMs);
+    }
         console.log('🔄 Started event polling for RabbitMQ updates');
     // Perform an immediate poll so UI updates without initial delay
     this.pollForUpdates().catch(err => console.warn('Initial poll error:', err));
@@ -366,6 +388,11 @@ class EventDrivenApiService {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
             console.log('⏹️ Stopped event polling');
+        }
+        if (this.telemetryTimer) {
+            clearInterval(this.telemetryTimer);
+            this.telemetryTimer = null;
+            this.flushTelemetry();
         }
     }
 

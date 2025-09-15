@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 /**
  * Simple Card Game Component
@@ -11,7 +11,7 @@ export default function SimpleCardGame({ user, gameType, onExit }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Card deck - simple Italian relationship cards
-  const cardDeck = [
+  const cardDeck = useMemo(() => [
     {
       id: 1,
       text: "Qual è il tuo ricordo più bello insieme?",
@@ -62,10 +62,10 @@ export default function SimpleCardGame({ user, gameType, onExit }) {
       text: "Cosa ti rende orgoglioso/a di noi?",
       category: "Orgoglio"
     }
-  ];
+  ], []);
 
   // Get random card
-  const drawNewCard = () => {
+  const drawNewCard = useCallback(() => {
     setIsLoading(true);
     
     // Simulate brief loading for UX
@@ -86,12 +86,12 @@ export default function SimpleCardGame({ user, gameType, onExit }) {
       
       setIsLoading(false);
     }, 500);
-  };
+  }, [cardHistory, cardDeck]);
 
   // Initialize with first card
   useEffect(() => {
     drawNewCard();
-  }, []);
+  }, [drawNewCard]);
 
   const getCategoryColor = (category) => {
     const colors = {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Modern Couple Game Component - Event-Driven Architecture
@@ -21,10 +21,10 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
   const msgIdRef = useRef(0);
-  const nextMsgId = () => `${Date.now()}-${msgIdRef.current++}`;
+  const nextMsgId = useCallback(() => `${Date.now()}-${msgIdRef.current++}`, []);
 
   // Add status message helper
-  const addMessage = (text, type = 'info') => {
+  const addMessage = useCallback((text, type = 'info') => {
     const message = {
       id: nextMsgId(),
       text,
@@ -32,7 +32,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       timestamp: new Date().toLocaleTimeString()
     };
     setMessages(prev => [...prev.slice(-9), message]); // Keep last 10 messages
-  };
+  }, [nextMsgId]);
 
   // Initialize couple game and setup event-driven listeners
   useEffect(() => {
@@ -145,7 +145,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('sessionUpdated', listeners.handleSessionUpdated);
       apiService.off('partnerUpdated', listeners.handlePartnerUpdated);
     };
-  }, [user, apiService]); // Removed gameState dependency to prevent re-setup
+  }, [user, apiService, gameState, partnerCode, addMessage, nextMsgId]);
 
   // Handle partner code input
   const handleJoinCouple = async () => {

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 export default function TTLSettings({ apiService }) {
   const [ttl, setTtl] = useState(apiService?.optimisticJoinTTL || 30000);
   const [pruned, setPruned] = useState(apiService?.prunedJoinCount || 0);
+  const minTTL = apiService?.minOptimisticTTL || 500;
 
   useEffect(() => {
     if (!apiService) return;
@@ -48,6 +49,7 @@ export default function TTLSettings({ apiService }) {
             onChange={e => setTtl(e.target.value)}
           />
         </label>
+  <span className="text-[10px] text-indigo-600">Min: {minTTL} | Attuale: {apiService?.optimisticJoinTTL}</span>
         <button
           data-testid="ttl-apply"
           onClick={applyTtl}

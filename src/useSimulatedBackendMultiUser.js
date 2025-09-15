@@ -49,13 +49,13 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     } finally {
       setIsLoading(false);
     }
-  }, [isBackendEnabled]); // Aggiunta dipendenza
+  }, [isBackendEnabled, setupBackendListeners, loadInitialData]); // include helpers for exhaustive deps
 
   // NOTE: Hook dependencies per initializeBackend limitate a isBackendEnabled (currentUser non necessario perché non usato internamente),
   // eventuali listener aggiornano state tramite funzioni set* sicure.
 
   // Setup listeners per eventi del backend
-  const setupBackendListeners = () => {
+  const setupBackendListeners = useCallback(() => {
     simulatedBackend.on('userUpdate', (user) => {
       console.log('📱 Aggiornamento utente ricevuto:', user.name);
       setAllUsers(prev => {
@@ -110,10 +110,10 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
         }));
       }
     });
-  };
+  }, [currentUser, gameSession, currentCouple, updateOnlineUsers, updatePartnerStatus]);
 
   // Carica dati iniziali
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       // Carica utenti
       const users = await simulatedBackend.getUsers();
@@ -128,7 +128,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     } catch (error) {
       console.error('❌ Errore caricamento dati iniziali:', error);
     }
-  };
+  }, [updateOnlineUsers]);
 
   // Registra nuovo utente
   const registerUser = async (userData) => {
@@ -441,8 +441,8 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     };
   };
 
-  // Aggiorna lista utenti online
-  const updateOnlineUsers = (users = allUsers) => {
+  // Aggiorna lista utenti online (memoized)
+  const updateOnlineUsers = useCallback((users = allUsers) => {
     const sixtySecondsAgo = Date.now() - 60 * 1000; // Aumentato a 60 secondi
     const online = users.filter(user => 
       user.lastSeen && new Date(user.lastSeen).getTime() > sixtySecondsAgo
@@ -459,10 +459,10 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     if (currentCouple) {
       updatePartnerStatus(online);
     }
-  };
+  }, [allUsers, currentCouple, updatePartnerStatus]);
 
-  // Aggiorna stato partner
-  const updatePartnerStatus = (onlineUsersList = onlineUsers) => {
+  // Aggiorna stato partner (memoized)
+  const updatePartnerStatus = useCallback((onlineUsersList = onlineUsers) => {
     if (!currentCouple || !currentUser) return;
 
     console.log('🔄 Aggiornamento stato partner per coppia:', currentCouple.name);
@@ -494,7 +494,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     } else {
       console.warn('⚠️ Partner non trovato nella coppia');
     }
-  };
+  }, [currentCouple, currentUser, onlineUsers]);
 
   // Logout
   const logout = () => {
@@ -568,7 +568,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [allUsers, currentCouple]);
+  }, [updateOnlineUsers]);
 
   return {
     // Stato
