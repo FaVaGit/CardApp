@@ -4,7 +4,7 @@
 ![Unit Tests](https://github.com/FaVaGit/CardApp/actions/workflows/ci-unit.yml/badge.svg?branch=Evolution)
 ![E2E Tests](https://github.com/FaVaGit/CardApp/actions/workflows/ci-e2e.yml/badge.svg?branch=Evolution)
 <!-- If Codecov is enabled add: -->
-![Coverage](https://img.shields.io/badge/coverage-—-blue?style=flat)
+![Coverage](https://img.shields.io/badge/coverage-11.3%25-blue?style=flat)
 
 A modern card game application built with **Event-Driven Architecture** using React, ASP.NET Core, and RabbitMQ. Designed for couples to strengthen their relationship through meaningful conversation prompts.
 
