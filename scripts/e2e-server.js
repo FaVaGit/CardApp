@@ -70,6 +70,38 @@ async function start() {
   });
   console.log('✅ Frontend pronto');
 
+  // Optional environment cleanup
+  const wantClear = (process.env.CLEAR_USERS_ON_START ?? 'true').toLowerCase() === 'true';
+  if (wantClear) {
+    try {
+      await new Promise((resolve, reject) => {
+        const req = http.request({
+          method: 'POST',
+          host: 'localhost',
+          port: BACKEND_PORT,
+          path: '/api/admin/clear-users'
+        }, res => {
+          if (res.statusCode && res.statusCode < 300) {
+            console.log('🧹 clear-users eseguito');
+            res.resume();
+            resolve();
+          } else {
+            console.warn('⚠️ clear-users status', res.statusCode);
+            res.resume();
+            resolve(); // non-blocking
+          }
+        });
+        req.on('error', err => {
+          console.warn('⚠️ clear-users errore:', err.message);
+          resolve(); // non-blocking
+        });
+        req.end();
+      });
+    } catch { /* ignore */ }
+  } else {
+    console.log('↩️  CLEAR_USERS_ON_START=false: skip pulizia utenti');
+  }
+
   // Keep process alive until SIGINT from Playwright test runner stops it.
 }
 
