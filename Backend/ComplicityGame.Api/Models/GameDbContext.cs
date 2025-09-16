@@ -20,6 +20,30 @@ public class GameDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Reuse core model configurations for shared entities where needed
+        modelBuilder.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.HasIndex(u => u.PersonalCode).IsUnique();
+            e.Property(u => u.PersonalCode).HasMaxLength(10);
+        });
+
+        modelBuilder.Entity<Couple>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).HasMaxLength(200);
+            e.HasMany(c => c.Members)
+             .WithOne(m => m.Couple)
+             .HasForeignKey(m => m.CoupleId);
+        });
+
+        modelBuilder.Entity<CoupleUser>(e =>
+        {
+            e.HasKey(cu => new { cu.CoupleId, cu.UserId });
+            e.HasOne(cu => cu.User)
+             .WithMany();
+        });
+
         // Additional API-only entities configuration
         modelBuilder.Entity<GameSession>(entity =>
         {
