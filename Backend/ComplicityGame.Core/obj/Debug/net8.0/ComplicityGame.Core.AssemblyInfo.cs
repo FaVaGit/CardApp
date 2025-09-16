@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ComplicityGame.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9cc7799c639584fa1407513bb9bb948d1532f50a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+570a8f504013e8da5c238023c5802d2b5549dc4d")]
 [assembly: System.Reflection.AssemblyProductAttribute("ComplicityGame.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ComplicityGame.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

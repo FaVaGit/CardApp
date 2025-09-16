@@ -63,6 +63,14 @@ namespace ComplicityGame.Api.Events
         public DateTime CreatedAt { get; set; }
     }
 
+    public class GameSessionStartedEvent : BaseEvent
+    {
+        public override string EventType => "GameSessionStarted";
+        public string SessionId { get; set; } = string.Empty;
+        public string CoupleId { get; set; } = string.Empty;
+        public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    }
+
     public class CardDrawnEvent : BaseEvent
     {
         public override string EventType => "CardDrawn";
