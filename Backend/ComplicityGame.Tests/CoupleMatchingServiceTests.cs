@@ -87,3 +87,4 @@ public class CoupleMatchingServiceTests
 
     private class StubPresenceService : IUserPresenceService { }
 }
+

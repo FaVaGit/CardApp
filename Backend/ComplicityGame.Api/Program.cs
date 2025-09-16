@@ -45,6 +45,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Lightweight request logging (dev diagnostic)
+app.Use(async (ctx, next) =>
+{
+    var start = DateTime.UtcNow;
+    await next();
+    var elapsed = (DateTime.UtcNow - start).TotalMilliseconds;
+    Console.WriteLine($"[REQ] {ctx.Request.Method} {ctx.Request.Path} => {ctx.Response.StatusCode} {elapsed:F0}ms");
+});
+
 app.UseCors("DevAll");
 app.UseAuthorization();
 app.MapControllers();

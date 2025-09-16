@@ -104,6 +104,40 @@ public class AdminController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Purge totale: elimina utenti, coppie, sessioni, richieste di join e (opzionale) carte.
+    /// Richiede conferma esplicita via query ?confirm=SI per evitare chiamate accidentali.
+    /// </summary>
+    [HttpDelete("purge-all")]
+    public async Task<ActionResult> PurgeAll([FromQuery] string? confirm = null, [FromQuery] bool includeCards = false)
+    {
+        if (confirm != "SI")
+        {
+            return BadRequest(new { error = "Conferma mancante. Usa ?confirm=SI per procedere." });
+        }
+        try
+        {
+            // Presence/connection memory
+            await _userPresenceService.ClearAllUsersAsync();
+
+            // Extra domain cleanup (join requests, cards if requested)
+            var joinRequests = await _context.Set<CoupleJoinRequest>().ToListAsync();
+            _context.RemoveRange(joinRequests);
+            if (includeCards)
+            {
+                var cards = await _context.GameCards.ToListAsync();
+                _context.GameCards.RemoveRange(cards);
+            }
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Purge completato", includeCards, joinRequestsRemoved = joinRequests.Count });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
     [HttpGet("cards-status")]
     public async Task<ActionResult> GetCardsStatus()
     {
