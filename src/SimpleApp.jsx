@@ -145,8 +145,12 @@ export default function SimpleApp() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             🎮 Seleziona Tipo di Gioco
           </h2>
-          <p className="text-gray-600">
-            Ciao <span className="font-mono font-bold text-blue-600">{authenticatedUser?.userCode}</span>!
+          <p className="text-gray-600 space-x-1">
+            <span>Ciao</span>
+            <span className="font-semibold text-gray-800">{authenticatedUser?.name || authenticatedUser?.Name || 'Utente'}</span>
+            <span>(codice:</span>
+            <span className="font-mono font-bold text-blue-600">{authenticatedUser?.userCode}</span>
+            <span>)</span>
           </p>
         </div>
 

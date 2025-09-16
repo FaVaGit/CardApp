@@ -359,6 +359,8 @@ class EventDrivenApiService {
                 this.sessionId = resp.gameSession.id;
                 this.emit('gameSessionStarted', { sessionId: resp.gameSession.id });
             }
+            // Forza un poll immediato per propagare al requester l'avvio della sessione senza attendere l'intervallo
+            try { this.pollForUpdates(); } catch { /* ignore */ }
         }
         this.emit('joinRequestsUpdated', this.joinRequestCache);
         return resp;
@@ -435,6 +437,15 @@ class EventDrivenApiService {
                     status = snap.status;
                     gameSession = snap.gameSession;
                     partnerInfo = snap.partnerInfo;
+                    // NEW: process raw events array for dedicated GameSessionStartedEvent so anche il requester entra subito
+                    if (Array.isArray(snap.events)) {
+                        const startEvt = snap.events.find(e => e.eventType === 'GameSessionStarted' || e.EventType === 'GameSessionStarted');
+                        if (startEvt && (!this.sessionId || this.sessionId !== (startEvt.sessionId || startEvt.SessionId))) {
+                            const sessId = startEvt.sessionId || startEvt.SessionId;
+                            this.sessionId = sessId;
+                            this.emit('gameSessionStarted', { sessionId: sessId, coupleId: startEvt.coupleId || startEvt.CoupleId });
+                        }
+                    }
                     
                     // Log user data for debugging
                     if (snap.users) console.log('📡 Utenti ricevuti:', snap.users);

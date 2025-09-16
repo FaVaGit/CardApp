@@ -156,8 +156,10 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
               <span>Tu</span>
               <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">online</span>
             </div>
-            <div className="text-gray-700 mt-0.5">{selfUser.Name || selfUser.name || 'Utente'}</div>
-            <div className="text-xs text-blue-600 mt-1">Codice: <span className="font-mono font-medium">{selfUser.PersonalCode || selfUser.personalCode || '—'}</span></div>
+            <div className="text-gray-700 mt-0.5 flex flex-col">
+              <span className="text-sm">{selfUser.Name || selfUser.name || 'Utente'}</span>
+              <span className="text-xs text-blue-600 mt-1">Codice: <span className="font-mono font-medium">{selfUser.PersonalCode || selfUser.personalCode || '—'}</span></span>
+            </div>
           </div>
           <div className="text-[10px] text-blue-500 font-mono opacity-70">ID
             <div className="truncate max-w-[90px]">{selfUser.Id || selfUser.id || '-'}</div>

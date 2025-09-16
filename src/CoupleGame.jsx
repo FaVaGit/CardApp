@@ -281,8 +281,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           🤝 Trova il tuo Partner
         </h2>
-        <p className="text-gray-600">
-          Il tuo codice: <span className="font-mono font-bold text-blue-600">{user.userCode}</span>
+        <p className="text-gray-600 flex flex-col items-center">
+          <span className="text-sm">Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span></span>
+          <span className="text-xs mt-1">Codice: <span className="font-mono font-bold text-blue-600">{user.userCode}</span></span>
         </p>
       </div>
 
@@ -370,9 +371,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
           💕 Gioco di Coppia
         </h2>
-        <p className="text-gray-600">
-          Tu: <span className="font-mono font-bold text-blue-600">{user.userCode}</span> • 
-          Partner: <span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>
+        <p className="text-gray-600 flex flex-col items-center gap-1">
+          <span>Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span> (<span className="font-mono font-bold text-blue-600">{user.userCode}</span>)</span>
+          <span>Partner: <span className="font-semibold text-gray-800">{partnerInfo?.name || partnerInfo?.Name || '—'}</span> (<span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>)</span>
         </p>
         <p className="text-sm text-gray-500">
           Sessione: {gameSession?.id}
