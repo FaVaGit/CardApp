@@ -548,6 +548,32 @@ namespace ComplicityGame.Api.Controllers
                 var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
                 await EnsureCoupleJoinRequestsTableAsync();
 
+                // Aggiorna LastSeen del richiedente e ripulisce utenti stantii (es. tab chiusa senza disconnect)
+                var nowUtc = DateTime.UtcNow;
+                var requester = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (requester != null)
+                {
+                    requester.LastSeen = nowUtc;
+                    requester.IsOnline = true; // heartbeat implicito
+                }
+
+                // Criterio utente stantio: LastSeen assente o più vecchio di 5 minuti
+                var staleThreshold = nowUtc.AddMinutes(-5);
+                var staleUsers = await context.Users
+                    .Where(u => u.IsOnline && (u.LastSeen == null || u.LastSeen == default || u.LastSeen < staleThreshold))
+                    .ToListAsync();
+                if (staleUsers.Count > 0)
+                {
+                    foreach (var su in staleUsers)
+                    {
+                        su.IsOnline = false; // marca offline
+                    }
+                }
+                if (requester != null || staleUsers.Count > 0)
+                {
+                    try { await context.SaveChangesAsync(); } catch { /* best effort */ }
+                }
+
                 // Include also the requesting user (so frontend can show "Tu")
                 var users = await context.Users
                     // Solo altri utenti (escludi se stesso)
