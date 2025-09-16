@@ -17,6 +17,7 @@ namespace ComplicityGame.Api.Controllers
         private readonly IEventPublisher _eventPublisher;
         private readonly ILogger<EventDrivenGameController> _logger;
         private readonly IServiceProvider _serviceProvider;
+    private static readonly SemaphoreSlim _nameLock = new(1,1);
 
         public EventDrivenGameController(
             IUserPresenceService presenceService,
@@ -34,49 +35,62 @@ namespace ComplicityGame.Api.Controllers
             _serviceProvider = serviceProvider;
         }
 
+        private static string? NormalizeName(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            // Collapse internal multiple spaces, trim, keep casing for display but compare case-insensitive
+            var trimmed = string.Join(" ", raw.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            return trimmed.Length == 0 ? null : trimmed;
+        }
+
         [HttpPost("connect")]
         public async Task<IActionResult> ConnectUser([FromBody] ConnectUserRequest request)
         {
             try
             {
-                var incomingName = request.Name?.Trim();
+                var incomingNameRaw = request.Name?.Trim();
+                var incomingName = NormalizeName(incomingNameRaw);
                 var incomingGameType = string.IsNullOrWhiteSpace(request.GameType) ? "couple" : request.GameType.Trim();
 
                 // Determine / generate / reuse userId
                 string userId;
                 bool explicitUserId = !string.IsNullOrWhiteSpace(request.UserId);
-                if (explicitUserId)
+                await _nameLock.WaitAsync();
+                try
                 {
-                    userId = request.UserId!.Trim();
-                }
-                else
-                {
-                    // Reuse existing user with same name (case-insensitive) if present to evitare duplicati stesso nome
-                    if (!string.IsNullOrWhiteSpace(incomingName))
+                    if (explicitUserId)
                     {
-                        using (var preScope = _serviceProvider.CreateScope())
-                        {
-                            var preContext = preScope.ServiceProvider.GetRequiredService<GameDbContext>();
-                            var existingSameName = await preContext.Users
-                                .Where(u => u.Name.ToLower() == incomingName.ToLower())
-                                .OrderBy(u => u.CreatedAt)
-                                .FirstOrDefaultAsync();
-                            if (existingSameName != null)
-                            {
-                                userId = existingSameName.Id; // reuse
-                                _logger.LogInformation("[Connect] Reusing existing userId {UserId} for name {Name}", userId, incomingName);
-                            }
-                            else
-                            {
-                                userId = Guid.NewGuid().ToString();
-                            }
-                        }
+                        userId = request.UserId!.Trim();
                     }
                     else
                     {
-                        userId = Guid.NewGuid().ToString();
+                        if (!string.IsNullOrWhiteSpace(incomingName))
+                        {
+                            using (var preScope = _serviceProvider.CreateScope())
+                            {
+                                var preContext = preScope.ServiceProvider.GetRequiredService<GameDbContext>();
+                                var existingSameName = await preContext.Users
+                                    .Where(u => u.Name.ToLower() == incomingName.ToLower())
+                                    .OrderBy(u => u.CreatedAt)
+                                    .FirstOrDefaultAsync();
+                                if (existingSameName != null)
+                                {
+                                    userId = existingSameName.Id; // reuse
+                                    _logger.LogInformation("[Connect] Reusing existing userId {UserId} for name {Name}", userId, incomingName);
+                                }
+                                else
+                                {
+                                    userId = Guid.NewGuid().ToString();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            userId = Guid.NewGuid().ToString();
+                        }
                     }
                 }
+                finally { _nameLock.Release(); }
                 string connectionId = string.IsNullOrWhiteSpace(request.ConnectionId) ? Guid.NewGuid().ToString() : request.ConnectionId.Trim();
 
                 _logger.LogInformation("[Connect] userId={UserId} name={Name} gameType={GameType}", userId, incomingName, incomingGameType);

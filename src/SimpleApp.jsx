@@ -35,6 +35,7 @@ export default function SimpleApp() {
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
   const [selectedGameType, setSelectedGameType] = useState(null);
   const [apiService] = useState(new EventDrivenApiService());
+  const [purging, setPurging] = useState(false);
 
   console.log('🚀 SimpleApp rendering...', { currentScreen, authenticatedUser, selectedGameType });
 
@@ -60,6 +61,9 @@ export default function SimpleApp() {
   // Clear all users (admin function) - using new API
   const clearAllUsers = async () => {
     try {
+      if (purging) return;
+      if (!window.confirm('Sei sicuro di voler eliminare TUTTI gli utenti? Operazione distruttiva.')) return;
+      setPurging(true);
       console.log('🧹 Avvio purge utenti (admin)...');
       const res = await apiService.purgeAllUsers();
       if (!res.success) {
@@ -75,7 +79,7 @@ export default function SimpleApp() {
       setSelectedGameType(null);
     } catch (error) {
       console.error('❌ Error during reset:', error);
-    }
+  } finally { setPurging(false); }
   };
 
   // Authentication successful - user is already connected via apiService
