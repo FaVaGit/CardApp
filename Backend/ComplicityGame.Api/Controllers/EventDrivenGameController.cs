@@ -42,8 +42,41 @@ namespace ComplicityGame.Api.Controllers
                 var incomingName = request.Name?.Trim();
                 var incomingGameType = string.IsNullOrWhiteSpace(request.GameType) ? "couple" : request.GameType.Trim();
 
-                // Determine / generate userId
-                string userId = string.IsNullOrWhiteSpace(request.UserId) ? Guid.NewGuid().ToString() : request.UserId.Trim();
+                // Determine / generate / reuse userId
+                string userId;
+                bool explicitUserId = !string.IsNullOrWhiteSpace(request.UserId);
+                if (explicitUserId)
+                {
+                    userId = request.UserId!.Trim();
+                }
+                else
+                {
+                    // Reuse existing user with same name (case-insensitive) if present to evitare duplicati stesso nome
+                    if (!string.IsNullOrWhiteSpace(incomingName))
+                    {
+                        using (var preScope = _serviceProvider.CreateScope())
+                        {
+                            var preContext = preScope.ServiceProvider.GetRequiredService<GameDbContext>();
+                            var existingSameName = await preContext.Users
+                                .Where(u => u.Name.ToLower() == incomingName.ToLower())
+                                .OrderBy(u => u.CreatedAt)
+                                .FirstOrDefaultAsync();
+                            if (existingSameName != null)
+                            {
+                                userId = existingSameName.Id; // reuse
+                                _logger.LogInformation("[Connect] Reusing existing userId {UserId} for name {Name}", userId, incomingName);
+                            }
+                            else
+                            {
+                                userId = Guid.NewGuid().ToString();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        userId = Guid.NewGuid().ToString();
+                    }
+                }
                 string connectionId = string.IsNullOrWhiteSpace(request.ConnectionId) ? Guid.NewGuid().ToString() : request.ConnectionId.Trim();
 
                 _logger.LogInformation("[Connect] userId={UserId} name={Name} gameType={GameType}", userId, incomingName, incomingGameType);
@@ -79,6 +112,7 @@ namespace ComplicityGame.Api.Controllers
                         if (userEntity.GameType != incomingGameType)
                         { userEntity.GameType = incomingGameType; changed = true; }
                         userEntity.IsOnline = true;
+                        userEntity.LastSeen = DateTime.UtcNow;
                         userEntity.UpdatedAt = DateTime.UtcNow;
                         if (changed) await context.SaveChangesAsync();
                     }
@@ -560,7 +594,7 @@ namespace ComplicityGame.Api.Controllers
                 // Criterio utente stantio: LastSeen assente o più vecchio di 5 minuti
                 var staleThreshold = nowUtc.AddMinutes(-5);
                 var staleUsers = await context.Users
-                    .Where(u => u.IsOnline && (u.LastSeen == null || u.LastSeen == default || u.LastSeen < staleThreshold))
+                    .Where(u => u.IsOnline && (u.LastSeen == default || u.LastSeen < staleThreshold))
                     .ToListAsync();
                 if (staleUsers.Count > 0)
                 {
