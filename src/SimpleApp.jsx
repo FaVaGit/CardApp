@@ -45,6 +45,18 @@ export default function SimpleApp() {
     };
   }, [apiService]);
 
+  // Auto switch to playing when backend starts a game session (e.g., dopo accept join coppia)
+  useEffect(() => {
+    const handler = (payload) => {
+      console.log('🎮 gameSessionStarted event ricevuto:', payload);
+      // Se non c'è un game type scelto, assumiamo Couple
+      setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
+      setCurrentScreen('playing');
+    };
+    apiService.on('gameSessionStarted', handler);
+    return () => apiService.off('gameSessionStarted', handler);
+  }, [apiService]);
+
   // Clear all users (admin function) - using new API
   const clearAllUsers = async () => {
     try {
