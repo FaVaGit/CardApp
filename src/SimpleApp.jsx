@@ -48,14 +48,16 @@ export default function SimpleApp() {
   // Clear all users (admin function) - using new API
   const clearAllUsers = async () => {
     try {
-      // Since we don't have an admin endpoint in EventDrivenGameController,
-      // we'll just reset the app state for now
-      console.log('✅ Resetting app state (admin function)');
-      
-      // Disconnect current user if connected
-      await apiService.disconnectUser();
-      
-      // Reset app state
+      console.log('🧹 Avvio purge utenti (admin)...');
+      const res = await apiService.purgeAllUsers();
+      if (!res.success) {
+        console.warn('Purge backend fallita, fallback a reset locale:', res.error);
+        await apiService.disconnectUser();
+      } else {
+        console.log('✅ Purge backend completata');
+      }
+      // Reset stato app comunque
+      localStorage.removeItem('complicity_auth');
       setCurrentScreen('auth');
       setAuthenticatedUser(null);
       setSelectedGameType(null);

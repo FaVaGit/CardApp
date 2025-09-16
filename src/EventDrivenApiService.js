@@ -553,6 +553,31 @@ class EventDrivenApiService {
         }
     }
 
+    // ==== Admin / Maintenance helpers (non EventDrivenGame controller) ====
+    async purgeAllUsers(options = {}) {
+        const { includeCards = false } = options;
+        const url = `${this.baseUrl.replace(/\/$/, '')}/api/Admin/purge-all?confirm=SI${includeCards ? '&includeCards=true' : ''}`;
+        try {
+            const resp = await fetch(url, { method: 'DELETE' });
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(`Purge failed: ${resp.status} ${txt}`);
+            }
+            // Backend purge clears DB + presence: reset local caches so UI rifresca
+            this.stopEventPolling(); // stop any stale polling
+            this.lastUsersSnapshot = [];
+            this.joinRequestCache = { incoming: [], outgoing: [] };
+            this.emit('usersUpdated', { users: [], inbound: [], outbound: [], incoming: [], outgoing: [] });
+            this.emit('joinRequestsUpdated', this.joinRequestCache);
+            // If current user was part of purge, invalidate local identity
+            this.userId = null; this.connectionId = null; this.sessionId = null; this.authToken = null; this.lastKnownStatus = null; this.lastKnownPartner = null; this.lastKnownCardCount = 0;
+            return { success: true };
+        } catch (e) {
+            console.error('Admin purgeAllUsers error:', e.message);
+            return { success: false, error: e.message };
+        }
+    }
+
     // Get connection status
     getConnectionStatus() {
         return {
