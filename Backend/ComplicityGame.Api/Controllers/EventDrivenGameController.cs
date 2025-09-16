@@ -39,53 +39,63 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
-                // If UserId is empty but Name is provided, create a new user ID
-                string userId = request.UserId;
-                if (string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(request.Name))
-                {
-                    userId = Guid.NewGuid().ToString();
-                }
-                
-                // Log incoming request for debugging
-                _logger.LogInformation($"ConnectUser received: UserId={userId}, Name={request.Name}");
-                
-                // Use a default connection ID if not provided
-                string connectionId = string.IsNullOrEmpty(request.ConnectionId) 
-                    ? Guid.NewGuid().ToString() 
-                    : request.ConnectionId;
+                var incomingName = request.Name?.Trim();
+                var incomingGameType = string.IsNullOrWhiteSpace(request.GameType) ? "couple" : request.GameType.Trim();
 
-                var status = await _presenceService.ConnectUserAsync(userId, connectionId);
-                
-                // Ensure the returned status has the correct userId
-                if (status != null && string.IsNullOrEmpty(status.UserId))
+                // Determine / generate userId
+                string userId = string.IsNullOrWhiteSpace(request.UserId) ? Guid.NewGuid().ToString() : request.UserId.Trim();
+                string connectionId = string.IsNullOrWhiteSpace(request.ConnectionId) ? Guid.NewGuid().ToString() : request.ConnectionId.Trim();
+
+                _logger.LogInformation("[Connect] userId={UserId} name={Name} gameType={GameType}", userId, incomingName, incomingGameType);
+
+                ComplicityGame.Core.Models.User? userEntity;
+                using (var scope = _serviceProvider.CreateScope())
                 {
-                    status.UserId = userId;
-                }
-                
-                // Update user name if provided
-                if (!string.IsNullOrEmpty(request.Name))
-                {
-                    await UpdateUserNameAsync(userId, request.Name, request.GameType);
-                }
-                
-                // Get user's personal code & auth token for frontend display
-                string? personalCode = null;
-                string? authToken = null;
-                try
-                {
-                    using var scope = _serviceProvider.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
-                    var user = await context.Users.FindAsync(userId);
-                    personalCode = user?.PersonalCode;
-                    authToken = user?.AuthToken;
-                    _logger.LogInformation($"User from DB: Id={user?.Id}, Name={user?.Name}, PersonalCode={personalCode}");
+                    userEntity = await context.Users.FindAsync(userId);
+                    if (userEntity == null)
+                    {
+                        userEntity = new ComplicityGame.Core.Models.User
+                        {
+                            Id = userId,
+                            Name = string.IsNullOrWhiteSpace(incomingName) ? $"User_{userId[..6]}" : incomingName!,
+                            GameType = incomingGameType,
+                            PersonalCode = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant(),
+                            AuthToken = Guid.NewGuid().ToString(),
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            IsOnline = true
+                        };
+                        context.Users.Add(userEntity);
+                        await context.SaveChangesAsync();
+                        _logger.LogInformation("[Connect] Created new user {UserId} code={Code}", userEntity.Id, userEntity.PersonalCode);
+                    }
+                    else
+                    {
+                        // Update name or game type if changed
+                        bool changed = false;
+                        if (!string.IsNullOrWhiteSpace(incomingName) && userEntity.Name != incomingName)
+                        { userEntity.Name = incomingName; changed = true; }
+                        if (userEntity.GameType != incomingGameType)
+                        { userEntity.GameType = incomingGameType; changed = true; }
+                        userEntity.IsOnline = true;
+                        userEntity.UpdatedAt = DateTime.UtcNow;
+                        if (changed) await context.SaveChangesAsync();
+                    }
                 }
-                catch (Exception ex)
+
+                // Presence layer (idempotent)
+                var status = await _presenceService.ConnectUserAsync(userId, connectionId);
+                if (status != null && string.IsNullOrEmpty(status.UserId)) status.UserId = userId;
+
+                return Ok(new
                 {
-                    _logger.LogWarning(ex, $"Failed to get personal code for user {userId}");
-                }
-                
-                return Ok(new { success = true, status, personalCode, authToken });
+                    success = true,
+                    status,
+                    personalCode = userEntity!.PersonalCode,
+                    authToken = userEntity.AuthToken,
+                    userId = userEntity.Id
+                });
             }
             catch (Exception ex)
             {
@@ -796,6 +806,9 @@ namespace ComplicityGame.Api.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+    [HttpGet("health")]
+    public IActionResult Health() => Ok(new { ok = true, time = DateTime.UtcNow });
 
         public class ReconnectRequest
         {

@@ -1,6 +1,8 @@
 // Event-Driven API Service for the new RabbitMQ architecture
+import { API_BASE } from './apiConfig';
+
 class EventDrivenApiService {
-    constructor(baseUrl = 'http://localhost:5000') {
+    constructor(baseUrl = API_BASE) {
         this.baseUrl = baseUrl;
         this.userId = null;
         this.connectionId = null;
@@ -36,12 +38,14 @@ class EventDrivenApiService {
     // API call helper
     async apiCall(endpoint, method = 'GET', body = null, options = {}) {
         const { suppressErrorLog = false } = options;
-        const url = `${this.baseUrl}/api/EventDrivenGame${endpoint}`;
+        const url = `${this.baseUrl.replace(/\/$/, '')}/api/EventDrivenGame${endpoint}`;
         const fetchOptions = {
             method,
             headers: {
                 'Content-Type': 'application/json',
+                ...(options.headers||{})
             },
+            redirect: 'follow'
         };
 
         if (body) {
@@ -50,16 +54,24 @@ class EventDrivenApiService {
 
         try {
             const response = await fetch(url, fetchOptions);
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || `HTTP ${response.status}`);
+            const contentType = response.headers.get('content-type') || '';
+            let data;
+            if (contentType.includes('application/json')) {
+                try { data = await response.json(); } catch (parseErr) {
+                    console.error('JSON parse error', parseErr);
+                    throw new Error('Invalid JSON response');
+                }
+            } else {
+                data = await response.text();
             }
-            
+            if (!response.ok) {
+                const errMsg = typeof data === 'object' && data?.error ? data.error : `HTTP ${response.status}`;
+                throw new Error(errMsg);
+            }
             return data;
         } catch (error) {
             if (!suppressErrorLog) {
-                console.error(`API call failed: ${method} ${endpoint}`, error);
+                console.error(`API call failed: ${method} ${endpoint} -> ${error.message}`);
             }
             throw error;
         }
