@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
+using ComplicityGame.Core.Models; // Use shared domain models
 
 namespace ComplicityGame.Api.Models;
 
@@ -19,36 +20,7 @@ public class GameDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // User configuration
-        modelBuilder.Entity<User>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.PersonalCode).IsRequired().HasMaxLength(10);
-            entity.HasIndex(e => e.PersonalCode).IsUnique();
-            entity.Property(e => e.GameType).IsRequired().HasMaxLength(50);
-        });
-
-        // Couple configuration
-        modelBuilder.Entity<Couple>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-        });
-
-        // CoupleUser many-to-many relationship
-        modelBuilder.Entity<CoupleUser>(entity =>
-        {
-            entity.HasKey(e => new { e.CoupleId, e.UserId });
-            entity.HasOne(e => e.Couple)
-                  .WithMany(e => e.Members)
-                  .HasForeignKey(e => e.CoupleId);
-            entity.HasOne(e => e.User)
-                  .WithMany()
-                  .HasForeignKey(e => e.UserId);
-        });
-
-        // GameSession configuration
+        // Additional API-only entities configuration
         modelBuilder.Entity<GameSession>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -57,7 +29,6 @@ public class GameDbContext : DbContext
                   .HasForeignKey(e => e.CoupleId);
         });
 
-        // GameMessage configuration
         modelBuilder.Entity<GameMessage>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -65,11 +36,9 @@ public class GameDbContext : DbContext
                   .WithMany(e => e.Messages)
                   .HasForeignKey(e => e.SessionId);
             entity.HasOne(e => e.Sender)
-                  .WithMany()
-                  .HasForeignKey(e => e.SenderId);
+                  .WithMany();
         });
 
-        // SharedCard configuration
         modelBuilder.Entity<SharedCard>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -77,11 +46,9 @@ public class GameDbContext : DbContext
                   .WithMany(e => e.SharedCards)
                   .HasForeignKey(e => e.SessionId);
             entity.HasOne(e => e.SharedBy)
-                  .WithMany()
-                  .HasForeignKey(e => e.SharedById);
+                  .WithMany();
         });
 
-        // CoupleJoinRequest configuration
         modelBuilder.Entity<CoupleJoinRequest>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -89,50 +56,6 @@ public class GameDbContext : DbContext
             entity.Property(e => e.Status).HasMaxLength(20);
         });
     }
-}
-
-// Entity Models
-public class User
-{
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string Name { get; set; } = string.Empty;
-    public string? Nickname { get; set; }
-    public string PersonalCode { get; set; } = string.Empty;
-    public string GameType { get; set; } = string.Empty;
-    public bool AvailableForPairing { get; set; } = true;
-    public bool IsOnline { get; set; } = false;
-    public DateTime LastSeen { get; set; } = DateTime.UtcNow;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    public string AuthToken { get; set; } = Guid.NewGuid().ToString();
-}
-
-public class Couple
-{
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string Name { get; set; } = string.Empty;
-    public string CreatedBy { get; set; } = string.Empty;
-    public string GameType { get; set; } = string.Empty;
-    public bool IsActive { get; set; } = true;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    
-    public List<CoupleUser> Members { get; set; } = new();
-    
-    // Navigation property for easy access to Users (not mapped to database)
-    [NotMapped]
-    public List<User> Users { get; set; } = new();
-}
-
-public class CoupleUser
-{
-    public string CoupleId { get; set; } = string.Empty;
-    public string UserId { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty; // "creator" or "member"
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
-    
-    public Couple Couple { get; set; } = null!;
-    public User User { get; set; } = null!;
 }
 
 public class GameSession

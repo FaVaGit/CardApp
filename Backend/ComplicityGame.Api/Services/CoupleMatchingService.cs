@@ -1,5 +1,6 @@
 using ComplicityGame.Api.Events;
 using ComplicityGame.Api.Models;
+using ComplicityGame.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ComplicityGame.Api.Services
@@ -13,13 +14,13 @@ namespace ComplicityGame.Api.Services
 
     public class CoupleMatchingService : ICoupleMatchingService
     {
-        private readonly GameDbContext _context;
+    private readonly ComplicityGame.Core.Models.GameDbContext _context;
         private readonly IEventPublisher _eventPublisher;
         private readonly IUserPresenceService _presenceService;
         private readonly ILogger<CoupleMatchingService> _logger;
 
         public CoupleMatchingService(
-            GameDbContext context,
+            ComplicityGame.Core.Models.GameDbContext context,
             IEventPublisher eventPublisher,
             IUserPresenceService presenceService,
             ILogger<CoupleMatchingService> logger)

@@ -130,3 +130,21 @@ test_signalr.js
 
 # Firebase config (if using Firebase)
 firebase-config.js
+
+# Logs and runtime artifacts
+backend.log
+frontend.log
+*.log
+
+# SQLite WAL/SHM
+*.db-wal
+*.db-shm
+
+# Test results and coverage outputs
+test-results/
+playwright-report/
+coverage-summary.json
+coverage-summary.xml
+
+# Misc local scripts or generated JS test helpers
+api-endpoint-test.js

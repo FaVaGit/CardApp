@@ -14,7 +14,15 @@ builder.Services.AddControllers().AddJsonOptions(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<GameDbContext>(opt => opt.UseSqlite("Data Source=game.db"));
+var useInMemory = Environment.GetEnvironmentVariable("USE_INMEMORY_DB") == "1";
+if (useInMemory)
+{
+    builder.Services.AddDbContext<GameDbContext>(opt => opt.UseInMemoryDatabase("GameDb"));
+}
+else
+{
+    builder.Services.AddDbContext<GameDbContext>(opt => opt.UseSqlite("Data Source=game.db"));
+}
 
 // CORS (dev permissive)
 builder.Services.AddCors(options =>

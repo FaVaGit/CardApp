@@ -1,5 +1,6 @@
 using ComplicityGame.Api.Events;
 using ComplicityGame.Api.Models;
+using CoreModels = ComplicityGame.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 
@@ -68,7 +69,7 @@ namespace ComplicityGame.Api.Services
             {
                 // Create new user with unique PersonalCode
                 var personalCode = GenerateUniquePersonalCode(userId);
-                user = new User
+                user = new CoreModels.User
                 {
                     Id = userId,
                     Name = $"User_{userId}",

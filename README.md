@@ -123,6 +123,15 @@ Per dettagli su caching locale, flag `_optimistic` e riconciliazione snapshot co
 
 ## 🧪 Testing
 
+### Layering (Core vs API)
+Per velocizzare e rendere più stabili i test di dominio è stato introdotto un progetto `ComplicityGame.Core` che contiene:
+- Modelli minimi (`User`, `Couple`, `CoupleUser`) e `GameDbContext` con configurazione EF.
+- Eventi di base per la coppia (`CoupleCreated`, `CoupleCompleted`, `CoupleDisconnection`).
+- `CoupleMatchingService` e relative interfacce semplificate.
+
+I test unitari ora referenziano solo `ComplicityGame.Core`, evitando dipendenze runtime superflue (Swagger, RabbitMQ, SQLite native), con esecuzione più rapida e isolamento maggiore. L'API continua a poter evolvere (controller, presenza utenti, sessioni di gioco) senza appesantire il ciclo TDD sul servizio di matching.
+
+
 ### Tipologie di test
 | Livello | Strumento | Percorso | Cosa valida |
 |---------|-----------|----------|-------------|

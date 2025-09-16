@@ -1,45 +1,41 @@
 using System.Threading.Tasks;
-using ComplicityGame.Api.Models;
-using ComplicityGame.Api.Services;
+using ComplicityGame.Core.Models;
+using ComplicityGame.Core.Services;
 using Microsoft.EntityFrameworkCore;
+using ComplicityGame.Core.Events;
 using Microsoft.Extensions.Logging;
-using Moq;
 
 namespace ComplicityGame.Tests;
 
 public class CoupleMatchingServiceTests
 {
-    private GameDbContext CreateContext()
+    private static GameDbContext NewContext()
     {
         var options = new DbContextOptionsBuilder<GameDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
             .Options;
-        var ctx = new GameDbContext(options);
-        return ctx;
+        return new GameDbContext(options);
     }
 
-    private CoupleMatchingService CreateService(GameDbContext ctx)
+    private ICoupleMatchingService BuildService(GameDbContext ctx)
     {
-        var publisher = new Mock<IEventPublisher>();
-        publisher.Setup(p => p.PublishToUserAsync(It.IsAny<object>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
-        publisher.Setup(p => p.PublishToCoupleAsync(It.IsAny<object>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
-        var presence = new Mock<IUserPresenceService>();
-        var logger = new Mock<ILogger<CoupleMatchingService>>();
-        return new CoupleMatchingService(ctx, publisher.Object, presence.Object, logger.Object);
+        var publisher = new StubEventPublisher();
+        var presence = new StubPresenceService();
+        var loggerFactory = LoggerFactory.Create(b => {});
+        var logger = loggerFactory.CreateLogger<CoupleMatchingService>();
+        return new CoupleMatchingService(ctx, publisher, logger);
     }
 
     [Fact]
     public async Task CreateOrJoinCoupleAsync_Creates_New_Couple_When_None_Exists()
     {
-        var ctx = CreateContext();
-        // Seed two users
+        using var ctx = NewContext();
         ctx.Users.Add(new User { Id = "u1", Name = "Alice", PersonalCode = "111111", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         ctx.Users.Add(new User { Id = "u2", Name = "Bob", PersonalCode = "222222", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
-        var svc = CreateService(ctx);
+        var svc = BuildService(ctx);
         var couple = await svc.CreateOrJoinCoupleAsync("222222", "u1");
 
         Assert.NotNull(couple);
@@ -51,19 +47,17 @@ public class CoupleMatchingServiceTests
     [Fact]
     public async Task CreateOrJoinCoupleAsync_Joins_Existing_Couple_With_One_Member()
     {
-        var ctx = CreateContext();
+        using var ctx = NewContext();
         ctx.Users.Add(new User { Id = "u1", Name = "Alice", PersonalCode = "111111", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         ctx.Users.Add(new User { Id = "u2", Name = "Bob", PersonalCode = "222222", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         ctx.Users.Add(new User { Id = "u3", Name = "Cara", PersonalCode = "333333", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
-        var svc = CreateService(ctx);
-        // First create new couple between u1 and u2
+        var svc = BuildService(ctx);
         var couple1 = await svc.CreateOrJoinCoupleAsync("222222", "u1");
         Assert.NotNull(couple1);
         Assert.Equal(2, couple1!.Members.Count);
 
-        // Now attempt to join using u3 with u1's personal code while both already in a couple should fail (target already complete)
         var result = await svc.CreateOrJoinCoupleAsync("111111", "u3");
         Assert.Null(result);
     }
@@ -71,16 +65,25 @@ public class CoupleMatchingServiceTests
     [Fact]
     public async Task CreateOrJoinCoupleAsync_ReturnsExisting_WhenUserAlreadyInCouple()
     {
-        var ctx = CreateContext();
+        using var ctx = NewContext();
         ctx.Users.Add(new User { Id = "u1", Name = "Alice", PersonalCode = "111111", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         ctx.Users.Add(new User { Id = "u2", Name = "Bob", PersonalCode = "222222", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
-        var svc = CreateService(ctx);
+
+        var svc = BuildService(ctx);
         var couple = await svc.CreateOrJoinCoupleAsync("222222", "u1");
         Assert.NotNull(couple);
 
-        // Second attempt with same user should just return existing couple
         var coupleAgain = await svc.CreateOrJoinCoupleAsync("222222", "u1");
         Assert.Equal(couple!.Id, coupleAgain!.Id);
     }
+
+    private class StubEventPublisher : IEventPublisher
+    {
+        public List<BaseEvent> Published { get; } = new();
+        public Task PublishToUserAsync<T>(T ev, string userId) where T : BaseEvent { Published.Add(ev); return Task.CompletedTask; }
+        public Task PublishToCoupleAsync<T>(T ev, string coupleId) where T : BaseEvent { Published.Add(ev); return Task.CompletedTask; }
+    }
+
+    private class StubPresenceService : IUserPresenceService { }
 }
