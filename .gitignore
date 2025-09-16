@@ -210,3 +210,4 @@ pnpm-debug.log*
 # JetBrains Rider solution wide caches
 .idea/.idea.
 
+*.log
