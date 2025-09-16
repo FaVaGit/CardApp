@@ -247,6 +247,21 @@ class EventDrivenApiService {
         return response.success;
     }
 
+    // Draw a card for the active session
+    async drawCard(sessionId) {
+        if (!this.userId) throw new Error('User not connected');
+        if (!sessionId) throw new Error('SessionId mancante');
+        const response = await this.apiCall('/draw-card', 'POST', { sessionId, userId: this.userId });
+        if (response.success && response.card) {
+            // Emit immediate sessionUpdated so UI updates without waiting for poll
+            try {
+                this.emit('sessionUpdated', { type: 'cardDrawn', card: response.card, drawnBy: this.userId, timestamp: Date.now() });
+            } catch {/* ignore */}
+            return response.card;
+        }
+        throw new Error('Draw card failed');
+    }
+
     // ==== Join Request Workflow (approval-based pairing) ====
     setOptimisticJoinTTL(ms) {
         if (typeof ms === 'number' && ms >= 0) {
