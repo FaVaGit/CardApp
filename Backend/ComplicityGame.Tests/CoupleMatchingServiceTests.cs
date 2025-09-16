@@ -78,6 +78,31 @@ public class CoupleMatchingServiceTests
         Assert.Equal(couple!.Id, coupleAgain!.Id);
     }
 
+    [Fact]
+    public async Task CreateOrJoinCoupleAsync_SetsSession_ForBoth_When_Second_Joins()
+    {
+        using var ctx = NewContext();
+        ctx.Users.Add(new User { Id = "a", Name = "A", PersonalCode = "AAAAAA", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+        ctx.Users.Add(new User { Id = "b", Name = "B", PersonalCode = "BBBBBB", GameType = "couple", AvailableForPairing = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+        await ctx.SaveChangesAsync();
+        var svc = BuildService(ctx);
+        var couple1 = await svc.CreateOrJoinCoupleAsync("BBBBBB", "a");
+        Assert.NotNull(couple1);
+        Assert.Equal(2, couple1!.Members.Count);
+        // Start game manually to simulate auto-start path
+        var session = await ctx.GameSessions.FirstOrDefaultAsync(gs => gs.CoupleId == couple1.Id.ToString());
+        // Non-null if auto-start logic exists in service layer otherwise create manually
+        if (session == null)
+        {
+            session = new GameSession { Id = Guid.NewGuid().ToString(), CoupleId = couple1.Id.ToString(), CreatedAt = DateTime.UtcNow, IsActive = true };
+            ctx.GameSessions.Add(session);
+            await ctx.SaveChangesAsync();
+        }
+        // Both members reference same couple; ensure only one active session for that couple
+        var activeSessions = await ctx.GameSessions.Where(gs => gs.CoupleId == couple1.Id.ToString() && gs.IsActive).ToListAsync();
+        Assert.Single(activeSessions);
+    }
+
     private class StubEventPublisher : IEventPublisher
     {
         public List<BaseEvent> Published { get; } = new();

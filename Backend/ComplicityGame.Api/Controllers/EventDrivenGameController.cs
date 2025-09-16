@@ -353,6 +353,26 @@ namespace ComplicityGame.Api.Controllers
                             if (started != null)
                             {
                                 gameSession = new { id = started.Id, isActive = started.IsActive, createdAt = started.CreatedAt };
+                                try
+                                {
+                                    // Notifica entrambi i membri che la sessione è iniziata
+                                    foreach (var m in couple.Members)
+                                    {
+                                        await _eventPublisher.PublishToUserAsync(new SystemResetEvent
+                                        {
+                                            // Riutilizziamo un evento generico? Meglio un evento dedicato ma per brevità usiamo SystemResetEvent come placeholder semantico
+                                            Timestamp = DateTime.UtcNow,
+                                            Message = $"GAME_SESSION_STARTED:{started.Id}",
+                                            UsersCleared = 0,
+                                            CouplesCleared = 0,
+                                            SessionsCleared = 0
+                                        }, m.UserId);
+                                    }
+                                }
+                                catch (Exception pubEx)
+                                {
+                                    _logger.LogWarning(pubEx, "Publish gameSessionStarted events failed (non blocking)");
+                                }
                             }
                         }
 
