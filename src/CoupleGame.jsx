@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * - Real-time partner status updates
  */
 export default function CoupleGame({ user, apiService, onExit }) {
-  const [gameState, setGameState] = useState('waiting-for-partner'); // removed manual finding step
+  const [gameState, setGameState] = useState('idle'); // 'idle' -> waiting session start; transitions to 'playing'
   const [couple, setCouple] = useState(null);
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
@@ -44,12 +44,12 @@ export default function CoupleGame({ user, apiService, onExit }) {
       if (prev.some(m => m.text.startsWith(`Benvenuto ${displayName}!`))) return prev;
       return [...prev, { id: nextMsgId(), text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: new Date().toLocaleTimeString() }];
     });
-  addMessage('Attendi la formazione della coppia (richiesta/approvazione).', 'info');
+  addMessage('Attendi la conferma della coppia (richiesta/approvazione).', 'info');
 
     // Setup event-driven listeners for RabbitMQ events (via polling)
     const setupEventListeners = () => {
       // Listen for couple joined events (RabbitMQ: CoupleCreated/CoupleUpdated)
-      const handleCoupleJoined = (data) => {
+  const handleCoupleJoined = (data) => {
         console.log('💑 Received couple joined event:', data);
         addMessage('💑 Partner si è collegato alla coppia!', 'success');
         if (data?.partner) {
@@ -64,16 +64,15 @@ export default function CoupleGame({ user, apiService, onExit }) {
           }
         }
         
-        if (gameState === 'waiting-for-partner') {
-          addMessage('⏳ Entrambi i partner collegati, avvio automatico...', 'info');
-          // The backend should auto-start the game session here
+        if (gameState === 'idle') {
+          addMessage('⏳ Avvio automatico della sessione in corso...', 'info');
         }
       };
 
       // Listen for game session started events (RabbitMQ: GameSessionStarted)
       const handleGameSessionStarted = (data) => {
         console.log('🎮 Received game session started event:', data);
-        setGameState('playing');
+  setGameState('playing');
         addMessage('🎮 Partita avviata automaticamente!', 'success');
         
         // Optionally fetch the game session details
@@ -149,30 +148,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
 
   // Rimosso flusso manuale: la coppia si forma via UserDirectory (join request)
 
-  // Handle starting game manually (if not auto-started)
-  const handleStartGame = async () => {
-    if (!couple?.id) {
-      setError('Nessuna coppia disponibile');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    addMessage('🎮 Avvio partita...', 'info');
-
-    try {
-      const session = await apiService.startGame(couple.id);
-      setGameSession(session);
-      setGameState('playing');
-      addMessage('✅ Partita avviata!', 'success');
-    } catch (error) {
-      console.error('❌ Error starting game:', error);
-      setError(`Errore nell'avvio della partita: ${error.message}`);
-      addMessage(`❌ Errore nell'avvio: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Manual start removed: session avvia solo automaticamente
 
   // Handle drawing a card
   const handleDrawCard = async () => {
@@ -229,38 +205,12 @@ export default function CoupleGame({ user, apiService, onExit }) {
 
   // (Schermata partner search rimossa)
 
-  // Render waiting for partner screen
-  const renderWaitingForPartner = () => (
-    <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          ⏳ In Attesa del Partner
-        </h2>
-        <p className="text-gray-600">
-          Coppia formata! Partner: <span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode}</span>
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <div className="text-center text-gray-600">
-          In attesa che il partner si colleghi per iniziare automaticamente la partita...
-        </div>
-
-        <button
-          onClick={handleStartGame}
-          disabled={isLoading}
-          className="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 disabled:opacity-50"
-        >
-          {isLoading ? '🔄 Avvio...' : '🎮 Forza Avvio Partita'}
-        </button>
-
-        <button
-          onClick={onExit}
-          className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
-        >
-          ← Torna al Menu
-        </button>
-      </div>
+  const renderIdle = () => (
+    <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 text-center">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">⏳ Preparazione Partita</h2>
+      <p className="text-gray-600 mb-4">In attesa che la sessione venga avviata automaticamente...</p>
+      <p className="text-xs text-gray-400">(Questa schermata scomparirà non appena la sessione è pronta)</p>
+      <button onClick={onExit} className="mt-6 w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600">← Torna al Menu</button>
     </div>
   );
 
@@ -360,7 +310,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-8 px-4">
   {/* Schermata finding-partner rimossa: si parte direttamente in waiting-for-partner */}
-      {gameState === 'waiting-for-partner' && renderWaitingForPartner()}
+  {gameState === 'idle' && renderIdle()}
       {gameState === 'playing' && renderPlaying()}
       
       {renderActivityLog()}
