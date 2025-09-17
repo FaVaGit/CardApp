@@ -430,6 +430,7 @@ class EventDrivenApiService {
         try {
             let status, gameSession, partnerInfo;
             let usedSnapshot = false;
+            const debugBefore = { sessionId: this.sessionId, havePartner: !!this.lastKnownPartner };
             try {
                 const snap = await this.apiCall(`/snapshot/${this.userId}`);
                 if (snap && snap.success) {
@@ -453,8 +454,18 @@ class EventDrivenApiService {
                         }
                     }
                     
+                    // Fallback: se snapshot ha gameSession ma non abbiamo ancora sessionId interno/emesso evento
+                    if (snap.gameSession && snap.gameSession.id && !this.sessionId) {
+                        this.sessionId = snap.gameSession.id;
+                        this.emit('gameSessionStarted', { sessionId: snap.gameSession.id, coupleId: (status && status.coupleId) || (status && status.CoupleId) });
+                    }
+
                     // Log user data for debugging
                     if (snap.users) console.log('📡 Utenti ricevuti:', snap.users);
+                    // Debug: se prima non avevamo partner/sessione e ancora mancano, log grezzo (temporaneo)
+                    if (!debugBefore.havePartner && !partnerInfo && !snap.partnerInfo && (status?.coupleId || status?.CoupleId)) {
+                        console.warn('[Diag] partnerInfo ancora assente dopo snapshot completa:', { status, gameSession: snap.gameSession, events: snap.events });
+                    }
                     
                     // Users delta
                     if (snap.users) {
@@ -513,6 +524,19 @@ class EventDrivenApiService {
             if (status && status.coupleId && (!prevStatus || prevStatus.coupleId !== status.coupleId)) {
                 this.emit('coupleJoined', { coupleId: status.coupleId, partner: partnerInfo });
             }
+            // Se non abbiamo partnerInfo ma status indica coppia e abbiamo elenco utenti, prova a derivarlo (fallback)
+            if (!partnerInfo && status && (status.coupleId || status.CoupleId) && this.lastUsersSnapshot?.length) {
+                const selfId = this.userId;
+                const partnerCandidate = this.lastUsersSnapshot.find(u => (u.id||u.Id) !== selfId && (u.gameType||u.GameType||'').toLowerCase().includes('couple'));
+                if (partnerCandidate) {
+                    partnerInfo = {
+                        userId: partnerCandidate.id || partnerCandidate.Id,
+                        name: partnerCandidate.name || partnerCandidate.Name,
+                        personalCode: partnerCandidate.personalCode || partnerCandidate.PersonalCode || partnerCandidate.userCode
+                    };
+                }
+            }
+
             // Partner diff detection più robusta: confronta firma JSON minimale così da emettere anche se stessi id ma nuovi campi
             const makeSig = (p) => !p ? null : `${p.userId||p.UserId}|${p.personalCode||p.userCode||''}|${p.name||p.Name||''}`;
             const prevSig = makeSig(this.lastKnownPartner);

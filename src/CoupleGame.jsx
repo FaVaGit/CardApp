@@ -145,6 +145,14 @@ export default function CoupleGame({ user, apiService, onExit }) {
     };
   }, [user, apiService, gameState, partnerCode, addMessage, nextMsgId]);
 
+  // Fallback: se il service ha già sessionId ma lo stato locale no, aggiorniamo
+  useEffect(() => {
+    if (!gameSession?.id && apiService.sessionId) {
+      setGameSession({ id: apiService.sessionId, isActive: true });
+      addMessage('🔁 Sessione sincronizzata dal service.', 'info');
+    }
+  }, [apiService.sessionId, gameSession, addMessage]);
+
   // Rimosso flusso manuale: la coppia si forma via UserDirectory (join request)
 
   // Manual start removed: session avvia solo automaticamente
