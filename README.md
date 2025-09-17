@@ -10,12 +10,16 @@ A modern card game application built with **Event-Driven Architecture** using Re
 
 ## ✨ Features
 
-- 🎯 **Single Player Mode**: Individual card drawing experience
-- 👥 **Couple Mode**: Partner matching and shared game sessions
-- 🎲 **150+ Conversation Cards**: Carefully crafted prompts in Italian
-- 🔄 **Real-time Events**: RabbitMQ-powered event system
-- 📱 **Responsive Design**: Works on mobile and desktop
-- 🏗️ **Modern Architecture**: Clean, maintainable codebase
+- 🎯 **Single Player Mode**: Esperienza personale di pesca carte
+- 👥 **Couple Mode (richiesta / approvazione)**: Accoppiamento esplicito con auto‑start sessione
+- ⚡ **Partner Sync Immediato**: `respond-join` ora restituisce direttamente `partnerInfo` evitando attese
+- 🎴 **Card Sharing Sincronizzato**: Stato carte condivise in snapshot (storico `sharedCards`)
+- 🎲 **150+ Carte Conversazione**: Prompt curati in italiano
+- 🔄 **Eventi Real-time / Polling Resiliente**: RabbitMQ (o polling snapshot come fallback)
+- 🩺 **Diagnostica Sync Partner**: Evento `partnerSyncDelay` dopo 3 poll se partner mancante
+- 🧪 **Test Integrazione Automatizzati**: Suite Vitest per flussi coppia e pesca carta
+- 📱 **Responsive Design**: Mobile & Desktop
+- 🏗️ **Architettura Moderna**: Separation of concerns, fallback sicuri
 
 ## 🏗️ Architecture
 
@@ -135,20 +139,22 @@ I test unitari ora referenziano solo `ComplicityGame.Core`, evitando dipendenze 
 ### Tipologie di test
 | Livello | Strumento | Percorso | Cosa valida |
 |---------|-----------|----------|-------------|
-| Shell integration | bash + curl + jq | `tests/*.test.sh` | Flussi API (join approve / reject / cancel, snapshot) |
+| Integrazione API (JS) | Vitest | `tests/integration/*.test.js` | Coppia, sessione, sync partner, pesca carta |
+| Shell integration | bash + curl + jq | `tests/*.test.sh` | Flussi API legacy (approve / reject / cancel) |
 | End‑to‑End UI | Playwright | `tests/e2e/*.spec.js` | Interazioni reali browser (richiesta, accetta, rifiuta, annulla, reconnect) |
 
 ### Esecuzione rapida
 ```bash
-# Tutti i test shell + (se configurato) eventuali altri script
+# Test unit frontend
+npm run test:unit
+
+# Test integrazione (avvia backend + frontend e lancia Vitest integration)
+npm run test:integration
+
+# Test shell (flussi base)
 ./test-all.sh
 
-# Solo flussi join API (approve / reject / cancel)
-bash tests/join-flow.test.sh
-bash tests/reject-flow.test.sh
-bash tests/cancel-flow.test.sh
-
-# Test E2E Playwright (richiede Node >=20 e browsers Playwright installati)
+# Test E2E Playwright
 npx playwright test
 ```
 
@@ -177,7 +183,7 @@ Sono stati introdotti `data-testid` in `UserDirectory.jsx` per ridurre la fragil
 - `POST /api/EventDrivenGame/reconnect` - Riconnessione con auth token
 - `GET  /api/EventDrivenGame/available-users/{userId}` - Lista utenti disponibili (esclude self)
 - `POST /api/EventDrivenGame/request-join` - Crea richiesta join (A->B)
-- `POST /api/EventDrivenGame/respond-join` - Approvazione / rifiuto richiesta (B risponde)
+- `POST /api/EventDrivenGame/respond-join` - Approvazione / rifiuto richiesta (B risponde) → ora ritorna anche `partnerInfo` e `gameSession`
 - `POST /api/EventDrivenGame/cancel-join` - Annulla richiesta in pending (A)
 - `GET  /api/EventDrivenGame/join-requests/{userId}` - Incoming / outgoing requests
 - `GET  /api/EventDrivenGame/snapshot/{userId}` - Snapshot aggregato (users + requests + stato + sessione)
@@ -255,31 +261,45 @@ The application uses RabbitMQ for real-time events:
 
 ### ✅ Implementate
 - Workflow richieste coppia (request / approve / reject / cancel) con auto-start game
-- Ottimistic UI per richieste (aggiornamento immediato senza attendere polling)
-- Snapshot endpoint aggregato (riduce chiamate multiple)
-- Test shell negativi & positivi (approve, reject, cancel)
-- Test E2E Playwright stabili con `data-testid`
-- Auto pulizia richieste pendenti incrociate dopo approvazione
-- Avvio automatico Game Session al completamento coppia
+- Risposta `respond-join` arricchita con `partnerInfo` + `gameSession`
+- Fallback server-side partner (`[FallbackPartner]`) per snapshot immediato del richiedente
+- Eventi frontend: `partnerUpdated`, `gameSessionStarted`, `sessionUpdated` (carta pescata)
+- Diagnostica `partnerSyncDelay` dopo 3 poll senza partner
+- Ottimistic UI per richieste (aggiornamento immediato)
+- Snapshot endpoint aggregato
+- Test integrazione Vitest (coppia, stabilità snapshot, pesca, partner immediato)
+- Test shell (approve, reject, cancel) + E2E Playwright con `data-testid`
+- Auto pulizia richieste incrociate dopo approvazione
+- Avvio automatico Game Session
 
 ### 🔮 Miglioramenti Futuri
-- CI pipeline (GitHub Actions) con matrix Node / OS
-- Global Playwright setup per `clear-users` unico
-- Coverage report (nyc per frontend, coverlet per backend)
-- Persistenza carte / progressi per sessioni multiple
-- Internationalizzazione dinamica (i18n)
-- Notifiche WebSocket / SignalR come alternativa al polling
+- Matrix CI (Node / OS) & caching ottimizzato
+- Global Playwright setup (clear-users pre suite)
+- Coverage combinata frontend+backend automatica (badge dinamico)
+- Persistenza carte / progressi sessioni multiple
+- i18n dinamico runtime
+- WebSocket / SignalR per eliminare polling
+- Rate limiting configurabile lato API (già esistente per join, estendere ad altre operazioni)
 
 ## 🧹 Aggiornamenti Recenti
 | Area | Aggiornamento |
 |------|---------------|
-| Join Workflow | Introdotto flusso approvazione con cleanup richieste incrociate |
-| UI | Stato ottimistico per richieste e badge testabili |
-| Testing | Aggiunti Playwright E2E (approve / reject / cancel / reconnect) |
-| Selettori | Migrazione a `data-testid` per stabilità test |
-| Node Version | Aggiunto `.nvmrc` (20.19.0) e engines in `package.json` |
-| Script e2e | `scripts/e2e-server.js` riusa backend già avviato evitando conflitti porta |
-| Documentazione | README ampliato (workflow join, admin endpoints, test) |
+| Join Workflow | `respond-join` ora include `partnerInfo` e `gameSession` |
+| Partner Sync | Fallback server-side immediato + evento diagnostico `partnerSyncDelay` |
+| Snapshot | Aggiunto fallback `[FallbackPartner]` e stabilità sessione verificata via test |
+| Testing | Suite integrazione Vitest (`tests/integration/*.test.js`) aggiunta + test partner immediato |
+| API | Migliorata risposta `respond-join` per ridurre latenze UI |
+| UI | Dedupe log, placeholder partner ridotto, diagnostica delay una sola volta |
+| Script | `test:integration` esegue backend+frontend+Vitest in modo automatizzato |
+| Documentazione | README aggiornato con nuove sezioni e API arricchite |
+
+## 🩺 Diagnostica Sincronizzazione Partner
+In casi rari di latenza, il frontend emette una voce log: `⏱️ Ritardo nella sincronizzazione del partner... (diagnostica)` dopo ~6s (3 poll). Il backend espone un fallback interno che ricostruisce `partnerInfo` direttamente dal DB; il log `[FallbackPartner]` indica che il meccanismo è entrato in azione.
+
+Se questo evento appare di frequente:
+- Verificare carico DB / latenza I/O
+- Controllare eventuali lock o ritardi EF nelle navigation
+- Considerare l'abilitazione di un canale WebSocket per push immediato
 
 ## 📝 Contributing
 

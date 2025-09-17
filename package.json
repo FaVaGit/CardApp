@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report"
+  ,"test:integration": "node scripts/run-integration-tests.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

@@ -14,6 +14,7 @@ class EventDrivenApiService {
         this.lastKnownCardCount = 0; // Track number of cards drawn
         this.lastKnownStatus = null;
         this.lastKnownPartner = null; // Track partner information
+    this._partnerSyncPolls = 0; // conta poll dopo sessione senza partner
     this.joinRequestCache = { incoming: [], outgoing: [] };
     this.lastUsersSnapshot = [];
     // Configurable TTL (ms) for optimistic join requests that never get confirmed by backend
@@ -29,7 +30,7 @@ class EventDrivenApiService {
         if (typeof stored.prunedJoinCount === 'number') this.prunedJoinCount = stored.prunedJoinCount;
     } catch { /* ignore */ }
     // diagnostics / retry helpers
-    this._partnerRetryActive = false;
+    this._partnerRetryActive = false; // (legacy retry, will be removed)
     this._lastUsersLogSig = null;
     }
 
@@ -449,13 +450,7 @@ class EventDrivenApiService {
                             this.sessionId = sessId;
                             this.emit('gameSessionStarted', { sessionId: sessId, coupleId: startEvt.coupleId || startEvt.CoupleId });
                             // FAST FOLLOW POLL: se manca partnerInfo subito dopo avvio, ripolliamo a breve per sincronizzare il requester
-                            if (!snap.partnerInfo) {
-                                setTimeout(() => {
-                                    this.pollForUpdates().catch(err => console.warn('Follow-up poll error (partner sync):', err));
-                                }, 400); // piccolo delay per permettere al backend di aggiornare
-                                // Avvia anche retry attivo
-                                this.schedulePartnerFetch();
-                            }
+                            // Partner ormai disponibile subito dal backend; niente retry attivo
                         }
                     }
                     
@@ -463,7 +458,6 @@ class EventDrivenApiService {
                     if (snap.gameSession && snap.gameSession.id && !this.sessionId) {
                         this.sessionId = snap.gameSession.id;
                         this.emit('gameSessionStarted', { sessionId: snap.gameSession.id, coupleId: (status && status.coupleId) || (status && status.CoupleId) });
-                        if (!partnerInfo) this.schedulePartnerFetch();
                     }
 
                     // Log user data for debugging (throttled by signature)
@@ -539,13 +533,27 @@ class EventDrivenApiService {
             // Se non abbiamo partnerInfo ma status indica coppia e abbiamo elenco utenti, prova a derivarlo (fallback)
             if (!partnerInfo && status && (status.coupleId || status.CoupleId) && this.lastUsersSnapshot?.length) {
                 const selfId = this.userId;
-                const partnerCandidate = this.lastUsersSnapshot.find(u => (u.id||u.Id) !== selfId && (u.gameType||u.GameType||'').toLowerCase().includes('couple'));
+                const coupleId = status.coupleId || status.CoupleId;
+                const normalized = (s) => (s||'').toLowerCase();
+                const partnerCandidate = this.lastUsersSnapshot.find(u => {
+                    const uid = u.id||u.Id;
+                    if (uid === selfId) return false;
+                    const gt = normalized(u.gameType||u.GameType);
+                    // Accetta varianti 'couple' o 'coppia'
+                    if (!(gt.includes('couple') || gt.includes('coppia'))) return false;
+                    // Se l'utente ha un coupleId/coupleID associato, deve combaciare (se presente)
+                    const ucid = u.coupleId || u.CoupleId || u.coupleID || u.CoupleID;
+                    if (ucid && ucid !== coupleId) return false;
+                    return true;
+                });
                 if (partnerCandidate) {
                     partnerInfo = {
                         userId: partnerCandidate.id || partnerCandidate.Id,
                         name: partnerCandidate.name || partnerCandidate.Name,
                         personalCode: partnerCandidate.personalCode || partnerCandidate.PersonalCode || partnerCandidate.userCode
                     };
+                    // Emit immediatamente così la UI non resta bloccata sul placeholder
+                    this.emit('partnerUpdated', partnerInfo);
                 }
             }
 
@@ -561,7 +569,17 @@ class EventDrivenApiService {
             if (gameSession && (!prevStatus || prevStatus.sessionId !== gameSession.id)) {
                 this.sessionId = gameSession.id;
                 this.emit('gameSessionStarted', { sessionId: gameSession.id });
-                if (!partnerInfo) this.schedulePartnerFetch();
+            }
+            // Diagnostica ritardo partner: se abbiamo sessione attiva ma ancora nessun partnerInfo
+            if (this.sessionId && !partnerInfo && !this.lastKnownPartner) {
+                this._partnerSyncPolls++;
+                if (this._partnerSyncPolls === 3) { // ~6 secondi con polling 2s
+                    console.warn('[Diag] partnerInfo ancora mancante dopo 3 poll dalla sessione');
+                    this.emit('partnerSyncDelay', { polls: this._partnerSyncPolls, sessionId: this.sessionId });
+                }
+            } else if (partnerInfo || this.lastKnownPartner) {
+                // reset contatore una volta sincronizzato
+                if (this._partnerSyncPolls > 0) this._partnerSyncPolls = 0;
             }
             if (gameSession?.sharedCards) {
                 const count = gameSession.sharedCards.length;
@@ -583,32 +601,8 @@ class EventDrivenApiService {
     }
 
     // Active partner fetch loop: called after session start if partnerInfo still missing
-    async schedulePartnerFetch(retries = 6, intervalMs = 600) {
-        if (this._partnerRetryActive) return;
-        this._partnerRetryActive = true;
-        const attempt = async (left) => {
-            if (!this._partnerRetryActive) return;
-            try {
-                if (!this.userId) return;
-                const resp = await this.getUserStatus(this.userId);
-                if (resp && resp.partnerInfo) {
-                    const partnerInfo = resp.partnerInfo;
-                    const sig = `${partnerInfo.userId||partnerInfo.UserId}|${partnerInfo.personalCode||partnerInfo.userCode||''}`;
-                    const prevSig = this.lastKnownPartner ? `${this.lastKnownPartner.userId||this.lastKnownPartner.UserId}|${this.lastKnownPartner.personalCode||this.lastKnownPartner.userCode||''}` : null;
-                    this.lastKnownPartner = partnerInfo;
-                    if (sig !== prevSig) this.emit('partnerUpdated', partnerInfo);
-                    this._partnerRetryActive = false;
-                    return;
-                }
-            } catch {/* ignore individual attempt errors */}
-            if (left > 0) {
-                setTimeout(() => attempt(left - 1), intervalMs);
-            } else {
-                this._partnerRetryActive = false;
-            }
-        };
-        attempt(retries);
-    }
+    // schedulePartnerFetch rimosso: back-end aggiorna subito partnerInfo, mantenuto placeholder per compatibilità
+    schedulePartnerFetch() { /* deprecated no-op */ }
 
     // Event emitter methods for the API service
     on(event, handler) {

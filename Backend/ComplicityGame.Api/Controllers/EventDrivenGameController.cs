@@ -349,6 +349,21 @@ namespace ComplicityGame.Api.Controllers
                         object? gameSession = null;
                         if (couple != null && couple.Members.Count == 2)
                         {
+                            // Prima di avviare la sessione forziamo l'aggiornamento della presence per entrambi i membri
+                            // in modo che la successiva chiamata snapshot/status del richiedente trovi subito CoupleId valorizzato.
+                            try
+                            {
+                                foreach (var m in couple.Members)
+                                {
+                                    var refreshed = await _presenceService.GetUserStatusAsync(m.UserId);
+                                    // (presence refresh eseguito - log rimosso in produzione)
+                                }
+                            }
+                            catch (Exception presEx)
+                            {
+                                _logger.LogDebug(presEx, "Refresh presence post-couple failed (non blocking)");
+                            }
+
                             var started = await _gameService.StartGameAsync(couple.Id.ToString());
                             if (started != null)
                             {
@@ -395,7 +410,21 @@ namespace ComplicityGame.Api.Controllers
                             _logger.LogWarning(cleanEx, "Cleanup richieste join pendenti fallito (non bloccante)");
                         }
 
-                        return Ok(new { success = true, approved = true, coupleId, gameSession });
+                        // Costruisci partnerInfo da restituire subito al target (approvatore) e al requester (front-end lo userà)
+                        object? partnerInfo = null;
+                        try {
+                            if (couple != null && couple.Members.Count == 2)
+                            {
+                                var partner = couple.Members.FirstOrDefault(m => m.UserId == req.RequestingUserId) ?? couple.Members.FirstOrDefault(m => m.UserId != dto.TargetUserId);
+                                if (partner?.User != null)
+                                {
+                                    partnerInfo = new { userId = partner.User.Id, name = partner.User.Name, personalCode = partner.User.PersonalCode };
+                                }
+                            }
+                        } catch (Exception buildPartnerEx) {
+                            _logger.LogDebug(buildPartnerEx, "RespondJoin partnerInfo build failed (non blocking)");
+                        }
+                        return Ok(new { success = true, approved = true, coupleId, gameSession, partnerInfo });
                     }
                 }
 
@@ -535,6 +564,28 @@ namespace ComplicityGame.Api.Controllers
                                 name = partner.User.Name,
                                 personalCode = partner.User.PersonalCode
                             };
+                        }
+                        // Fallback: se non ancora valorizzato ma i membri sono 2 e le navigation potrebbero non essere materializzate
+                        if (partnerInfo == null && couple.Members.Count == 2)
+                        {
+                            try {
+                                var other = couple.Members.FirstOrDefault(m => m.UserId != userId);
+                                if (other != null)
+                                {
+                                    // Se navigation non caricata, recupera utente direttamente
+                                    if (other.User == null)
+                                    {
+                                        other.User = await context.Users.FirstOrDefaultAsync(u => u.Id == other.UserId);
+                                    }
+                                    if (other.User != null)
+                                    {
+                                        partnerInfo = new { userId = other.User.Id, name = other.User.Name, personalCode = other.User.PersonalCode };
+                                        _logger.LogDebug("[FallbackPartner] Ricostruito partnerInfo via query diretta per userId={UserId}", userId);
+                                    }
+                                }
+                            } catch (Exception fallbackEx) {
+                                _logger.LogDebug(fallbackEx, "[FallbackPartner] Fallito (non blocking)");
+                            }
                         }
                     }
                     

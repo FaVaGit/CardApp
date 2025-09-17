@@ -22,6 +22,15 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
+  // Flags per deduplicare i log
+  const flagsRef = useRef({
+    loggedWelcome: false,
+    loggedWaiting: false,
+    loggedCoupleFormed: false,
+    loggedGameStarted: false,
+  loggedSessionSync: false,
+  loggedPartnerSyncDelay: false
+  });
   const msgIdRef = useRef(0);
   const nextMsgId = useCallback(() => `${Date.now()}-${msgIdRef.current++}`, []);
 
@@ -41,19 +50,24 @@ export default function CoupleGame({ user, apiService, onExit }) {
     const displayCode = user.userCode || user.personalCode || 'N/A';
     const displayName = user.nickname || user.name || 'Utente';
     console.log('🚀 Initializing Couple Game for user:', displayName, 'with code:', displayCode);
-    // Avoid duplicate welcome message
-    setMessages(prev => {
-      if (prev.some(m => m.text.startsWith(`Benvenuto ${displayName}!`))) return prev;
-      return [...prev, { id: nextMsgId(), text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: new Date().toLocaleTimeString() }];
-    });
-  addMessage('Attendi la conferma della coppia (richiesta/approvazione).', 'info');
+    if (!flagsRef.current.loggedWelcome) {
+      flagsRef.current.loggedWelcome = true;
+      setMessages(prev => [...prev, { id: nextMsgId(), text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: new Date().toLocaleTimeString() }]);
+    }
+    const hasEstablished = !!(gameSession?.id || partnerInfo);
+    if (!flagsRef.current.loggedWaiting && !hasEstablished) {
+      addMessage('Attendi la conferma della coppia (richiesta/approvazione).', 'info');
+      flagsRef.current.loggedWaiting = true;
+    }
 
     // Setup event-driven listeners for RabbitMQ events (via polling)
     const setupEventListeners = () => {
       // Listen for couple joined events (RabbitMQ: CoupleCreated/CoupleUpdated)
-  const handleCoupleJoined = (data) => {
+      const handleCoupleJoined = (data) => {
         console.log('💑 Received couple joined event:', data);
-        addMessage('💑 Partner si è collegato alla coppia!', 'success');
+        if (!flagsRef.current.loggedCoupleFormed) {
+          addMessage('💑 Partner si è collegato alla coppia!', 'success');
+        }
         if (data?.partner) {
           setPartnerInfo(data.partner);
           if (!partnerCode) {
@@ -61,8 +75,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
           }
           // Extra confirmation log for clarity (only if not already logged)
           const partnerDisplay = data.partner.personalCode || data.partner.userCode;
-          if (partnerDisplay) {
+          if (partnerDisplay && !flagsRef.current.loggedCoupleFormed) {
             addMessage(`✅ Coppia formata con ${partnerDisplay}!`, 'success');
+            flagsRef.current.loggedCoupleFormed = true;
           }
         }
         
@@ -74,7 +89,10 @@ export default function CoupleGame({ user, apiService, onExit }) {
       // Listen for game session started events (RabbitMQ: GameSessionStarted)
       const handleGameSessionStarted = (data) => {
         console.log('🎮 Received game session started event:', data);
-        addMessage('🎮 Partita avviata automaticamente!', 'success');
+        if (!flagsRef.current.loggedGameStarted) {
+          addMessage('🎮 Partita avviata automaticamente!', 'success');
+          flagsRef.current.loggedGameStarted = true;
+        }
         if (data.sessionId) {
           setGameSession({ id: data.sessionId, isActive: true });
         }
@@ -113,7 +131,19 @@ export default function CoupleGame({ user, apiService, onExit }) {
         if (!partnerCode) {
           setPartnerCode(partnerData.personalCode || partnerData.userCode || '');
         }
-        addMessage(`✅ Coppia formata con ${partnerData.personalCode || partnerData.userCode || 'partner'}!`, 'success');
+        if (!flagsRef.current.loggedCoupleFormed) {
+          addMessage(`✅ Coppia formata con ${partnerData.personalCode || partnerData.userCode || 'partner'}!`, 'success');
+          flagsRef.current.loggedCoupleFormed = true;
+        }
+      };
+
+      // Diagnostica ritardo sincronizzazione partner
+      const handlePartnerSyncDelay = (info) => {
+        if (!flagsRef.current.loggedPartnerSyncDelay) {
+          addMessage('⏱️ Ritardo nella sincronizzazione del partner... (diagnostica)', 'info');
+          flagsRef.current.loggedPartnerSyncDelay = true;
+        }
+        console.warn('Partner sync delay diagnostic event:', info);
       };
 
       // Remove existing listeners to prevent duplicates
@@ -122,6 +152,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('cardDrawn', handleCardDrawn);
       apiService.off('sessionUpdated', handleSessionUpdated);
       apiService.off('partnerUpdated', handlePartnerUpdated);
+  apiService.off('partnerSyncDelay', handlePartnerSyncDelay);
 
       // Add listeners
       apiService.on('coupleJoined', handleCoupleJoined);
@@ -129,6 +160,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.on('cardDrawn', handleCardDrawn);
       apiService.on('sessionUpdated', handleSessionUpdated);
       apiService.on('partnerUpdated', handlePartnerUpdated);
+  apiService.on('partnerSyncDelay', handlePartnerSyncDelay);
 
   return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
     };
@@ -142,6 +174,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('cardDrawn', listeners.handleCardDrawn);
       apiService.off('sessionUpdated', listeners.handleSessionUpdated);
       apiService.off('partnerUpdated', listeners.handlePartnerUpdated);
+  apiService.off('partnerSyncDelay', listeners.handlePartnerSyncDelay);
     };
   }, [user, apiService, gameState, partnerCode, addMessage, nextMsgId]);
 
@@ -149,7 +182,19 @@ export default function CoupleGame({ user, apiService, onExit }) {
   useEffect(() => {
     if (!gameSession?.id && apiService.sessionId) {
       setGameSession({ id: apiService.sessionId, isActive: true });
-      addMessage('🔁 Sessione sincronizzata dal service.', 'info');
+      if (!flagsRef.current.loggedSessionSync) {
+        addMessage('🔁 Sessione sincronizzata dal service.', 'info');
+        flagsRef.current.loggedSessionSync = true;
+      }
+    }
+    // Synthetic emission: se abbiamo partnerInfo o sessione tramite stato esterno ma non abbiamo ancora loggato coppia / partita
+    if (partnerInfo && !flagsRef.current.loggedCoupleFormed) {
+      addMessage(`✅ Coppia formata con ${partnerInfo.personalCode || partnerInfo.userCode || 'partner'}!`, 'success');
+      flagsRef.current.loggedCoupleFormed = true;
+    }
+    if (gameSession?.id && !flagsRef.current.loggedGameStarted) {
+      addMessage('🎮 Partita avviata automaticamente!', 'success');
+      flagsRef.current.loggedGameStarted = true;
     }
   }, [apiService.sessionId, gameSession, addMessage]);
 
@@ -227,7 +272,10 @@ export default function CoupleGame({ user, apiService, onExit }) {
         <p className="text-gray-600 flex flex-col items-center gap-1">
           <span>Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span> (<span className="font-mono font-bold text-blue-600">{user.userCode}</span>)</span>
           {gameSession?.id && !partnerInfo && (
-            <span className="italic text-amber-600">Partner in sincronizzazione...</span>
+            <span className="italic text-amber-600">
+              {/* Se dopo avvio sessione il partner non è ancora arrivato, mostriamo placeholder solo finché non arriva un update */}
+              Partner in sincronizzazione...
+            </span>
           )}
           {!gameSession?.id && !partnerInfo && (
             <span>Partner: — (<span className="font-mono font-bold text-green-600">—</span>)</span>
