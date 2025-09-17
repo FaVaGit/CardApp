@@ -218,7 +218,15 @@ export default function CoupleGame({ user, apiService, onExit }) {
         )}
         <p className="text-gray-600 flex flex-col items-center gap-1">
           <span>Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span> (<span className="font-mono font-bold text-blue-600">{user.userCode}</span>)</span>
-          <span>Partner: <span className="font-semibold text-gray-800">{partnerInfo?.name || partnerInfo?.Name || '—'}</span> (<span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>)</span>
+          {gameSession?.id && !partnerInfo && (
+            <span className="italic text-amber-600">Partner in sincronizzazione...</span>
+          )}
+          {!gameSession?.id && !partnerInfo && (
+            <span>Partner: — (<span className="font-mono font-bold text-green-600">—</span>)</span>
+          )}
+          {partnerInfo && (
+            <span>Partner: <span className="font-semibold text-gray-800">{partnerInfo?.name || partnerInfo?.Name || '—'}</span> (<span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>)</span>
+          )}
         </p>
         <p className="text-sm text-gray-500">
           Sessione: {gameSession?.id}

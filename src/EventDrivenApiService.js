@@ -444,6 +444,12 @@ class EventDrivenApiService {
                             const sessId = startEvt.sessionId || startEvt.SessionId;
                             this.sessionId = sessId;
                             this.emit('gameSessionStarted', { sessionId: sessId, coupleId: startEvt.coupleId || startEvt.CoupleId });
+                            // FAST FOLLOW POLL: se manca partnerInfo subito dopo avvio, ripolliamo a breve per sincronizzare il requester
+                            if (!snap.partnerInfo) {
+                                setTimeout(() => {
+                                    this.pollForUpdates().catch(err => console.warn('Follow-up poll error (partner sync):', err));
+                                }, 400); // piccolo delay per permettere al backend di aggiornare
+                            }
                         }
                     }
                     
@@ -507,7 +513,11 @@ class EventDrivenApiService {
             if (status && status.coupleId && (!prevStatus || prevStatus.coupleId !== status.coupleId)) {
                 this.emit('coupleJoined', { coupleId: status.coupleId, partner: partnerInfo });
             }
-            if (partnerInfo && (!this.lastKnownPartner || this.lastKnownPartner.userId !== partnerInfo.userId)) {
+            // Partner diff detection più robusta: confronta firma JSON minimale così da emettere anche se stessi id ma nuovi campi
+            const makeSig = (p) => !p ? null : `${p.userId||p.UserId}|${p.personalCode||p.userCode||''}|${p.name||p.Name||''}`;
+            const prevSig = makeSig(this.lastKnownPartner);
+            const nextSig = makeSig(partnerInfo);
+            if (nextSig && nextSig !== prevSig) {
                 this.lastKnownPartner = partnerInfo;
                 this.emit('partnerUpdated', partnerInfo);
             }
