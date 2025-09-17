@@ -259,8 +259,8 @@ export default function SimpleApp() {
         </ErrorBoundary>
       );
 
-    case 'game-selection':
-  return <ErrorBoundary>{renderLobby()}</ErrorBoundary>;
+    case 'lobby':
+      return <ErrorBoundary>{renderLobby()}</ErrorBoundary>;
 
     case 'playing':
       // Render different components based on game type
