@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export default function UserDirectory({ apiService, currentUser, onSendJoin, onRespondJoin }) {
+export default function UserDirectory({ apiService, currentUser, onSendJoin, onRespondJoin, showCounts = false, onCountsChange }) {
   const [users, setUsers] = useState([]);
   const [inbound, setInbound] = useState([]);
   const [outbound, setOutbound] = useState([]);
@@ -37,12 +37,14 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
       const out = payload.outgoing || payload.outbound || outbound;
       setInbound(inc || []);
       setOutbound(out || []);
+      if (onCountsChange) onCountsChange({ incoming: (inc||[]).length, outgoing: (out||[]).length });
     };
     const handleReq = cache => {
       const inc = cache.incoming || cache.inbound || [];
       const out = cache.outgoing || cache.outbound || [];
       setInbound(inc);
       setOutbound(out);
+      if (onCountsChange) onCountsChange({ incoming: inc.length, outgoing: out.length });
     };
     apiService.on('usersUpdated', handleUsers);
     apiService.on('joinRequestsUpdated', handleReq);
@@ -139,6 +141,12 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
         <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
           <span>Utenti disponibili</span>
           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{otherUsers.length}</span>
+          {showCounts && (
+            <span className="flex items-center gap-1">
+              <span title="Richieste ricevute" className={`text-[10px] px-1.5 py-0.5 rounded ${inbound.length? 'bg-yellow-100 text-yellow-700':'bg-gray-100 text-gray-500'}`}>IN:{inbound.length}</span>
+              <span title="Richieste inviate" className={`text-[10px] px-1.5 py-0.5 rounded ${outbound.length? 'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-500'}`}>OUT:{outbound.length}</span>
+            </span>
+          )}
         </h3>
         <div className="text-[11px] text-gray-500">Aggiornato {new Date(now).toLocaleTimeString()}</div>
       </div>

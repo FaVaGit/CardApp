@@ -36,6 +36,14 @@ export default function SimpleApp() {
   const [selectedGameType, setSelectedGameType] = useState(null);
   const [apiService] = useState(new EventDrivenApiService());
   const [purging, setPurging] = useState(false);
+  const [joinCounts, setJoinCounts] = useState({ incoming: 0, outgoing: 0 });
+  const [toasts, setToasts] = useState([]);
+
+  const pushToast = (text, tone='info') => {
+    const id = Date.now()+Math.random();
+    setToasts(t => [...t, { id, text, tone }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+  };
 
   console.log('🚀 SimpleApp rendering...', { currentScreen, authenticatedUser, selectedGameType });
 
@@ -53,10 +61,19 @@ export default function SimpleApp() {
       // Se non c'è un game type scelto, assumiamo Couple
       setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
       setCurrentScreen('playing');
+      pushToast('Partita di coppia avviata!','success');
     };
     apiService.on('gameSessionStarted', handler);
     return () => apiService.off('gameSessionStarted', handler);
   }, [apiService]);
+
+  useEffect(() => {
+    const coupleHandler = (data) => {
+      if (currentScreen === 'game-selection') pushToast('Coppia formata, avvio in corso...','info');
+    };
+    apiService.on('coupleJoined', coupleHandler);
+    return () => apiService.off('coupleJoined', coupleHandler);
+  }, [apiService, currentScreen]);
 
   // Clear all users (admin function) - using new API
   const clearAllUsers = async () => {
@@ -200,8 +217,24 @@ export default function SimpleApp() {
                     console.warn('Join request not found for requestingUserId', requestingUserId, incoming);
                   }
                 } catch (e) { console.error('respondJoin error', e); }
-              }}
+                }}
+                showCounts={true}
+                onCountsChange={setJoinCounts}
             />
+              {selectedGameType?.id === 'Couple' && (
+                <div className="mt-4 p-3 rounded-md border border-purple-200 bg-purple-50 text-xs text-purple-800 flex flex-col gap-1">
+                  <div><span className="font-semibold">Stato Coppia</span></div>
+                  <div>Richieste ricevute: <span className="font-mono">{joinCounts.incoming}</span> • inviate: <span className="font-mono">{joinCounts.outgoing}</span></div>
+                  <div className="text-[11px] text-purple-600">Accetta o invia una richiesta per avviare automaticamente la partita.</div>
+                </div>
+              )}
+              {toasts.length>0 && (
+                <div className="fixed bottom-4 right-4 space-y-2 z-50">
+                  {toasts.map(t => (
+                    <div key={t.id} className={`px-3 py-2 rounded shadow text-sm text-white ${t.tone==='success'?'bg-green-600':t.tone==='error'?'bg-red-600':'bg-gray-800'}`}>{t.text}</div>
+                  ))}
+                </div>
+              )}
           </div>
 
           <button
