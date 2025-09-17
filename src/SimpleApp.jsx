@@ -94,6 +94,10 @@ export default function SimpleApp() {
     console.log('✅ Game type selected:', gameType, updatedUser);
     setSelectedGameType(gameType);
     setAuthenticatedUser(updatedUser);
+    if (gameType.id === 'Couple' || gameType.id === 'Coppia') {
+      // Rimani in game-selection: la sessione di coppia partirà dopo join approvata
+      return;
+    }
     setCurrentScreen('playing');
   };
 
@@ -169,6 +173,11 @@ export default function SimpleApp() {
           >
             💕 Gioco di Coppia
           </button>
+          {selectedGameType?.id === 'Couple' && (
+            <div className="text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-md p-3">
+              Modalità coppia selezionata. Invia o accetta una richiesta nella lista utenti. La partita si aprirà automaticamente appena la coppia è confermata.
+            </div>
+          )}
 
           <div className="pt-4 border-t border-gray-200">
             <UserDirectory

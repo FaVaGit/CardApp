@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * - Real-time partner status updates
  */
 export default function CoupleGame({ user, apiService, onExit }) {
-  const [gameState, setGameState] = useState('finding-partner'); // 'finding-partner', 'waiting-for-partner', 'playing', 'game-over'
+  const [gameState, setGameState] = useState('waiting-for-partner'); // removed manual finding step
   const [couple, setCouple] = useState(null);
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
@@ -44,7 +44,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       if (prev.some(m => m.text.startsWith(`Benvenuto ${displayName}!`))) return prev;
       return [...prev, { id: nextMsgId(), text: `Benvenuto ${displayName}! Il tuo codice è: ${displayCode}`, type: 'info', timestamp: new Date().toLocaleTimeString() }];
     });
-    addMessage('Inserisci il codice del tuo partner per iniziare.', 'info');
+  addMessage('Attendi la formazione della coppia (richiesta/approvazione).', 'info');
 
     // Setup event-driven listeners for RabbitMQ events (via polling)
     const setupEventListeners = () => {
@@ -147,54 +147,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     };
   }, [user, apiService, gameState, partnerCode, addMessage, nextMsgId]);
 
-  // Handle partner code input
-  const handleJoinCouple = async () => {
-    if (!partnerCode.trim()) {
-      setError('Inserisci il codice del partner');
-      return;
-    }
-
-    if (partnerCode.trim() === (user.userCode || user.personalCode)) {
-      setError('Non puoi utilizzare il tuo stesso codice!');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    addMessage(`Tentativo di collegamento con partner: ${partnerCode}`, 'info');
-
-    try {
-      // Use the new event-driven API to join/create couple
-      const response = await apiService.joinCouple(partnerCode.trim());
-      
-      if (response.success) {
-        setCouple(response.couple);
-        addMessage(`✅ Coppia formata con ${partnerCode}!`, 'success');
-        if (partnerCode && !partnerInfo) {
-          setPartnerInfo({ personalCode: partnerCode });
-        }
-        
-        // Check if game auto-started
-        if (response.gameSession) {
-          setGameSession(response.gameSession);
-          setGameState('playing');
-          addMessage('🎮 Partita iniziata automaticamente!', 'success');
-        } else {
-          setGameState('waiting-for-partner');
-          addMessage('⏳ In attesa che il partner si colleghi...', 'info');
-        }
-      } else {
-        setError('Errore nella formazione della coppia');
-        addMessage('❌ Errore nel collegamento con il partner', 'error');
-      }
-    } catch (error) {
-      console.error('❌ Error joining couple:', error);
-      setError(`Errore: ${error.message}`);
-      addMessage(`❌ Errore: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Rimosso flusso manuale: la coppia si forma via UserDirectory (join request)
 
   // Handle starting game manually (if not auto-started)
   const handleStartGame = async () => {
@@ -274,60 +227,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     }
   };
 
-  // Render partner search screen
-  const renderPartnerSearch = () => (
-    <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          🤝 Trova il tuo Partner
-        </h2>
-        <p className="text-gray-600 flex flex-col items-center">
-          <span className="text-sm">Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span></span>
-          <span className="text-xs mt-1">Codice: <span className="font-mono font-bold text-blue-600">{user.userCode}</span></span>
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Codice del Partner
-          </label>
-          <input
-            type="text"
-            value={partnerCode}
-            onChange={(e) => {
-              setPartnerCode(e.target.value.toUpperCase());
-              setError('');
-            }}
-            placeholder="Inserisci codice..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
-          />
-        </div>
-
-        {error && (
-          <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
-            {error}
-          </div>
-        )}
-
-        <button
-          onClick={handleJoinCouple}
-          disabled={isLoading || !partnerCode.trim()}
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? '🔄 Collegamento...' : '🤝 Collega Partner'}
-        </button>
-
-        <button
-          onClick={onExit}
-          className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
-        >
-          ← Torna al Menu
-        </button>
-      </div>
-    </div>
-  );
+  // (Schermata partner search rimossa)
 
   // Render waiting for partner screen
   const renderWaitingForPartner = () => (
@@ -459,7 +359,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   // Main render
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-8 px-4">
-      {gameState === 'finding-partner' && renderPartnerSearch()}
+  {/* Schermata finding-partner rimossa: si parte direttamente in waiting-for-partner */}
       {gameState === 'waiting-for-partner' && renderWaitingForPartner()}
       {gameState === 'playing' && renderPlaying()}
       
