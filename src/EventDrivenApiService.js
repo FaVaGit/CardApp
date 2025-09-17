@@ -28,6 +28,9 @@ class EventDrivenApiService {
         if (typeof stored.optimisticJoinTTL === 'number') this.optimisticJoinTTL = stored.optimisticJoinTTL;
         if (typeof stored.prunedJoinCount === 'number') this.prunedJoinCount = stored.prunedJoinCount;
     } catch { /* ignore */ }
+    // diagnostics / retry helpers
+    this._partnerRetryActive = false;
+    this._lastUsersLogSig = null;
     }
 
     // Generate unique IDs
@@ -450,6 +453,8 @@ class EventDrivenApiService {
                                 setTimeout(() => {
                                     this.pollForUpdates().catch(err => console.warn('Follow-up poll error (partner sync):', err));
                                 }, 400); // piccolo delay per permettere al backend di aggiornare
+                                // Avvia anche retry attivo
+                                this.schedulePartnerFetch();
                             }
                         }
                     }
@@ -458,10 +463,17 @@ class EventDrivenApiService {
                     if (snap.gameSession && snap.gameSession.id && !this.sessionId) {
                         this.sessionId = snap.gameSession.id;
                         this.emit('gameSessionStarted', { sessionId: snap.gameSession.id, coupleId: (status && status.coupleId) || (status && status.CoupleId) });
+                        if (!partnerInfo) this.schedulePartnerFetch();
                     }
 
-                    // Log user data for debugging
-                    if (snap.users) console.log('📡 Utenti ricevuti:', snap.users);
+                    // Log user data for debugging (throttled by signature)
+                    if (snap.users) {
+                        const sig = JSON.stringify(snap.users.map(u => [u.id||u.Id, u.personalCode||u.PersonalCode]));
+                        if (sig !== this._lastUsersLogSig) {
+                            console.log('📡 Utenti ricevuti:', snap.users);
+                            this._lastUsersLogSig = sig;
+                        }
+                    }
                     // Debug: se prima non avevamo partner/sessione e ancora mancano, log grezzo (temporaneo)
                     if (!debugBefore.havePartner && !partnerInfo && !snap.partnerInfo && (status?.coupleId || status?.CoupleId)) {
                         console.warn('[Diag] partnerInfo ancora assente dopo snapshot completa:', { status, gameSession: snap.gameSession, events: snap.events });
@@ -544,10 +556,12 @@ class EventDrivenApiService {
             if (nextSig && nextSig !== prevSig) {
                 this.lastKnownPartner = partnerInfo;
                 this.emit('partnerUpdated', partnerInfo);
+                this._partnerRetryActive = false; // stop active retry loop
             }
             if (gameSession && (!prevStatus || prevStatus.sessionId !== gameSession.id)) {
                 this.sessionId = gameSession.id;
                 this.emit('gameSessionStarted', { sessionId: gameSession.id });
+                if (!partnerInfo) this.schedulePartnerFetch();
             }
             if (gameSession?.sharedCards) {
                 const count = gameSession.sharedCards.length;
@@ -566,6 +580,34 @@ class EventDrivenApiService {
         } catch (error) {
             if (error.message !== 'Failed to get user status') console.warn('⚠️ Polling error:', error);
         }
+    }
+
+    // Active partner fetch loop: called after session start if partnerInfo still missing
+    async schedulePartnerFetch(retries = 6, intervalMs = 600) {
+        if (this._partnerRetryActive) return;
+        this._partnerRetryActive = true;
+        const attempt = async (left) => {
+            if (!this._partnerRetryActive) return;
+            try {
+                if (!this.userId) return;
+                const resp = await this.getUserStatus(this.userId);
+                if (resp && resp.partnerInfo) {
+                    const partnerInfo = resp.partnerInfo;
+                    const sig = `${partnerInfo.userId||partnerInfo.UserId}|${partnerInfo.personalCode||partnerInfo.userCode||''}`;
+                    const prevSig = this.lastKnownPartner ? `${this.lastKnownPartner.userId||this.lastKnownPartner.UserId}|${this.lastKnownPartner.personalCode||this.lastKnownPartner.userCode||''}` : null;
+                    this.lastKnownPartner = partnerInfo;
+                    if (sig !== prevSig) this.emit('partnerUpdated', partnerInfo);
+                    this._partnerRetryActive = false;
+                    return;
+                }
+            } catch {/* ignore individual attempt errors */}
+            if (left > 0) {
+                setTimeout(() => attempt(left - 1), intervalMs);
+            } else {
+                this._partnerRetryActive = false;
+            }
+        };
+        attempt(retries);
     }
 
     // Event emitter methods for the API service
