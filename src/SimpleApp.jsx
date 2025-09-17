@@ -31,9 +31,9 @@ import TTLSettings from './TTLSettings';
  * Real-time updates via RabbitMQ event system
  */
 export default function SimpleApp() {
-  const [currentScreen, setCurrentScreen] = useState('auth'); // 'auth', 'game-selection', 'playing'
+  const [currentScreen, setCurrentScreen] = useState('auth'); // 'auth', 'lobby', 'playing'
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
-  const [selectedGameType, setSelectedGameType] = useState(null);
+  const [selectedGameType, setSelectedGameType] = useState(null); // null / Single / auto 'Couple'
   const [apiService] = useState(new EventDrivenApiService());
   const [purging, setPurging] = useState(false);
   const [joinCounts, setJoinCounts] = useState({ incoming: 0, outgoing: 0 });
@@ -102,8 +102,8 @@ export default function SimpleApp() {
   // Authentication successful - user is already connected via apiService
   const handleAuthSuccess = async (user) => {
     console.log('✅ Authentication successful:', user);
-    setAuthenticatedUser(user);
-    setCurrentScreen('game-selection');
+  setAuthenticatedUser(user);
+  setCurrentScreen('lobby');
   };
 
   // Game type selected
@@ -152,19 +152,19 @@ export default function SimpleApp() {
   };
 
   // Back to game selection
-  const handleBackToGameSelection = () => {
-    console.log('🔄 Back to game selection...');
-    setCurrentScreen('game-selection');
+  const handleBackToLobby = () => {
+    console.log('🔄 Back to lobby...');
+    setCurrentScreen('lobby');
     setSelectedGameType(null);
   };
 
   // Render game type selection screen
-  const renderGameSelection = () => (
+  const renderLobby = () => (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 py-8 px-4">
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            🎮 Seleziona Tipo di Gioco
+            🎮 Lobby di Gioco
           </h2>
           <p className="text-gray-600 space-x-1">
             <span>Ciao</span>
@@ -177,24 +177,14 @@ export default function SimpleApp() {
 
         <div className="space-y-4">
           <TTLSettings apiService={apiService} />
+          <div className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md p-3 leading-relaxed">
+            <p className="mb-1"><span className="font-semibold">Gioco di Coppia:</span> invia una richiesta cliccando "Richiedi" accanto a un utente online. Quando l'altro accetta la sessione parte per entrambi automaticamente.</p>
+            <p className="mb-0"><span className="font-semibold">Gioco Singolo:</span> premi il pulsante qui sotto per iniziare subito in modalità singola.</p>
+          </div>
           <button
             onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)}
-            className="w-full bg-blue-500 text-white py-4 px-6 rounded-lg hover:bg-blue-600 text-lg font-semibold"
-          >
-            🎴 Gioco Singolo
-          </button>
-
-          <button
-            onClick={() => handleGameTypeSelected({ id: 'Couple', name: 'Gioco di Coppia' }, authenticatedUser)}
-            className="w-full bg-purple-500 text-white py-4 px-6 rounded-lg hover:bg-purple-600 text-lg font-semibold"
-          >
-            💕 Gioco di Coppia
-          </button>
-          {selectedGameType?.id === 'Couple' && (
-            <div className="text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-md p-3">
-              Modalità coppia selezionata. Invia o accetta una richiesta nella lista utenti. La partita si aprirà automaticamente appena la coppia è confermata.
-            </div>
-          )}
+            className="w-full bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 text-base font-semibold"
+          >🎴 Avvia Gioco Singolo</button>
 
           <div className="pt-4 border-t border-gray-200">
             <UserDirectory
@@ -221,7 +211,7 @@ export default function SimpleApp() {
                 showCounts={true}
                 onCountsChange={setJoinCounts}
             />
-              {selectedGameType?.id === 'Couple' && (
+              {(
                 <div className="mt-4 p-3 rounded-md border border-purple-200 bg-purple-50 text-xs text-purple-800 flex flex-col gap-1">
                   <div><span className="font-semibold">Stato Coppia</span></div>
                   <div>Richieste ricevute: <span className="font-mono">{joinCounts.incoming}</span> • inviate: <span className="font-mono">{joinCounts.outgoing}</span></div>
@@ -237,12 +227,7 @@ export default function SimpleApp() {
               )}
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
-          >
-            ← Logout
-          </button>
+          <button onClick={handleLogout} className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600">← Logout</button>
           <button
             onClick={() => { localStorage.removeItem('complicity_auth'); setAuthenticatedUser(null); setCurrentScreen('auth'); }}
             className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 text-sm"
@@ -275,7 +260,7 @@ export default function SimpleApp() {
       );
 
     case 'game-selection':
-  return <ErrorBoundary>{renderGameSelection()}</ErrorBoundary>;
+  return <ErrorBoundary>{renderLobby()}</ErrorBoundary>;
 
     case 'playing':
       // Render different components based on game type
@@ -285,7 +270,7 @@ export default function SimpleApp() {
             <CoupleGame
               user={authenticatedUser}
               apiService={apiService}
-              onExit={handleBackToGameSelection}
+              onExit={handleBackToLobby}
             />
           </ErrorBoundary>
         );
@@ -296,7 +281,7 @@ export default function SimpleApp() {
               user={authenticatedUser}
               gameType={selectedGameType}
               apiService={apiService}
-              onExit={handleBackToGameSelection}
+              onExit={handleBackToLobby}
             />
           </ErrorBoundary>
         );
