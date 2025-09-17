@@ -11,7 +11,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * - Real-time partner status updates
  */
 export default function CoupleGame({ user, apiService, onExit }) {
-  const [gameState, setGameState] = useState('idle'); // 'idle' -> waiting session start; transitions to 'playing'
+  // Rimuoviamo completamente lo stato intermedio: la UI di gioco viene montata subito.
+  // Mostreremo un piccolo banner se la sessione non è ancora avviata, ma niente schermata separata.
+  const [gameState, setGameState] = useState('playing'); // semplificato: sempre 'playing'
   const [couple, setCouple] = useState(null);
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
@@ -72,10 +74,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       // Listen for game session started events (RabbitMQ: GameSessionStarted)
       const handleGameSessionStarted = (data) => {
         console.log('🎮 Received game session started event:', data);
-  setGameState('playing');
         addMessage('🎮 Partita avviata automaticamente!', 'success');
-        
-        // Optionally fetch the game session details
         if (data.sessionId) {
           setGameSession({ id: data.sessionId, isActive: true });
         }
@@ -203,24 +202,20 @@ export default function CoupleGame({ user, apiService, onExit }) {
     }
   };
 
-  // (Schermata partner search rimossa)
+  // (Schermata partner search rimossa) Anche la schermata di preparazione è stata eliminata.
 
-  const renderIdle = () => (
-    <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 text-center">
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">⏳ Preparazione Partita</h2>
-      <p className="text-gray-600 mb-4">In attesa che la sessione venga avviata automaticamente...</p>
-      <p className="text-xs text-gray-400">(Questa schermata scomparirà non appena la sessione è pronta)</p>
-      <button onClick={onExit} className="mt-6 w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600">← Torna al Menu</button>
-    </div>
-  );
-
-  // Render playing screen
+  // Render playing screen (ora sempre mostrata). Se la sessione non è ancora pronta mostriamo un badge "In attesa".
   const renderPlaying = () => (
     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
       <div className="text-center mb-6">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
           💕 Gioco di Coppia
         </h2>
+        {!gameSession?.id && (
+          <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium animate-pulse">
+            <span>⏳ In attesa dell'avvio della sessione...</span>
+          </div>
+        )}
         <p className="text-gray-600 flex flex-col items-center gap-1">
           <span>Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span> (<span className="font-mono font-bold text-blue-600">{user.userCode}</span>)</span>
           <span>Partner: <span className="font-semibold text-gray-800">{partnerInfo?.name || partnerInfo?.Name || '—'}</span> (<span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>)</span>
@@ -310,8 +305,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-8 px-4">
   {/* Schermata finding-partner rimossa: si parte direttamente in waiting-for-partner */}
-  {gameState === 'idle' && renderIdle()}
-      {gameState === 'playing' && renderPlaying()}
+  {renderPlaying()}
       
       {renderActivityLog()}
     </div>
