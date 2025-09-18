@@ -18,6 +18,7 @@ A modern card game application built with **Event-Driven Architecture** using Re
 - 🔄 **Eventi Real-time / Polling Resiliente**: RabbitMQ (o polling snapshot come fallback)
 - 🩺 **Diagnostica Sync Partner**: Evento `partnerSyncDelay` dopo 3 poll se partner mancante
 - 🧪 **Test Integrazione Automatizzati**: Suite Vitest per flussi coppia e pesca carta
+- 🎨 **Modern UI con MUI + Fabric.js**: Layout responsive, AppBar, Drawer log, canvas animato per carte
 - 📱 **Responsive Design**: Mobile & Desktop
 - 🏗️ **Architettura Moderna**: Separation of concerns, fallback sicuri
 
@@ -284,14 +285,85 @@ The application uses RabbitMQ for real-time events:
 ## 🧹 Aggiornamenti Recenti
 | Area | Aggiornamento |
 |------|---------------|
+| UI | Introduzione Material UI (MUI) con tema personalizzato + Fabric.js (canvas carte) + pulizia log |
 | Join Workflow | `respond-join` ora include `partnerInfo` e `gameSession` |
 | Partner Sync | Fallback server-side immediato + evento diagnostico `partnerSyncDelay` |
 | Snapshot | Aggiunto fallback `[FallbackPartner]` e stabilità sessione verificata via test |
-| Testing | Suite integrazione Vitest (`tests/integration/*.test.js`) aggiunta + test partner immediato |
+| Testing | Suite integrazione Vitest + stabilizzazione unit (mock interno & ordine fetch deterministico) |
 | API | Migliorata risposta `respond-join` per ridurre latenze UI |
-| UI | Dedupe log, placeholder partner ridotto, diagnostica delay una sola volta |
+| Ottimistic Join | TTL configurabile + pruning con metriche & evento `joinRequestExpired` |
 | Script | `test:integration` esegue backend+frontend+Vitest in modo automatizzato |
 | Documentazione | README aggiornato con nuove sezioni e API arricchite |
+
+## 🧪 Modalità Test Interna (Backend-less)
+Per i test unitari del frontend è disponibile un mock interno opzionale attivabile tramite variabile ambiente.
+
+| Variabile | Valore | Effetto |
+|-----------|--------|---------|
+| `INTERNAL_API_TEST_MOCK` | `1` | Attiva handler in–memory dentro `EventDrivenApiService` (nessuna chiamata HTTP reale) |
+| `ENABLE_POLL_IN_TEST` | `1` | (Opzionale) Riabilita il polling automatico anche in ambiente test |
+
+Caratteristiche mock:
+- Generazione deterministica di ID utente (`U1`, `U2`, ...)
+- Aging artificiale delle richieste join per test pruning
+- Simulazione failure: target contenente `FAIL` o `TARGET2` → errore su `/request-join`; `FAIL` su `/cancel-join`
+- Primo snapshot può nascondere outgoing per validare conservazione ottimistica
+- Nessun side effect esterno → test rapidi e stabili
+
+Disabilitato di default: i test unitari usano fetch mock espliciti e il servizio in modalità "no polling" per mantenere l'ordine prevedibile delle chiamate.
+
+## 🔁 Join Requests Ottimistiche & Pruning
+Il frontend applica un pattern Optimistic UI alle richieste di coppia:
+
+1. `requestJoin` inserisce subito un record temporaneo `{ _optimistic: true }` nella cache `outgoing` con `temp-<timestamp>`.
+2. Se la risposta server contiene `requestId` il record viene aggiornato mantenendo il flag finché uno snapshot non lo conferma.
+3. Snapshot vuoti preservano i record `_optimistic` (evita flicker).
+4. Pruning: se un record resta `_optimistic` oltre `optimisticJoinTTL` viene rimosso e vengono emessi:
+   - `joinRequestExpired` (payload `{ request })`
+   - Incremento metrica `prunedJoinCount` (+ evento `metricsUpdated`)
+
+Parametri:
+| Chiave | Descrizione | Default |
+|--------|-------------|---------|
+| `optimisticJoinTTL` | Tempo massimo (ms) prima di pruning | 30000 |
+| `minOptimisticTTL` | Soglia minima forzata | 500 |
+| `prunedJoinCount` | Contatore persistito (localStorage) | 0 |
+
+Persistenza: `localStorage['complicity_join_settings']` memorizza TTL e contatore pruning.
+
+## 📊 Telemetria & Metriche
+Il servizio accumula eventi interni in un buffer (flush a 20 eventi o al teardown):
+
+Tipi principali:
+- `metricIncrement` (es. pruning)
+- `settingsUpdated` (cambio TTL)
+- `telemetryBatch` (emesso con `{ events, at }` al flush)
+
+Uso suggerito: collegare un listener a `telemetryBatch` per invio futuro a backend / analytics.
+
+## 🧩 Eventi Frontend Esportati
+| Evento | Payload | Trigger |
+|--------|---------|---------|
+| `usersUpdated` | `{ users, incoming, outgoing }` | Cambi snapshot utenti / richieste |
+| `joinRequestsUpdated` | `{ incoming, outgoing }` | Cache richieste aggiornata |
+| `joinRequestExpired` | `{ request }` | Pruning richiesta ottimistica |
+| `metricsUpdated` | `{ prunedJoinCount }` | Aggiornamento metriche |
+| `settingsUpdated` | `{ optimisticJoinTTL }` | Modifica TTL ottimistico |
+| `coupleJoined` | `{ coupleId, partner }` | Coppia formata / approvazione |
+| `partnerUpdated` | `{ userId, name, personalCode }` | Aggiornamento/rilevazione partner |
+| `gameSessionStarted` | `{ sessionId }` | Sessione avviata |
+| `sessionUpdated` | `{ type:'cardDrawn', card,... }` | Carta pescata |
+| `telemetryBatch` | `{ events, at }` | Flush telemetria |
+| `partnerSyncDelay` | `{ polls, sessionId }` | Ritardo sincronizzazione partner |
+
+Documentazione dettagliata: vedi `docs/FRONTEND_EVENTS.md`.
+
+## 🧾 File Aggiuntivi Consigliati
+Creare (o verificare) i seguenti file per approfondimenti:
+- `JOIN_REQUESTS.md` – Dettaglio lifecycle, esempi timing, casi edge (approve simultaneo, cancel tardivo)
+- `.env.example` – Porta frontend/backend + flag test
+- `docs/FRONTEND_EVENTS.md` – Lista versionata degli eventi con schema payload
+
 
 ## 🩺 Diagnostica Sincronizzazione Partner
 In casi rari di latenza, il frontend emette una voce log: `⏱️ Ritardo nella sincronizzazione del partner... (diagnostica)` dopo ~6s (3 poll). Il backend espone un fallback interno che ricostruisce `partnerInfo` direttamente dal DB; il log `[FallbackPartner]` indica che il meccanismo è entrato in azione.

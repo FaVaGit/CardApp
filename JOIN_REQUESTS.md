@@ -1,124 +1,117 @@
-# Flusso Richieste di Join (Pairing)
+# JOIN_REQUESTS.md – Join Requests Optimistiche
 
-Questo documento descrive la gestione delle richieste di join tra utenti per formare una coppia.
+Questo documento descrive il lifecycle delle richieste di join (accoppiamento coppia) lato frontend, la strategia Optimistic UI, la riconciliazione tramite snapshot e il meccanismo di pruning.
 
 ## Obiettivi
-- Fornire feedback immediato all'utente che invia una richiesta (optimistic UI)
-- Evitare lampeggi / scomparsa prematura del badge "In attesa"
-- Sincronizzare periodicamente lo stato reale tramite snapshot/polling
+- Feedback immediato all'utente che invia la richiesta (latency hiding)
+- Robustezza in presenza di ritardi backend o snapshot inizialmente vuoti
+- Rimozione automatica dei placeholder mai confermati (memory hygiene)
+- Metriche & telemetria per osservabilità
 
-## Cache Locale
-L'istanza di `EventDrivenApiService` mantiene:
+## Stato Locale
+`EventDrivenApiService` mantiene:
 ```js
 joinRequestCache = {
-  incoming: [], // richieste ricevute
-  outgoing: []  // richieste inviate
+  incoming: [ /* { requestId, requestingUserId, targetUserId, createdAt, _optimistic? } */],
+  outgoing: [ /* ... */ ]
 };
 ```
+Flag `_optimistic: true` => record creato lato client, non ancora eco dal backend.
 
-## Inserimento Optimistic
-Quando `requestJoin(targetUserId)` viene chiamato, il client ora inserisce SUBITO un placeholder ottimistico con `requestId` temporaneo che inizia con `temp-`:
+## Flusso `requestJoin(targetUserId)`
+1. Crea placeholder:
 ```js
-{ requestId: 'temp-<timestamp>-<rand>', requestingUserId, targetUserId, createdAt, _optimistic: true }
-```
-Alla risposta del backend:
-1. Se arriva un `requestId` reale, il placeholder viene sostituito mantenendo `_optimistic: true` finché lo snapshot lo ri-echoa (a quel punto il flag viene rimosso).
-2. Se la chiamata fallisce (errore HTTP), il placeholder viene rollbackato (rimosso) per non lasciare richieste zombie.
-
-Il flag `_optimistic` indica che il backend potrebbe non aver ancora propagato la richiesta nello snapshot.
-
-## Reconciliation con Snapshot
-Durante `pollForUpdates()` lo snapshot può restituire liste vuote (race iniziale). Regole:
-1. Se `outgoingRequests` è vuoto ma esistono record `_optimistic` in cache locale, la cache non viene sovrascritta.
-2. Quando il backend inizia a restituire la richiesta, il flag `_optimistic` viene rimosso.
-
-## Cancellazione
-`cancelJoin(targetUserId)` rimuove in modo ottimistico il record da `outgoing` e emette `joinRequestsUpdated`.
-
-In caso di errore della chiamata `cancel-join`, la rimozione NON avviene perché avviene solo dopo risposta positiva; l'entry rimane visibile evitando stato incoerente.
-
-## TTL & Pruning
-Per evitare che un placeholder `_optimistic` rimanga indefinitamente (es. perdita evento backend):
-
-- `EventDrivenApiService` definisce `optimisticJoinTTL` (default 30000 ms).
-- Ad ogni `pollForUpdates()` dopo l'applicazione della logica di riconciliazione, i record `_optimistic` più vecchi del TTL vengono rimossi.
-- Per ogni record rimosso viene emesso `joinRequestExpired` con payload `{ request }`.
-- Le UI possono ascoltare questo evento per mostrare un messaggio tipo: "Richiesta scaduta, riprova".
-
-### Configurazione
-Metodo: `apiService.setOptimisticJoinTTL(ms)` per override runtime.
-Metriche disponibili via `apiService.getMetrics()` che restituisce:
-```js
-{ prunedJoinCount, optimisticJoinTTL }
-```
-Evento aggiuntivo: `metricsUpdated` emesso quando `prunedJoinCount` cambia.
-
-### Persistenza & UI
-Le impostazioni (TTL e metrica `prunedJoinCount`) vengono salvate in `localStorage` sotto la chiave `complicity_join_settings` e ricaricate all'avvio.
-Il componente `TTLSettings` (integrato nella schermata di selezione gioco) consente:
-- Input TTL (ms) con Apply
-- Visualizzazione metrica Pruned
-- Reset metrica
-Eventi emessi: `settingsUpdated`, `telemetry` (per incrementi metriche).
-
-Motivazione: evita badge bloccati quando il backend non conferma mai la richiesta (es. crash intermedio).
-
-## Approvazione / Coppia Formata
-`respondJoin(requestId, true)` pulisce entrambe le liste e emette `coupleJoined`.
-Il componente `UserDirectory` ascolta `coupleJoined` e svuota immediatamente inbound/outbound per eliminare il badge "In attesa" senza aspettare il prossimo snapshot.
-
-## Test Unit
-Il file `tests/unit/EventDrivenApiService.spec.js` copre:
-- Aggiunta optimistica
-- Cancellazione
-- Approvazione (clear cache + evento)
-- Preservazione optimistica con snapshot precoce vuoto
-- Fallimento `cancelJoin` (mantiene entry)
-- Rollback su fallimento `requestJoin` (rimozione placeholder temp)
-- Pruning automatico TTL + evento `joinRequestExpired`
-- Configurazione TTL & metriche (`setOptimisticJoinTTL`, `getMetrics`, evento `metricsUpdated`)
-
-## E2E
-Gli scenari Playwright (`join-approve`, `cancel-flow`, `reject-flow`, `reconnect-flow`) verificano la coerenza UI, incluso:
-- Badge "In attesa" mostrato dopo invio
-- Rimozione dopo approvazione / cancellazione / rifiuto
-- Persistenza stato dopo reload (reconnect)
-
-### Scenario di Scadenza (Expiry)
-Lo scenario `expiry-flow` forza (tramite interception snapshot di test) la mancata eco della richiesta in modo che resti `_optimistic` fino al pruning TTL. Verifica:
-- Comparsa badge `Scaduta`
-- Presenza bottone `Riprova`
-- TTL minimo clampato (>= minOptimisticTTL = 500ms)
-
-## Telemetria & Batching
-Il servizio emette eventi di telemetria buffered:
-- Ogni incremento metrica (`incrementMetric`) accoda un evento `{ type: 'metricIncrement', key, value, at }`.
-- Buffer flush automatico quando la lunghezza raggiunge **20 eventi** oppure ogni **15s** (timer avviato su start polling) o allo stop (disconnect / stopEventPolling).
-- L'evento emesso è `telemetryBatch` con payload:
-```json
 {
-  "events": [ { "type": "metricIncrement", "key": "prunedJoinCount", "value": 1, "at": 1710000000000 }, ... ],
-  "at": 1710000000500
+  requestId: 'temp-<timestamp>-<rnd>',
+  requestingUserId: currentUser,
+  targetUserId,
+  createdAt: new Date().toISOString(),
+  _optimistic: true
 }
 ```
-Uso previsto: pipeline di invio centralizzata o logging diagnostico (non implementata nel test environment). Il batching riduce sovraccarico e rumore rispetto ad emissioni singole.
+2. Emissione immediata `joinRequestsUpdated`.
+3. Chiamata `/request-join`:
+   - Successo con `requestId` reale → sostituisce l'id mantenendo `_optimistic`.
+   - Risposta senza id → placeholder resta (race server).
+   - Errore (throw / HTTP >=400) → rollback (rimozione placeholder) + `joinRequestsUpdated`.
 
-### Eventi Rilevanti Riepilogo
+## Reconciliation Snapshot
+Ad ogni `pollForUpdates()`:
+- Se snapshot `outgoingRequests` è vuoto ma esistono record `_optimistic` → preserva quelli locali (niente flicker).
+- Se snapshot contiene gli stessi ID → rimuove `_optimistic`.
+- Incoming è sempre sovrascritto.
+
+## Approve / Reject / Cancel
+- `respondJoin(requestId, true)` rimuove da both incoming/outgoing e emette:
+  - `coupleJoined`
+  - `gameSessionStarted` (se sessione auto avviata)
+- `respondJoin(requestId, false)` rimuove solo incoming.
+- `cancelJoin(targetUserId)` rimuove outgoing alla sola conferma; se fallisce lascia invariato.
+
+## TTL & Pruning
+Per evitare richieste zombie:
+- Parametro `optimisticJoinTTL` (default 30000 ms; clamp >= `minOptimisticTTL` 500 ms).
+- Dopo reconciliation snapshot si filtrano i record `_optimistic` con `now - createdAt > TTL`.
+- Ogni rimozione genera:
+  - Evento `joinRequestExpired` `{ request }`
+  - Incremento metrica `prunedJoinCount` + evento `metricsUpdated`
+
+Persistenza configurazione / metrica in `localStorage['complicity_join_settings']`:
+```json
+{
+  "optimisticJoinTTL": 30000,
+  "prunedJoinCount": 5
+}
+```
+
+## Eventi Coinvolti
 | Evento | Quando | Payload |
 |--------|--------|---------|
-| `joinRequestsUpdated` | Cache inbound/outbound mutata | `{ incoming, outgoing }` |
-| `joinRequestExpired` | Placeholder `_optimistic` oltre TTL | `{ request }` |
-| `metricsUpdated` | `prunedJoinCount` cambia | `{ prunedJoinCount }` |
-| `settingsUpdated` | TTL aggiornato | `{ optimisticJoinTTL }` |
-| `telemetryBatch` | Flush buffer | `{ events, at }` |
-| `coupleJoined` | Coppia formata | `{ coupleId, partner }` |
+| joinRequestsUpdated | Cache mutate | `{ incoming, outgoing }` |
+| joinRequestExpired | Pruning TTL | `{ request }` |
+| metricsUpdated | Cambio metrica pruning | `{ prunedJoinCount }` |
+| settingsUpdated | Cambio TTL | `{ optimisticJoinTTL }` |
+| coupleJoined | Approve | `{ coupleId, partner }` |
+| gameSessionStarted | Avvio sessione | `{ sessionId }` |
+| telemetryBatch | Flush telemetria | `{ events, at }` |
 
-### Minimo TTL
-Chiamate a `setOptimisticJoinTTL(ms)` vengono clampate a `minOptimisticTTL` (500ms) per evitare UI incoerente dovuta a scadenze troppo veloci.
+## Telemetria
+Buffer interno → flush (evento `telemetryBatch`) quando:
+- Lunghezza >= 20
+- Timer periodico (15s)
+- Stop polling / disconnect
 
-## Linee Guida Future
-- Evitare di aggiungere logica condizionale duplicata nei componenti: centralizzare in `EventDrivenApiService`.
-- Se si introduce WebSocket/SSE in futuro, mantenere la semantica del flag `_optimistic` per transizione graduale.
-- Considerare TTL locale per richieste stale se il backend definisce una scadenza.
-- Possibile pruning periodico dei placeholder `temp-*` che restano `_optimistic` oltre una finestra (es. 30s) come fallback di sicurezza.
-  - (Implementato) TTL interno già attivo; valutare configurazione dinamica da UI.
+Eventi enqueue: `metricIncrement`, `settingsUpdated`. Payload generico:
+```js
+{ type: 'metricIncrement', key: 'prunedJoinCount', value: 1, at: Date.now() }
+```
+
+## Failure Scenarios (Mock Interno)
+| Scenario | Condizione | Esito |
+|----------|-----------|-------|
+| Join failure | targetUserId contiene `FAIL` o `TARGET2` | Throw su `/request-join`, rollback placeholder |
+| Cancel failure | targetUserId contiene `FAIL` | Throw su `/cancel-join`, cache invariata |
+| Snapshot iniziale vuoto | first snapshot flag | Conserva `_optimistic` |
+
+## Edge Cases
+- Approve incrociato: la prima risposta valida pulisce entrambe le liste; successive sono idempotenti.
+- Cancel dopo approve: no-op (entry già rimossa).
+- Partner info ritardato: fallback derivazione da users list + evento `partnerUpdated`.
+
+## API Pubbliche Rilevanti
+```ts
+requestJoin(targetUserId: string): Promise<{ requestId?: string }>
+respondJoin(requestId: string, approve: boolean): Promise<any>
+cancelJoin(targetUserId: string): Promise<any>
+setOptimisticJoinTTL(ms: number): void
+getMetrics(): { prunedJoinCount: number; optimisticJoinTTL: number }
+```
+
+## Miglioramenti Futuri
+- Countdown visuale TTL lato UI
+- Spedizione telemetria a backend
+- WebSocket per eliminare polling e latenza conferma
+- Audit trail richieste (storico) lato server
+
+---
+Fine documento.
