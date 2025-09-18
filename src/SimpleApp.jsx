@@ -19,7 +19,7 @@ import CoupleGame from './CoupleGame';
 import EventDrivenApiService from './EventDrivenApiService';
 import UserDirectory from './UserDirectory';
 import TTLSettings from './TTLSettings';
-import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab } from '@mui/material';
+import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab, Button } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import TerminalIcon from '@mui/icons-material/Terminal';
