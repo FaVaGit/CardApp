@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { AppBar, Toolbar, Typography, Box, Grid, Button, Chip, Divider, List, ListItem, ListItemText, Snackbar, Alert, Stack, Paper } from '@mui/material';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
+import StopIcon from '@mui/icons-material/StopCircle';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import CardActionButtons from './components/CardActionButtons.jsx';
+import CanvasCardTable from './components/CanvasCardTable.jsx';
 
 /**
  * Modern Couple Game Component - Event-Driven Architecture
@@ -14,7 +22,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   // Rimuoviamo completamente lo stato intermedio: la UI di gioco viene montata subito.
   // Mostreremo un piccolo banner se la sessione non è ancora avviata, ma niente schermata separata.
   const [gameState, setGameState] = useState('playing'); // semplificato: sempre 'playing'
-  const [couple, setCouple] = useState(null);
+  const [couple, setCouple] = useState(null); // (future use: extended couple data)
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [partnerCode, setPartnerCode] = useState('');
@@ -22,6 +30,8 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
+  // Drawer rimossa – evitiamo duplicazione del log (unica colonna destra)
+  const [snack, setSnack] = useState(null); // {text, type}
   // Flags per deduplicare i log
   const flagsRef = useRef({
     loggedWelcome: false,
@@ -43,6 +53,8 @@ export default function CoupleGame({ user, apiService, onExit }) {
       timestamp: new Date().toLocaleTimeString()
     };
     setMessages(prev => [...prev.slice(-9), message]); // Keep last 10 messages
+    // mostra snackbar per success / error
+    if (type === 'success' || type === 'error') setSnack({ text, type });
   }, [nextMsgId]);
 
   // Initialize couple game and setup event-driven listeners
@@ -259,119 +271,91 @@ export default function CoupleGame({ user, apiService, onExit }) {
 
   // Render playing screen (ora sempre mostrata). Se la sessione non è ancora pronta mostriamo un badge "In attesa".
   const renderPlaying = () => (
-    <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
-      <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          💕 Gioco di Coppia
-        </h2>
-        {!gameSession?.id && (
-          <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium animate-pulse">
-            <span>⏳ In attesa dell'avvio della sessione...</span>
-          </div>
-        )}
-        <p className="text-gray-600 flex flex-col items-center gap-1">
-          <span>Tu: <span className="font-semibold text-gray-800">{user.name || user.Name || 'Tu'}</span> (<span className="font-mono font-bold text-blue-600">{user.userCode}</span>)</span>
-          {gameSession?.id && !partnerInfo && (
-            <span className="italic text-amber-600">
-              {/* Se dopo avvio sessione il partner non è ancora arrivato, mostriamo placeholder solo finché non arriva un update */}
-              Partner in sincronizzazione...
-            </span>
-          )}
-          {!gameSession?.id && !partnerInfo && (
-            <span>Partner: — (<span className="font-mono font-bold text-green-600">—</span>)</span>
-          )}
-          {partnerInfo && (
-            <span>Partner: <span className="font-semibold text-gray-800">{partnerInfo?.name || partnerInfo?.Name || '—'}</span> (<span className="font-mono font-bold text-green-600">{partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'}</span>)</span>
-          )}
-        </p>
-        <p className="text-sm text-gray-500">
-          Sessione: {gameSession?.id}
-        </p>
-      </div>
+    <Box sx={{ maxWidth: 1480, mx: 'auto', px: 2, py: 3 }}>
+  <Grid container spacing={3}>
+        <Grid item xs={12} md={8}>
+          <Paper elevation={4} sx={{ p: 3, position: 'relative', overflow: 'hidden' }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap' }}>
+              <FavoriteIcon color="secondary" />
+              <Typography variant="h5" fontWeight={600}>Gioco di Coppia</Typography>
+              {!gameSession?.id && (
+                <Chip icon={<AccessTimeIcon />} color="warning" size="small" label="Sessione in avvio" sx={{ ml: 1 }} />
+              )}
+              {flagsRef.current.loggedPartnerSyncDelay && !partnerInfo && (
+                <Chip icon={<BugReportIcon />} color="warning" size="small" label="Diagnostica partner" />
+              )}
+            </Stack>
 
-      {/* Current Card Display */}
-      {currentCard ? (
-        <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white mb-6">
-          <h3 className="text-xl font-bold mb-2">Carta #{currentCard.id}</h3>
-          <p className="text-purple-100 text-lg">{currentCard.content}</p>
-          {currentCard.category && (
-            <span className="inline-block mt-3 px-3 py-1 bg-white/20 rounded-full text-sm">
-              {currentCard.category}
-            </span>
-          )}
-          {currentCard.level && (
-            <span className="inline-block mt-3 ml-2 px-3 py-1 bg-white/10 rounded-full text-sm">
-              Livello {currentCard.level}
-            </span>
-          )}
-        </div>
-      ) : (
-        <div className="bg-gray-100 rounded-xl p-6 text-center mb-6">
-          <p className="text-gray-600">Clicca "Pesca Carta" per iniziare!</p>
-        </div>
-      )}
+            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }}>
+              <Chip label={`Tu: ${user.name || user.Name || 'Tu'} (${user.userCode})`} color="primary" variant="outlined" />
+              {partnerInfo && (
+                <Chip label={`Partner: ${(partnerInfo?.name || partnerInfo?.Name || '—')} (${partnerInfo?.personalCode || partnerInfo?.userCode || partnerCode || '—'})`} color="secondary" variant="outlined" />
+              )}
+              {!partnerInfo && (
+                <Chip label="Partner in sincronizzazione" color="warning" variant="outlined" />
+              )}
+              {gameSession?.id && (
+                <Chip label={`Sessione ${gameSession.id.substring(0, 8)}`} size="small" />
+              )}
+            </Stack>
 
-      {/* Game Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <button
-          onClick={handleDrawCard}
-          disabled={isLoading}
-          className="bg-purple-500 text-white py-3 px-6 rounded-lg hover:bg-purple-600 disabled:opacity-50 text-lg font-semibold"
-        >
-          {isLoading ? '🔄 Pescando...' : '🎴 Pesca Carta'}
-        </button>
+            <Box sx={{ mb: 3 }}>
+              <CanvasCardTable card={currentCard} />
+            </Box>
 
-        <button
-          onClick={handleEndGame}
-          disabled={isLoading}
-          className="bg-red-500 text-white py-3 px-6 rounded-lg hover:bg-red-600 disabled:opacity-50 text-lg font-semibold"
-        >
-          {isLoading ? '🔄 Terminando...' : '🔚 Termina Partita'}
-        </button>
-      </div>
-
-      {error && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md mb-4">
-          {error}
-        </div>
-      )}
-    </div>
+            <CardActionButtons
+              isLoading={isLoading}
+              onDraw={handleDrawCard}
+              onEnd={handleEndGame}
+            />
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+            )}
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Paper elevation={3} sx={{ p: 2, height: { md: '100%' } }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Log Attività</Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
+              {messages.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">Nessuna attività</Typography>
+              ) : (
+                <List dense>
+                  {messages.map(m => (
+                    <ListItem key={m.id} sx={{ py: 0.4 }}>
+                      <ListItemText
+                        primaryTypographyProps={{ fontSize: 13 }}
+                        primary={`${m.timestamp} • ${m.text}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
   );
 
-  // Render activity log
-  const renderActivityLog = () => (
-    <div className="max-w-4xl mx-auto mt-6">
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-700 mb-3">📋 Log Attività</h3>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {messages.length === 0 ? (
-            <p className="text-gray-500 text-sm">Nessuna attività</p>
-          ) : (
-            messages.map((message) => (
-              <div key={message.id} className="flex items-start gap-2 text-sm">
-                <span className="text-gray-400 font-mono">{message.timestamp}</span>
-                <span className={`flex-1 ${
-                  message.type === 'success' ? 'text-green-600' :
-                  message.type === 'error' ? 'text-red-600' :
-                  'text-gray-700'
-                }`}>
-                  {message.text}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  // Drawer/log duplicato rimosso – manteniamo solo la colonna destra per il log
 
   // Main render
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-8 px-4">
-  {/* Schermata finding-partner rimossa: si parte direttamente in waiting-for-partner */}
-  {renderPlaying()}
-      
-      {renderActivityLog()}
-    </div>
+    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg,#fdf3f7 0%,#f3e5f5 60%)' }}>
+      <AppBar position="sticky" elevation={3} color="primary">
+        <Toolbar variant="dense">
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Complicità • Coppia</Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          {partnerInfo && <Chip size="small" color="secondary" label={partnerInfo.personalCode || partnerInfo.userCode} sx={{ mr: 1 }} />}
+          <Chip size="small" label={user.userCode} variant="outlined" />
+        </Toolbar>
+      </AppBar>
+      {renderPlaying()}
+      <Snackbar open={!!snack} autoHideDuration={3000} onClose={() => setSnack(null)}>
+        {snack && <Alert onClose={() => setSnack(null)} severity={snack.type === 'error' ? 'error' : snack.type === 'success' ? 'success' : 'info'} sx={{ width: '100%' }}>{snack.text}</Alert>}
+      </Snackbar>
+    </Box>
   );
 }
