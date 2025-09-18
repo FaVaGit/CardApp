@@ -12,12 +12,19 @@ function ErrorBoundary({ children }) {
   }
   return children;
 }
-import SimpleAuth from './SimpleAuth';
+// Auth replaced with modern AuthPortal (MUI + password)
+import AuthPortal from './components/AuthPortal.jsx';
 import SimpleCardGame from './SimpleCardGame';
 import CoupleGame from './CoupleGame';
 import EventDrivenApiService from './EventDrivenApiService';
 import UserDirectory from './UserDirectory';
 import TTLSettings from './TTLSettings';
+import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import TerminalIcon from '@mui/icons-material/Terminal';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CanvasCardTable from './components/CanvasCardTable.jsx';
 
 /**
  * MODERNIZED APP ARCHITECTURE - Event-Driven RabbitMQ
@@ -38,6 +45,14 @@ export default function SimpleApp() {
   const [purging, setPurging] = useState(false);
   const [joinCounts, setJoinCounts] = useState({ incoming: 0, outgoing: 0 });
   const [toasts, setToasts] = useState([]);
+  // Info / Diagnostics UI
+  const [infoAnchor, setInfoAnchor] = useState(null); // menu anchor
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [infoTab, setInfoTab] = useState(0); // 0=Info,1=TTL,2=Debug
+
+  const openInfoMenu = (e)=> setInfoAnchor(e.currentTarget);
+  const closeInfoMenu = ()=> setInfoAnchor(null);
+  const openDiagnostics = (tabIndex=0)=>{ setInfoTab(tabIndex); setDrawerOpen(true); closeInfoMenu(); };
 
   const pushToast = (text, tone='info') => {
     const id = Date.now()+Math.random();
@@ -160,90 +175,89 @@ export default function SimpleApp() {
 
   // Render game type selection screen
   const renderLobby = () => (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 py-8 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            🎮 Lobby di Gioco
-          </h2>
-          <p className="text-gray-600 space-x-1">
-            <span>Ciao</span>
-            <span className="font-semibold text-gray-800">{authenticatedUser?.name || authenticatedUser?.Name || 'Utente'}</span>
-            <span>(codice:</span>
-            <span className="font-mono font-bold text-blue-600">{authenticatedUser?.userCode}</span>
-            <span>)</span>
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <TTLSettings apiService={apiService} />
-          <div className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md p-3 leading-relaxed">
-            <p className="mb-1"><span className="font-semibold">Gioco di Coppia:</span> invia una richiesta cliccando "Richiedi" accanto a un utente online. Quando l'altro accetta la sessione parte per entrambi automaticamente.</p>
-            <p className="mb-0"><span className="font-semibold">Gioco Singolo:</span> premi il pulsante qui sotto per iniziare subito in modalità singola.</p>
-          </div>
-          <button
-            onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)}
-            className="w-full bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 text-base font-semibold"
-          >🎴 Avvia Gioco Singolo</button>
-
-          <div className="pt-4 border-t border-gray-200">
+    <Box sx={{ minHeight:'100vh', background:'linear-gradient(145deg,#fdf3f7 0%,#f3e5f5 60%)', p:3 }}>
+      <AppBar position="sticky" color="primary" elevation={4} sx={{ mb:3 }}>
+        <Toolbar variant="dense">
+          <Typography variant="h6" fontWeight={600}>Lobby di Gioco</Typography>
+          <Box sx={{ flexGrow:1 }} />
+          <Typography variant="caption" sx={{ mr:2 }}>Codice: {authenticatedUser?.userCode}</Typography>
+          <IconButton color="inherit" size="small" onClick={openInfoMenu}><InfoOutlinedIcon/></IconButton>
+        </Toolbar>
+      </AppBar>
+      <Box sx={{ maxWidth:960, mx:'auto', display:'grid', gap:3, gridTemplateColumns:{ xs:'1fr', md:'1fr 1fr' } }}>
+        <Box>
+          <Box sx={{ mb:2, p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2 }}>
+            <Typography variant="subtitle1" fontWeight={600}>Ciao {authenticatedUser?.name}</Typography>
+            <Typography variant="body2" color="text.secondary">Scegli la modalità o invita un partner.</Typography>
+          </Box>
+          <Box sx={{ p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2, mb:2 }}>
+            <Button fullWidth variant="contained" color="secondary" size="large" onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)}>🎴 Avvia Gioco Singolo</Button>
+          </Box>
+          <Box sx={{ p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2 }}>
             <UserDirectory
               apiService={apiService}
               currentUser={authenticatedUser}
-              onSendJoin={async (targetId) => {
-                try {
-                  await apiService.requestJoin(targetId);
-                } catch (e) { console.error(e); }
-              }}
+              onSendJoin={async (targetId) => { try { await apiService.requestJoin(targetId); } catch(e){ console.error(e);} }}
               onRespondJoin={async (requestingUserId, approve) => {
                 try {
                   const jr = await apiService.listJoinRequests();
                   const incoming = jr.incoming || [];
                   const match = incoming.find(r => (r.RequestingUserId || r.requestingUserId) === requestingUserId);
-                  if (match) {
-                    const reqId = match.Id || match.id;
-                    if (reqId) await apiService.respondJoin(reqId, approve);
-                  } else {
-                    console.warn('Join request not found for requestingUserId', requestingUserId, incoming);
-                  }
-                } catch (e) { console.error('respondJoin error', e); }
-                }}
-                showCounts={true}
-                onCountsChange={setJoinCounts}
+                  if (match) { const reqId = match.Id || match.id; if (reqId) await apiService.respondJoin(reqId, approve); }
+                } catch(e){ console.error('respondJoin error', e);} }}
+              showCounts={true}
+              onCountsChange={setJoinCounts}
             />
-              {(
-                <div className="mt-4 p-3 rounded-md border border-purple-200 bg-purple-50 text-xs text-purple-800 flex flex-col gap-1">
-                  <div><span className="font-semibold">Stato Coppia</span></div>
-                  <div>Richieste ricevute: <span className="font-mono">{joinCounts.incoming}</span> • inviate: <span className="font-mono">{joinCounts.outgoing}</span></div>
-                  <div className="text-[11px] text-purple-600">Accetta o invia una richiesta per avviare automaticamente la partita.</div>
-                </div>
-              )}
-              {toasts.length>0 && (
-                <div className="fixed bottom-4 right-4 space-y-2 z-50">
-                  {toasts.map(t => (
-                    <div key={t.id} className={`px-3 py-2 rounded shadow text-sm text-white ${t.tone==='success'?'bg-green-600':t.tone==='error'?'bg-red-600':'bg-gray-800'}`}>{t.text}</div>
-                  ))}
-                </div>
-              )}
-          </div>
-
-          <button onClick={handleLogout} className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600">← Logout</button>
-          <button
-            onClick={() => { localStorage.removeItem('complicity_auth'); setAuthenticatedUser(null); setCurrentScreen('auth'); }}
-            className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 text-sm"
-          >
-            🔄 Nuovo Utente
-          </button>
-          <button
-            onClick={clearAllUsers}
-            className="w-full bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 text-sm"
-            title="Pulisce tutti gli utenti dal sistema (admin/debug)"
-          >
-            🧹 Pulisci Utenti
-          </button>
-        </div>
-      </div>
-    </div>
+            <Box sx={{ mt:2, fontSize:12, p:1.5, borderRadius:2, bgcolor:'secondary.50', color:'secondary.dark', border:'1px solid', borderColor:'secondary.light' }}>
+              Richieste – In: <b>{joinCounts.incoming}</b> • Out: <b>{joinCounts.outgoing}</b>
+            </Box>
+          </Box>
+          <Box sx={{ mt:3, display:'flex', gap:1 }}>
+            <Button onClick={handleLogout} variant="outlined" color="inherit" fullWidth>Logout</Button>
+            <Button onClick={() => { localStorage.removeItem('complicity_auth'); setAuthenticatedUser(null); setCurrentScreen('auth'); }} variant="outlined" color="warning" fullWidth>Nuovo</Button>
+            <Button onClick={clearAllUsers} variant="contained" color="error" fullWidth>Pulisci</Button>
+          </Box>
+        </Box>
+        <Box sx={{ display:{ xs:'none', md:'block' } }}>
+          <Box sx={{ p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2, height:'100%', minHeight:400, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center' }}>
+            <Typography variant="h6" gutterBottom>Benvenuto</Typography>
+            <Typography variant="body2" color="text.secondary" align="center">Avvia un gioco singolo oppure invia/accetta una richiesta per iniziare una sessione di coppia automatica.</Typography>
+          </Box>
+        </Box>
+      </Box>
+      <Menu anchorEl={infoAnchor} open={Boolean(infoAnchor)} onClose={closeInfoMenu} keepMounted>
+        <MenuItem onClick={()=>openDiagnostics(0)}><InfoOutlinedIcon fontSize="small" style={{marginRight:8}}/> Info</MenuItem>
+        <MenuItem onClick={()=>openDiagnostics(1)}><SettingsIcon fontSize="small" style={{marginRight:8}}/> TTL / Impostazioni</MenuItem>
+        <MenuItem onClick={()=>openDiagnostics(2)}><BugReportIcon fontSize="small" style={{marginRight:8}}/> Debug</MenuItem>
+        <MenuItem onClick={()=>openDiagnostics(3)}><TerminalIcon fontSize="small" style={{marginRight:8}}/> Canvas</MenuItem>
+      </Menu>
+      <Drawer anchor="right" open={drawerOpen} onClose={()=>setDrawerOpen(false)}>
+        <Box sx={{ width:{ xs:300, sm:380 }, p:2 }} role="presentation">
+          <Tabs value={infoTab} onChange={(_,v)=>setInfoTab(v)} variant="scrollable" allowScrollButtonsMobile size="small" sx={{ mb:2 }}>
+            <Tab label="Info" />
+            <Tab label="TTL" />
+            <Tab label="Debug" />
+            <Tab label="Canvas" />
+          </Tabs>
+          {infoTab===0 && <Box sx={{ fontSize:13, lineHeight:1.5 }}>
+            <Typography variant="subtitle2" gutterBottom>Informazioni</Typography>
+            <ul style={{ paddingLeft:18, margin:0 }}>
+              <li>Utente: {authenticatedUser?.name}</li>
+              <li>Codice: {authenticatedUser?.userCode}</li>
+              <li>UserId: {apiService.userId}</li>
+              <li>SessionId: {apiService.sessionId || '—'}</li>
+            </ul>
+          </Box>}
+          {infoTab===1 && <Box><TTLSettings apiService={apiService} /></Box>}
+          {infoTab===2 && <Box sx={{ fontSize:12 }}>
+            <Typography variant="subtitle2">Diagnostics</Typography>
+            <Divider sx={{ my:1 }} />
+            <pre style={{ maxHeight:300, overflow:'auto', background:'#fafafa', padding:8, borderRadius:8 }}>{JSON.stringify({ joinCache: apiService.joinRequestCache, pruned: apiService.prunedJoinCount }, null, 2)}</pre>
+          </Box>}
+          {infoTab===3 && <Box sx={{ height:260, width:'100%' }}><CanvasCardTable card={{ content:'Canvas Debug' }} /></Box>}
+        </Box>
+      </Drawer>
+    </Box>
   );
 
   // Render appropriate screen
@@ -251,11 +265,7 @@ export default function SimpleApp() {
     case 'auth':
       return (
         <ErrorBoundary>
-          <SimpleAuth
-            onAuthSuccess={handleAuthSuccess}
-            onClearUsers={clearAllUsers}
-            apiService={apiService}
-          />
+          <AuthPortal apiService={apiService} onAuthSuccess={handleAuthSuccess} />
         </ErrorBoundary>
       );
 
