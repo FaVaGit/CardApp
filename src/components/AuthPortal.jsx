@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Box, Paper, Typography, TextField, Button, Tabs, Tab, Stack, Alert, InputAdornment, IconButton, Fade } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button, Tabs, Tab, Stack, Alert, InputAdornment, IconButton, Fade, Chip } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import LoginIcon from '@mui/icons-material/Login';
 import { hashPassword, hashWithNewSalt } from '../utils/passwordHash.js';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import { Suspense } from 'react';
+// Lazy load heavy Fabric background after idle
+const LazyBg = React.lazy(()=> import('./CoupleBackgroundCanvas.jsx'));
 
 /** Local user store structure in localStorage:
  * complicity_users = [{ id, name, nickname, userCode, personalCode, salt, hash }]
@@ -71,11 +75,26 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
     } catch(e){ setError(e.message); } finally { setLoading(false); resetFields(); }
   };
 
+  const [enableBg, setEnableBg] = useState(false);
+  useEffect(()=>{
+    const run = ()=> setEnableBg(true);
+    if('requestIdleCallback' in window){ window.requestIdleCallback(run, { timeout:1800 }); } else { setTimeout(run, 800); }
+  },[]);
+
   return (
-    <Box sx={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', p:3, background:'linear-gradient(145deg,#ffe6f4 0%,#f3e5f5 60%)' }}>
-      <Paper elevation={6} sx={{ p:5, width:'100%', maxWidth:500, position:'relative', overflow:'hidden' }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>Gioco della Complicità</Typography>
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mb:3 }}>Accedi o registrati per iniziare</Typography>
+    <Box sx={{ minHeight:'100vh', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', p:3, background:'radial-gradient(circle at 30% 30%, #ffe1f1 0%, #f3e5f5 60%)' }}>
+      {enableBg && (
+        <Suspense fallback={null}>
+          <LazyBg opacity={0.18} />
+        </Suspense>
+      )}
+      <Paper elevation={8} sx={{ p:5, width:'100%', maxWidth:520, position:'relative', overflow:'hidden', backdropFilter:'blur(6px)', background:'rgba(255,255,255,0.88)' }}>
+        <Box sx={{ display:'flex', alignItems:'center', mb:1 }}>
+          <FavoriteIcon color="secondary" sx={{ mr:1 }} />
+          <Typography variant="h4" fontWeight={700}>Complicità</Typography>
+        </Box>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mb:2 }}>Crea il tuo spazio di coppia o entra con il tuo profilo</Typography>
+        <Chip size="small" label={mode==='login' ? 'Accesso' : 'Nuovo Account'} color={mode==='login' ? 'primary':'secondary'} sx={{ mb:2 }} />
         <Tabs value={mode} onChange={(_,v)=>{ setMode(v); resetFields(); }} sx={{ mb:2 }}>
           <Tab value="login" label="Login" icon={<LoginIcon fontSize="small"/>} iconPosition="start" />
           <Tab value="register" label="Registrati" icon={<PersonAddAlt1Icon fontSize="small"/>} iconPosition="start" />
@@ -86,7 +105,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
           <TextField label="Password" value={password} onChange={e=>setPassword(e.target.value)} type={showPwd?'text':'password'} size="small" disabled={loading} InputProps={{ endAdornment:(<InputAdornment position="end"><IconButton size="small" onClick={()=>setShowPwd(p=>!p)}>{showPwd? <VisibilityOff/>:<Visibility/>}</IconButton></InputAdornment>) }} required />
           {mode==='register' && <Fade in={mode==='register'}><TextField label="Conferma Password" value={confirm} onChange={e=>setConfirm(e.target.value)} type={showPwd?'text':'password'} size="small" disabled={loading} required /></Fade>}
           {error && <Alert severity="error" variant="outlined" onClose={()=>setError('')}>{error}</Alert>}
-          <Button disabled={loading || !name.trim() || !password} type="submit" variant="contained" size="large" startIcon={mode==='login'? <LockOpenIcon/>:<PersonAddAlt1Icon/>}>{loading? 'Attendere...': mode==='login'? 'Entra':'Crea Account'}</Button>
+          <Button disabled={loading || !name.trim() || !password} type="submit" variant="contained" size="large" startIcon={mode==='login'? <LockOpenIcon/>:<PersonAddAlt1Icon/>} sx={{ py:1.2, fontWeight:600, letterSpacing:'.5px', background: mode==='login'? 'linear-gradient(90deg,#8e24aa,#ec407a)' : 'linear-gradient(90deg,#ec407a,#ba68c8)', boxShadow:'0 4px 14px -4px rgba(236,64,122,.5)' }}>{loading? 'Attendere...': mode==='login'? 'Entra':'Crea Account'}</Button>
         </Stack>
       </Paper>
     </Box>
