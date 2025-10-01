@@ -517,10 +517,16 @@ class EventDrivenApiService {
     }
 
     async endGame(sessionId) {
-    const response = await this.apiCall(ENDPOINTS.END_GAME, 'POST', {
+        const response = await this.apiCall(ENDPOINTS.END_GAME, 'POST', {
             sessionId: sessionId
         });
-
+        if (response.success) {
+            const endedId = this.sessionId || sessionId;
+            this.sessionId = null;
+            this.lastKnownCardCount = 0;
+            // Emit immediate event so UI locale reagisce senza attendere polling
+            try { this.emit('gameSessionEnded', { sessionId: endedId }); } catch { /* ignore */ }
+        }
         return response.success;
     }
 
@@ -845,6 +851,15 @@ class EventDrivenApiService {
             if (gameSession && (!prevStatus || prevStatus.sessionId !== gameSession.id)) {
                 this.sessionId = gameSession.id;
                 this.emit('gameSessionStarted', { sessionId: gameSession.id });
+            }
+            // Rilevazione fine partita: avevamo una sessione ma ora lo snapshot non ne riporta una
+            if (this.sessionId && gameSession && gameSession.id === this.sessionId) {
+                // still active
+            } else if (this.sessionId && (!gameSession || !gameSession.id)) {
+                const endedId = this.sessionId;
+                this.sessionId = null;
+                if (this.lastKnownCardCount) this.lastKnownCardCount = 0;
+                this.emit('gameSessionEnded', { sessionId: endedId });
             }
             // Diagnostica ritardo partner: se abbiamo sessione attiva ma ancora nessun partnerInfo
             if (this.sessionId && !partnerInfo && !this.lastKnownPartner) {

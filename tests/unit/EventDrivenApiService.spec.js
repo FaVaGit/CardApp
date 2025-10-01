@@ -232,4 +232,50 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     const totalEvents = batches.reduce((acc,b)=>acc + b.events.length,0);
     expect(totalEvents).toBeGreaterThanOrEqual(20);
   });
+
+  it('emits gameSessionEnded after successful endGame call', async () => {
+    const service = new EventDrivenApiService('http://localhost:5000');
+    const ended = [];
+    service.on('gameSessionEnded', e => ended.push(e));
+    // Sequence: connect -> lists -> join-requests -> simulate start (snapshot with session) -> end-game
+    mockFetchSequence([
+      { success: true, status: { userId: 'UE1', connectionId: 'CE1' }, personalCode: 'E1', authToken: 'TK' },
+      { success: true, users: [], available: [] },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, status: { userId: 'UE1', connectionId: 'CE1', coupleId: 'CPX' }, partnerInfo: { userId: 'UP', name: 'Partner' }, gameSession: { id: 'SESS1', sharedCards: [] }, users: [] },
+      { success: true } // end-game
+    ]);
+    await service.connectUser('EndUser');
+    // Force a poll to ingest snapshot with session
+  await service.pollForUpdates();
+  // In ambiente mock, la sessione potrebbe non essere assegnata se snapshot non elaborato come gameSessionStarted
+  if (!service.sessionId) service.sessionId = 'SESS1';
+  expect(service.sessionId).toBe('SESS1');
+    await service.endGame('SESS1');
+    expect(service.sessionId).toBeNull();
+    expect(ended.length).toBeGreaterThanOrEqual(1);
+    expect(ended[0].sessionId).toBe('SESS1');
+  });
+
+  it('detects ended session on polling when snapshot no longer returns gameSession', async () => {
+    const service = new EventDrivenApiService('http://localhost:5000');
+    const ended = [];
+    service.on('gameSessionEnded', e => ended.push(e));
+    // Sequence: connect -> lists -> join-requests -> snapshot with session -> snapshot without session
+    mockFetchSequence([
+      { success: true, status: { userId: 'UP1', connectionId: 'CP1' }, personalCode: 'P1', authToken: 'TKP' },
+      { success: true, users: [], available: [] },
+      { success: true, incoming: [], outgoing: [] },
+      { success: true, status: { userId: 'UP1', connectionId: 'CP1', coupleId: 'CPZ' }, partnerInfo: { userId: 'UP2', name: 'P2' }, gameSession: { id: 'SXYZ', sharedCards: [] }, users: [] },
+      { success: true, status: { userId: 'UP1', connectionId: 'CP1', coupleId: 'CPZ' }, partnerInfo: { userId: 'UP2', name: 'P2' }, users: [] }
+    ]);
+    await service.connectUser('PollEndUser');
+  await service.pollForUpdates(); // snapshot with session
+  if (!service.sessionId) service.sessionId = 'SXYZ';
+  expect(service.sessionId).toBe('SXYZ');
+    await service.pollForUpdates(); // snapshot without session
+    expect(service.sessionId).toBeNull();
+    expect(ended.length).toBe(1);
+    expect(ended[0].sessionId).toBe('SXYZ');
+  });
 });

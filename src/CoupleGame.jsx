@@ -110,6 +110,19 @@ export default function CoupleGame({ user, apiService, onExit }) {
         }
       };
 
+      // Listen for game session ended events (NEW)
+      const handleGameSessionEnded = (data) => {
+        console.log('🛑 Received game session ended event:', data);
+        if (gameSession?.id && data?.sessionId === gameSession.id) {
+          addMessage('🔚 Partita terminata (partner).', 'info');
+        } else {
+          addMessage('🔚 Partita terminata.', 'info');
+        }
+        setGameSession(null);
+        setCurrentCard(null);
+        // Non chiudiamo immediatamente la schermata per permettere eventuale nuova sessione; delega a onExit dal lato attivo
+      };
+
       // Listen for card drawn events (RabbitMQ: CardDrawn)
       const handleCardDrawn = (cardData) => {
         console.log('🎴 Received card drawn event from partner:', cardData);
@@ -161,6 +174,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       // Remove existing listeners to prevent duplicates
       apiService.off('coupleJoined', handleCoupleJoined);
       apiService.off('gameSessionStarted', handleGameSessionStarted);
+  apiService.off('gameSessionEnded', handleGameSessionEnded);
       apiService.off('cardDrawn', handleCardDrawn);
       apiService.off('sessionUpdated', handleSessionUpdated);
       apiService.off('partnerUpdated', handlePartnerUpdated);
@@ -169,12 +183,13 @@ export default function CoupleGame({ user, apiService, onExit }) {
       // Add listeners
       apiService.on('coupleJoined', handleCoupleJoined);
       apiService.on('gameSessionStarted', handleGameSessionStarted);
+  apiService.on('gameSessionEnded', handleGameSessionEnded);
       apiService.on('cardDrawn', handleCardDrawn);
       apiService.on('sessionUpdated', handleSessionUpdated);
       apiService.on('partnerUpdated', handlePartnerUpdated);
   apiService.on('partnerSyncDelay', handlePartnerSyncDelay);
 
-  return { handleCoupleJoined, handleGameSessionStarted, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
+  return { handleCoupleJoined, handleGameSessionStarted, handleGameSessionEnded, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
     };
 
     const listeners = setupEventListeners();
@@ -183,6 +198,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     return () => {
       apiService.off('coupleJoined', listeners.handleCoupleJoined);
       apiService.off('gameSessionStarted', listeners.handleGameSessionStarted);
+  apiService.off('gameSessionEnded', listeners.handleGameSessionEnded);
       apiService.off('cardDrawn', listeners.handleCardDrawn);
       apiService.off('sessionUpdated', listeners.handleSessionUpdated);
       apiService.off('partnerUpdated', listeners.handlePartnerUpdated);

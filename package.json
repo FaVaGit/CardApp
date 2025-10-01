@@ -16,10 +16,15 @@
     "coverage:summary": "node scripts/coverage-summary.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
-  ,"test:integration": "node scripts/run-integration-tests.mjs"
+    "test:e2e:report": "playwright show-report",
+    "test:integration": "node scripts/run-integration-tests.mjs"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.2",
+    "@mui/material": "^7.3.2",
+    "fabric": "^6.7.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "wait-on": "^8.0.5"
