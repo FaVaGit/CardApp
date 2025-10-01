@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Box, Paper, Typography, TextField, Button, Tabs, Tab, Stack, Alert, InputAdornment, IconButton, Fade, Chip } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -7,7 +7,6 @@ import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import LoginIcon from '@mui/icons-material/Login';
 import { hashPassword, hashWithNewSalt } from '../utils/passwordHash.js';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-import { Suspense } from 'react';
 // Lazy load heavy Fabric background after idle
 const LazyBg = React.lazy(()=> import('./CoupleBackgroundCanvas.jsx'));
 
