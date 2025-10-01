@@ -10,6 +10,7 @@ A modern card game application built with **Event-Driven Architecture** using Re
 
 ## ✨ Features
 
+- 🔐 **Registrazione / Login con Password**: Account locale con hashing PBKDF2 (salt univoco, nessuna password in chiaro)
 - 🎯 **Single Player Mode**: Esperienza personale di pesca carte
 - 👥 **Couple Mode (richiesta / approvazione)**: Accoppiamento esplicito con auto‑start sessione
 - ⚡ **Partner Sync Immediato**: `respond-join` ora restituisce direttamente `partnerInfo` evitando attese
@@ -21,6 +22,31 @@ A modern card game application built with **Event-Driven Architecture** using Re
 - 🎨 **Modern UI con MUI + Fabric.js**: Layout responsive, AppBar, Drawer log, canvas animato per carte
 - 📱 **Responsive Design**: Mobile & Desktop
 - 🏗️ **Architettura Moderna**: Separation of concerns, fallback sicuri
+ - 🌗 **Dark Mode Toggle**: Tema scuro persistente via localStorage
+
+## 🔐 Sicurezza & Password
+Le credenziali sono gestite solo lato browser (modalità prototipo):
+| Aspetto | Implementazione |
+|---------|-----------------|
+| Hashing | PBKDF2 SHA-256 120k iterazioni |
+| Salt | Generato per-account (16 byte) |
+| Storage | `localStorage` (hash + salt + metadati utente) |
+| Trasmissione | Nessun invio password al backend attuale |
+
+Limitazioni attuali:
+- Nessun recupero password / reset
+- Nessun rate limiting locale
+- Sessione legata al browser (no multi-device persistente)
+
+Per produzione migrare a backend con Argon2id / scrypt, sessioni firmate e rotazione token.
+
+## 🌗 Tema & Modalità Scura
+Il toggle (icona sole/luna) consente di passare fra light e dark mode.
+Caratteristiche:
+- Persistenza in `localStorage['complicity_color_mode']`
+- Palette ottimizzata per contrasto su sfumature viola/rosa
+- Canvas Fabric rianima la carta mantenendo centratura in entrambi i temi
+- Componenti MUI reattivi alla palette (background/paper/primary/secondary)
 
 ## 🏗️ Architecture
 

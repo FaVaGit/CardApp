@@ -1,7 +1,9 @@
-import { StrictMode as _StrictMode } from 'react'
-import ReactDOM from 'react-dom/client'
-import SimpleApp from './SimpleApp.jsx'
-import './index.css'
+import { StrictMode } from 'react';
+import ReactDOM from 'react-dom/client';
+import SimpleApp from './SimpleApp.jsx';
+import './index.css';
+import { CssBaseline } from '@mui/material';
+import ColorModeProvider from './theme/ColorModeProvider.jsx';
 
 console.log('[BOOT] main.jsx loaded');
 const rootEl = document.getElementById('root');
@@ -13,7 +15,10 @@ if(!rootEl){
 
 // Use simplified, decoupled app architecture
 ReactDOM.createRoot(rootEl).render(
-  <_StrictMode>
-    <SimpleApp />
-  </_StrictMode>
+  <StrictMode>
+    <ColorModeProvider>
+      <CssBaseline />
+      <SimpleApp />
+    </ColorModeProvider>
+  </StrictMode>
 )

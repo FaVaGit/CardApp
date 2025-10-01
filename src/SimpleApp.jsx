@@ -20,6 +20,7 @@ import EventDrivenApiService from './EventDrivenApiService';
 import UserDirectory from './UserDirectory';
 import TTLSettings from './TTLSettings';
 import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab, Button } from '@mui/material';
+import DarkModeToggle from './components/DarkModeToggle.jsx';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import TerminalIcon from '@mui/icons-material/Terminal';
@@ -175,25 +176,26 @@ export default function SimpleApp() {
 
   // Render game type selection screen
   const renderLobby = () => (
-    <Box sx={{ minHeight:'100vh', background:'linear-gradient(145deg,#fdf3f7 0%,#f3e5f5 60%)', p:3 }}>
-      <AppBar position="sticky" color="primary" elevation={4} sx={{ mb:3 }}>
-        <Toolbar variant="dense">
-          <Typography variant="h6" fontWeight={600}>Lobby di Gioco</Typography>
+    <Box sx={{ minHeight:'100vh', background:(theme)=> theme.palette.gradient?.soft || 'linear-gradient(145deg,#fdf3f7 0%,#f3e5f5 60%)', p:3 }}>
+      <AppBar position="sticky" color="primary" elevation={4} sx={{ mb:3, background:'linear-gradient(90deg,#8e24aa,#ec407a)' }}>
+        <Toolbar variant="dense" sx={{ display:'flex', alignItems:'center' }}>
+          <Typography variant="h6" fontWeight={600} sx={{ display:'flex', alignItems:'center', gap:1 }}>💑 Lobby di Coppia</Typography>
           <Box sx={{ flexGrow:1 }} />
-          <Typography variant="caption" sx={{ mr:2 }}>Codice: {authenticatedUser?.userCode}</Typography>
+          <Typography variant="caption" sx={{ mr:2, fontWeight:600 }}>Codice: {authenticatedUser?.userCode}</Typography>
+          <DarkModeToggle />
           <IconButton color="inherit" size="small" onClick={openInfoMenu}><InfoOutlinedIcon/></IconButton>
         </Toolbar>
       </AppBar>
       <Box sx={{ maxWidth:960, mx:'auto', display:'grid', gap:3, gridTemplateColumns:{ xs:'1fr', md:'1fr 1fr' } }}>
         <Box>
-          <Box sx={{ mb:2, p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2 }}>
-            <Typography variant="subtitle1" fontWeight={600}>Ciao {authenticatedUser?.name}</Typography>
-            <Typography variant="body2" color="text.secondary">Scegli la modalità o invita un partner.</Typography>
+          <Box sx={{ mb:2, p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 18px -6px rgba(142,36,170,.25)', border:'1px solid', borderColor:'divider' }}>
+            <Typography variant="subtitle1" fontWeight={700}>Ciao {authenticatedUser?.name}</Typography>
+            <Typography variant="body2" color="text.secondary">Invita un partner o avvia una partita singola per iniziare subito.</Typography>
           </Box>
-          <Box sx={{ p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2, mb:2 }}>
-            <Button fullWidth variant="contained" color="secondary" size="large" onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)}>🎴 Avvia Gioco Singolo</Button>
+          <Box sx={{ p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 18px -6px rgba(236,64,122,.35)', mb:2, border:'1px solid', borderColor:'divider' }}>
+            <Button fullWidth variant="contained" size="large" onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)} sx={{ background:'linear-gradient(90deg,#ec407a,#ba68c8)', fontWeight:600, letterSpacing:'.5px', py:1.2 }}>🎴 Avvia Gioco Singolo</Button>
           </Box>
-          <Box sx={{ p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2 }}>
+          <Box sx={{ p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 18px -6px rgba(142,36,170,.25)', border:'1px solid', borderColor:'divider' }}>
             <UserDirectory
               apiService={apiService}
               currentUser={authenticatedUser}
@@ -208,8 +210,9 @@ export default function SimpleApp() {
               showCounts={true}
               onCountsChange={setJoinCounts}
             />
-            <Box sx={{ mt:2, fontSize:12, p:1.5, borderRadius:2, bgcolor:'secondary.50', color:'secondary.dark', border:'1px solid', borderColor:'secondary.light' }}>
-              Richieste – In: <b>{joinCounts.incoming}</b> • Out: <b>{joinCounts.outgoing}</b>
+            <Box sx={{ mt:2, fontSize:12, p:1.2, borderRadius:2, background:'linear-gradient(90deg,#8e24aa0d,#ec407a14)', color:'secondary.dark', border:'1px solid', borderColor:'divider', display:'flex', justifyContent:'space-between' }}>
+              <span>Richieste In: <b>{joinCounts.incoming}</b></span>
+              <span>Out: <b>{joinCounts.outgoing}</b></span>
             </Box>
           </Box>
           <Box sx={{ mt:3, display:'flex', gap:1 }}>
@@ -219,9 +222,9 @@ export default function SimpleApp() {
           </Box>
         </Box>
         <Box sx={{ display:{ xs:'none', md:'block' } }}>
-          <Box sx={{ p:2, bgcolor:'background.paper', borderRadius:3, boxShadow:2, height:'100%', minHeight:400, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center' }}>
-            <Typography variant="h6" gutterBottom>Benvenuto</Typography>
-            <Typography variant="body2" color="text.secondary" align="center">Avvia un gioco singolo oppure invia/accetta una richiesta per iniziare una sessione di coppia automatica.</Typography>
+          <Box sx={{ p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 22px -8px rgba(0,0,0,.15)', height:'100%', minHeight:400, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', border:'1px solid', borderColor:'divider' }}>
+            <Typography variant="h6" gutterBottom>💞 Pronti a giocare</Typography>
+            <Typography variant="body2" color="text.secondary" align="center">Crea connessione emotiva: pesca carte, condividi risposte, rafforza la vostra complicità.</Typography>
           </Box>
         </Box>
       </Box>
