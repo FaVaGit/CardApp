@@ -3,6 +3,8 @@
 <!-- CI Badges -->
 ![Unit Tests](https://github.com/FaVaGit/CardApp/actions/workflows/ci-unit.yml/badge.svg?branch=Evolution)
 ![E2E Tests](https://github.com/FaVaGit/CardApp/actions/workflows/ci-e2e.yml/badge.svg?branch=Evolution)
+![E2E Smoke](https://github.com/FaVaGit/CardApp/actions/workflows/e2e-smoke.yml/badge.svg?branch=Evolution)
+![Security Audit](https://github.com/FaVaGit/CardApp/actions/workflows/security-audit.yml/badge.svg?branch=Evolution)
 <!-- If Codecov is enabled add: -->
 ![Coverage](https://img.shields.io/badge/coverage-11.3%25-blue?style=flat)
 

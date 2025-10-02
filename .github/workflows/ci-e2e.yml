@@ -24,6 +24,13 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci || npm install
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Setup .NET
