@@ -9,6 +9,14 @@ using System.Text.Json;
 
 namespace ComplicityGame.Tests;
 
+// Typed DTOs for test clarity (scoped within namespace)
+public record ConnectResponse(bool success, StatusDto? status, string personalCode, string authToken, string userId);
+public record StatusDto(string? userId, string? coupleId);
+public record RequestJoinResponse(bool success, string requestId, string status);
+public record SnapshotResponse(bool success, StatusDto? status, GameSessionDto? gameSession, PartnerInfoDto? partnerInfo, JsonElement? users, JsonElement? outgoingRequests, JsonElement? incomingRequests);
+public record GameSessionDto(string id, bool isActive, DateTime createdAt);
+public record PartnerInfoDto(string userId, string name, string? personalCode);
+
 public class ControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -35,22 +43,25 @@ public class ControllerIntegrationTests : IClassFixture<WebApplicationFactory<Pr
         // 1. Connect first user
         var u1 = await client.PostAsJsonAsync("/api/EventDrivenGame/connect", new { name = "Anna", gameType = "couple" });
         u1.EnsureSuccessStatusCode();
-        var u1Json = await u1.Content.ReadFromJsonAsync<JsonElement>();
-        string user1Id = u1Json.GetProperty("userId").GetString()!;
-        string code1 = u1Json.GetProperty("personalCode").GetString()!;
+    var u1Payload = await u1.Content.ReadFromJsonAsync<ConnectResponse>();
+    Assert.NotNull(u1Payload);
+    string user1Id = u1Payload!.userId;
+    string code1 = u1Payload.personalCode;
 
         // 2. Connect second user
         var u2 = await client.PostAsJsonAsync("/api/EventDrivenGame/connect", new { name = "Bruno", gameType = "couple" });
         u2.EnsureSuccessStatusCode();
-        var u2Json = await u2.Content.ReadFromJsonAsync<JsonElement>();
-        string user2Id = u2Json.GetProperty("userId").GetString()!;
-        string code2 = u2Json.GetProperty("personalCode").GetString()!;
+    var u2Payload = await u2.Content.ReadFromJsonAsync<ConnectResponse>();
+    Assert.NotNull(u2Payload);
+    string user2Id = u2Payload!.userId;
+    string code2 = u2Payload.personalCode;
 
         // 3. user1 richiede join verso user2 (usiamo userId del target)
         var rq = await client.PostAsJsonAsync("/api/EventDrivenGame/request-join", new { requestingUserId = user1Id, targetUserId = user2Id });
         rq.EnsureSuccessStatusCode();
-        var rqJson = await rq.Content.ReadFromJsonAsync<JsonElement>();
-        string requestId = rqJson.GetProperty("requestId").GetString()!;
+    var rqPayload = await rq.Content.ReadFromJsonAsync<RequestJoinResponse>();
+    Assert.NotNull(rqPayload);
+    string requestId = rqPayload!.requestId;
 
         // 4. user2 approva
         var resp = await client.PostAsJsonAsync($"/api/EventDrivenGame/respond-join", new { requestId, targetUserId = user2Id, approve = true });
@@ -61,10 +72,10 @@ public class ControllerIntegrationTests : IClassFixture<WebApplicationFactory<Pr
         var snap2 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user2Id}");
         snap1.EnsureSuccessStatusCode();
         snap2.EnsureSuccessStatusCode();
-        var s1Json = await snap1.Content.ReadFromJsonAsync<JsonElement>();
-        var s2Json = await snap2.Content.ReadFromJsonAsync<JsonElement>();
-        string? session1 = s1Json.TryGetProperty("gameSession", out var gs1) && gs1.ValueKind == JsonValueKind.Object && gs1.TryGetProperty("id", out var id1) ? id1.GetString() : null;
-        string? session2 = s2Json.TryGetProperty("gameSession", out var gs2) && gs2.ValueKind == JsonValueKind.Object && gs2.TryGetProperty("id", out var id2) ? id2.GetString() : null;
+        var s1Payload = await snap1.Content.ReadFromJsonAsync<SnapshotResponse>();
+        var s2Payload = await snap2.Content.ReadFromJsonAsync<SnapshotResponse>();
+        string? session1 = s1Payload?.gameSession?.id;
+        string? session2 = s2Payload?.gameSession?.id;
         Assert.False(string.IsNullOrWhiteSpace(session1));
         Assert.Equal(session1, session2);
     }
