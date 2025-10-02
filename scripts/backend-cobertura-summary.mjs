@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { dirname } from 'path';
+/* eslint-env node */
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 
 // Simple Cobertura XML parser (no external deps) extracting line-rate or statements by class
 // Fallback: if no XML found, produce 0% summary.
@@ -60,19 +60,16 @@ function run(){
   }
   // naive scan for cobertura files
   let file = null;
-  try {
-    const { readdirSync, statSync } = require('fs');
-    const stack=[path];
-    while(stack.length){
-      const dir=stack.pop();
-      for(const f of readdirSync(dir)){
-        const full = dir + '/' + f;
-        const st = statSync(full);
-        if(st.isDirectory()) stack.push(full); else if(/cobertura\.(xml)$/i.test(f)) { file=full; break; }
-      }
-      if(file) break;
+  const stack=[path];
+  while(stack.length){
+    const dir=stack.pop();
+    for(const f of readdirSync(dir)){
+      const full = dir + '/' + f;
+      const st = statSync(full);
+      if(st.isDirectory()) stack.push(full); else if(/cobertura\.(xml)$/i.test(f)) { file=full; break; }
     }
-  } catch {}
+    if(file) break;
+  }
   if(!file){
     writeFileSync('backend-coverage-summary.json', JSON.stringify({ total:{ statements:{ pct:0, covered:0, total:0 } } },null,2));
     console.log('No cobertura file found, wrote zero summary');

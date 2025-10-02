@@ -1,7 +1,6 @@
 #!/usr/bin/env node
+/* eslint-env node */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { readFile } from 'fs/promises';
-import path from 'path';
 
 // Attempts to obtain overall statements coverage percentage.
 // 1. Prefer coverage/coverage-summary.json (if produced by json-summary reporter)
@@ -16,7 +15,7 @@ async function getCoveragePct() {
       const summary = JSON.parse(readFileSync(jsonPath, 'utf8')); 
       const pct = summary?.total?.statements?.pct;
       if (typeof pct === 'number') return pct;
-    } catch {}
+  } catch { /* ignore parse error */ }
   }
 
   // Try lcov.info aggregate (sum all SF records)
@@ -40,7 +39,7 @@ async function getCoveragePct() {
       if (found > 0) {
         return (covered / found) * 100;
       }
-    } catch {}
+  } catch { /* ignore lcov parse error */ }
   }
 
   // Try scrape HTML summary table (index.html) for 'All files' row
@@ -48,9 +47,9 @@ async function getCoveragePct() {
   if (existsSync(htmlIndex)) {
     try {
       const html = readFileSync(htmlIndex, 'utf8');
-      const match = html.match(/All files[^%]*?(\d+\.\d+|\d+)<\/span>%/); // first numeric percent
+      const match = html.match(/All files[^%]*?(\d+\.\d+|\d+)<\/span>%/);
       if (match) return Number(match[1]);
-    } catch {}
+  } catch { /* ignore html scrape error */ }
   }
   return 0;
 }
@@ -64,7 +63,7 @@ function updateReadme(pct) {
   const file = 'README.md';
   const md = readFileSync(file, 'utf8');
   // Replace existing badge line for Coverage (search for ![Coverage](...)
-  const badgeRegex = /!\[Coverage\]\([^\)]*\)/;
+  const badgeRegex = /!\[Coverage\]\([^)]*\)/;
   const newBadge = `![Coverage](https://img.shields.io/badge/coverage-${encodeURIComponent(pct)}-blue?style=flat)`;
   if (!badgeRegex.test(md)) {
     console.warn('Coverage badge placeholder not found, skipping');

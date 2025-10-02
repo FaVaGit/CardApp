@@ -70,7 +70,10 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
       apiService.off('joinRequestExpired', handleExpired);
       clearInterval(tick);
     };
-  }, [apiService, currentUser, inbound, outbound]);
+  // Dipendenze: evitiamo di includere inbound/outbound perché cambiano ad ogni evento e causerebbero re-registrazioni listeners.
+  // currentUser e apiService sono sufficienti; onCountsChange è stabile (fornito dal parent) o non critico se cambia.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiService, currentUser]);
 
   // Debug data in component
   useEffect(() => {

@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { AppBar, Toolbar, Typography, Box, Grid, Button, Chip, Divider, List, ListItem, ListItemText, Snackbar, Alert, Stack, Paper } from '@mui/material';
-import ShuffleIcon from '@mui/icons-material/Shuffle';
-import StopIcon from '@mui/icons-material/StopCircle';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import BugReportIcon from '@mui/icons-material/BugReport';
+import { Box, Grid, Snackbar, Alert, Stack, Paper } from '@mui/material';
 import CardActionButtons from './components/CardActionButtons.jsx';
 import CanvasCardTable from './components/CanvasCardTable.jsx';
 
@@ -21,8 +16,7 @@ import CanvasCardTable from './components/CanvasCardTable.jsx';
 export default function CoupleGame({ user, apiService, onExit }) {
   // Rimuoviamo completamente lo stato intermedio: la UI di gioco viene montata subito.
   // Mostreremo un piccolo banner se la sessione non è ancora avviata, ma niente schermata separata.
-  const [gameState, setGameState] = useState('playing'); // semplificato: sempre 'playing'
-  const [couple, setCouple] = useState(null); // (future use: extended couple data)
+  const [gameState] = useState('playing'); // stato fisso
   const [gameSession, setGameSession] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [partnerCode, setPartnerCode] = useState('');
@@ -204,6 +198,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('partnerUpdated', listeners.handlePartnerUpdated);
   apiService.off('partnerSyncDelay', listeners.handlePartnerSyncDelay);
     };
+  // Nota dipendenze: intentionally non includiamo gameSession, partnerInfo, messages per evitare duplicazione listener.
+  // addMessage è memoized; partnerCode viene letto solo inizialmente per eventuale set.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, apiService, gameState, partnerCode, addMessage, nextMsgId]);
 
   // Fallback: se il service ha già sessionId ma lo stato locale no, aggiorniamo
@@ -224,6 +221,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       addMessage('🎮 Partita avviata automaticamente!', 'success');
       flagsRef.current.loggedGameStarted = true;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiService.sessionId, gameSession, addMessage]);
 
   // Rimosso flusso manuale: la coppia si forma via UserDirectory (join request)

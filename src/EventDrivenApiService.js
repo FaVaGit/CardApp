@@ -107,11 +107,6 @@ class EventDrivenApiService {
                 if (!S.join.incoming[uid]) S.join.incoming[uid] = [];
                 if (!S.join.outgoing[uid]) S.join.outgoing[uid] = [];
             };
-            const parseUserIdFrom = (pattern) => {
-                const parts = endpoint.split('/').filter(Boolean);
-                const idx = parts.findIndex(p => p === pattern.replace('/', ''));
-                return idx >= 0 && parts[idx+1] ? parts[idx+1] : parts[parts.length-1];
-            };
             const respond = (obj) => obj; // keep async contract (no fetch throw)
 
             try {
@@ -280,10 +275,6 @@ class EventDrivenApiService {
 
         try {
             const response = await fetch(url, fetchOptions);
-            const headersObj = response && response.headers && typeof response.headers.get === 'function'
-                ? response.headers
-                : { get: () => '' };
-            const contentType = headersObj.get('content-type') || '';
             let data;
             const canJson = response && typeof response.json === 'function';
             const canText = response && typeof response.text === 'function';

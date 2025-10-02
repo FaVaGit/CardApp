@@ -12,7 +12,7 @@ test('TTL pruning incrementa metrica e persiste', async ({ browser }) => {
   await page.route(/\/api\/EventDrivenGame\/snapshot\/.*/, async (route) => {
     const resp = await route.fetch();
     let json = {};
-    try { json = await resp.json(); } catch {}
+  try { json = await resp.json(); } catch { /* ignore body parse */ }
     if (json && json.success) {
       json.outgoingRequests = []; // mantiene _optimistic lato client
     }

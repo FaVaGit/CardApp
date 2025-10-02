@@ -13,11 +13,15 @@ export default [
       'public/test-backend.js',
       'api-endpoint-test.js',
       'test_signalr.js',
-      'scripts/coverage-summary.mjs'
+      'scripts/coverage-summary.mjs',
+      'dist/**',
+      'coverage/**',
+      'lcov-report/**',
+      'Backend/ComplicityGame.Tests/TestResults/**'
     ]
   },
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,mjs}'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
@@ -25,6 +29,8 @@ export default [
   window: 'readonly',
   document: 'readonly',
   console: 'readonly',
+  TextEncoder: 'readonly',
+  crypto: 'readonly',
   localStorage: 'readonly',
   sessionStorage: 'readonly',
   fetch: 'readonly',
@@ -32,8 +38,10 @@ export default [
   navigator: 'readonly',
   setTimeout: 'readonly',
   clearTimeout: 'readonly',
-  setInterval: 'readonly',
   clearInterval: 'readonly',
+  setInterval: 'readonly',
+  setImmediate: 'readonly',
+  clearImmediate: 'readonly',
   process: 'readonly',
   module: 'readonly',
   require: 'readonly',
@@ -56,6 +64,16 @@ export default [
       'react/prop-types': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn'
+    }
+  },
+  // Node scripts override (allow process/console unflagged)
+  {
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly'
+      }
     }
   }
 ];

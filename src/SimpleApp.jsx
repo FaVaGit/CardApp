@@ -24,10 +24,10 @@ const TTLSettings = lazy(()=>import('./TTLSettings'));
 import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab, Button } from '@mui/material';
 import DarkModeToggle from './components/DarkModeToggle.jsx';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import SettingsIcon from '@mui/icons-material/Settings';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import TerminalIcon from '@mui/icons-material/Terminal';
-import SettingsIcon from '@mui/icons-material/Settings';
-import CanvasCardTable from './components/CanvasCardTable.jsx';
+const CanvasCardTable = lazy(()=>import('./components/CanvasCardTable'));
 
 /**
  * MODERNIZED APP ARCHITECTURE - Event-Driven RabbitMQ
@@ -47,7 +47,8 @@ export default function SimpleApp() {
   const [apiService] = useState(new EventDrivenApiService());
   const [purging, setPurging] = useState(false);
   const [joinCounts, setJoinCounts] = useState({ incoming: 0, outgoing: 0 });
-  const [toasts, setToasts] = useState([]);
+  // Toast system semplificato: per ora solo log, nessuno stato React per evitare lint errors
+  const pushToast = (text, tone='info') => console.log('[toast]', tone, text);
   // Info / Diagnostics UI
   const [infoAnchor, setInfoAnchor] = useState(null); // menu anchor
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -57,11 +58,7 @@ export default function SimpleApp() {
   const closeInfoMenu = ()=> setInfoAnchor(null);
   const openDiagnostics = (tabIndex=0)=>{ setInfoTab(tabIndex); setDrawerOpen(true); closeInfoMenu(); };
 
-  const pushToast = (text, tone='info') => {
-    const id = Date.now()+Math.random();
-    setToasts(t => [...t, { id, text, tone }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
-  };
+  // (pushToast definito sopra)
 
   console.log('🚀 SimpleApp rendering...', { currentScreen, authenticatedUser, selectedGameType });
 
@@ -74,8 +71,8 @@ export default function SimpleApp() {
 
   // Auto switch to playing when backend starts a game session (e.g., dopo accept join coppia)
   useEffect(() => {
-    const handler = (payload) => {
-      console.log('🎮 gameSessionStarted event ricevuto:', payload);
+    const handler = (_payload) => {
+      console.log('🎮 gameSessionStarted event ricevuto:', _payload);
       setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
       setCurrentScreen('playing');
       pushToast('Partita di coppia avviata!','success');
@@ -85,7 +82,7 @@ export default function SimpleApp() {
   }, [apiService]);
 
   useEffect(() => {
-    const coupleHandler = (data) => {
+  const coupleHandler = (_data) => {
       if (currentScreen === 'game-selection') pushToast('Coppia formata, avvio in corso...','info');
     };
     apiService.on('coupleJoined', coupleHandler);

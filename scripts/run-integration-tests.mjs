@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -57,7 +58,7 @@ async function main() {
     backend.kill('SIGINT');
     process.exit(1);
   } finally {
-    try { backend.kill('SIGINT'); } catch {}
+  try { backend.kill('SIGINT'); } catch { /* ignore */ }
   }
 }
 

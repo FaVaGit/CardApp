@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
 /*

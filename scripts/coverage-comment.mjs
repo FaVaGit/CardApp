@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 import { readFileSync, existsSync } from 'fs';
 
 function load(path){ if(existsSync(path)) return JSON.parse(readFileSync(path,'utf8')); return null; }

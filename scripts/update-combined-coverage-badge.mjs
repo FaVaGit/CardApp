@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
 function readUnit() {
@@ -44,8 +45,8 @@ function format(p){return `${p.toFixed(1)}%`;}
 
 if(!existsSync('README.md')) { console.error('README.md missing'); process.exit(0); }
 let md = readFileSync('README.md','utf8');
-const stmtBadgeRegex = /!\[Coverage\]\([^\)]*\)/;
-const branchBadgeRegex = /!\[Branches\]\([^\)]*\)/;
+const stmtBadgeRegex = /!\[Coverage\]\([^)]*\)/;
+const branchBadgeRegex = /!\[Branches\]\([^)]*\)/;
 const newStmtBadge = `![Coverage](https://img.shields.io/badge/coverage-${encodeURIComponent(format(finalPct))}-blue?style=flat)`;
 const newBranchBadge = `![Branches](https://img.shields.io/badge/branches-${encodeURIComponent(format(finalBranchesPct))}-purple?style=flat)`;
 if(stmtBadgeRegex.test(md)) md = md.replace(stmtBadgeRegex, newStmtBadge); else console.warn('Statements coverage badge not found');
@@ -56,4 +57,4 @@ if(branchBadgeRegex.test(md)) md = md.replace(branchBadgeRegex, newBranchBadge);
 writeFileSync('README.md', md, 'utf8');
 console.log('Updated combined coverage badges -> statements', format(finalPct), 'branches', format(finalBranchesPct));
 // Emit machine readable summary (include branches)
-try { writeFileSync('combined-coverage.json', JSON.stringify({ combinedPct: finalPct, combinedBranchesPct: finalBranchesPct }, null, 2)); } catch {}
+try { writeFileSync('combined-coverage.json', JSON.stringify({ combinedPct: finalPct, combinedBranchesPct: finalBranchesPct }, null, 2)); } catch { /* ignore */ }
