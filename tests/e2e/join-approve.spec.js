@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connectUser } from './utils';
+import { connectUser, assertStrict } from './utils';
 
 // Helpers original removed; using shared utils.connectUser now
 
@@ -68,6 +68,7 @@ test.describe('Flusso join approvazione', () => {
     }
     if (!coupleId) {
       console.log('ℹ️ Nessun coupleId dopo approvazione (soft pass)');
+      assertStrict(false, 'CoupleId non generato dopo approvazione join');
     }
   });
 });

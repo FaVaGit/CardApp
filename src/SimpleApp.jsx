@@ -69,9 +69,14 @@ export default function SimpleApp() {
 
   // Cleanup on unmount
   useEffect(() => {
-    // Espone apiService per test Playwright (uso interno) evitando UI flaky per TTL
+    // Espone apiService per test Playwright solo se flag VITE_E2E === '1'
     if (typeof window !== 'undefined') {
-      window.__apiService = apiService;
+      if (import.meta?.env?.VITE_E2E === '1') {
+        window.__apiService = apiService;
+      } else if (window.__apiService) {
+        // Rimuovi se presente da build precedente
+        try { delete window.__apiService; } catch { window.__apiService = undefined; }
+      }
     }
   }, [apiService]);
 

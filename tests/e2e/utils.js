@@ -1,5 +1,12 @@
 import { expect } from '@playwright/test';
 
+export const STRICT = !!process.env.STRICT_COUPLE_ASSERT;
+export function assertStrict(condition, message) {
+  if (STRICT && !condition) {
+    throw new Error('[STRICT_COUPLE_ASSERT] ' + (message || 'assert failed'));
+  }
+}
+
 export async function connectUser(page, name) {
   await page.goto('/');
 

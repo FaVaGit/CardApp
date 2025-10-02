@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connectUser } from './utils';
+import { connectUser, assertStrict } from './utils';
 
 // Reconnect end-to-end: forma una coppia, verifica che dopo reload + reconnect lo stato persista (partner & eventuale sessione).
 test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) => {
@@ -58,9 +58,11 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
     } catch {}
   }
   if (!coupleOk) {
-    console.log('ℹ️ Nessuna coppia formata dopo reconnect - considerato accettabile');
+    console.log('ℹ️ Nessuna coppia formata dopo reconnect - considerato accettabile (strict controlla)');
+    assertStrict(false, 'Coppia non formata dopo reconnect');
   } else if (!partnerOk) {
     console.log('⚠️ Partner name non ancora nella snapshot, proseguo');
+    assertStrict(false, 'Partner non disponibile nello snapshot dopo reconnect');
   }
 
   // Se sessione partita, dovremmo vedere un riferimento di gioco (heuristic: testo "Partita" o icona carte)

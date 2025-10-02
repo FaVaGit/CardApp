@@ -63,7 +63,8 @@ Caratteristiche:
 - Assert "soft" su formazione coppia / partner name: se il backend è lento non falliscono, ma loggano un messaggio informativo.
 - Flag ambiente supportati:
    - `E2E_VERBOSE=1` abilita la stampa del frammento HTML post autenticazione.
-   - `STRICT_COUPLE_ASSERT=1` (TODO) renderebbe di nuovo obbligatorie le asserzioni sulla coppia.
+   - `STRICT_COUPLE_ASSERT=1` rende nuovamente obbligatorie le asserzioni sulla coppia/partner (usa helper `assertStrict`).
+   - `VITE_E2E=1` (build-time) abilita l'esposizione di `window.__apiService`.
 
 Esempio esecuzione verbosa:
 
