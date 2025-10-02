@@ -47,7 +47,7 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
       const auth = JSON.parse(storedAuthAfter);
       for (let i=0;i<15 && !coupleOk;i++) {
         const resp = await pageA.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${auth.userId}`);
-        let snap = null; try { snap = await resp.json(); } catch {}
+  let snap = null; try { snap = await resp.json(); } catch { /* ignore parse error */ }
         if (snap?.success && snap.status?.coupleId) {
           coupleOk = true;
           partnerOk = snap.partnerInfo?.name === 'RecB';
@@ -55,7 +55,7 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
         }
         await pageA.waitForTimeout(1000);
       }
-    } catch {}
+  } catch { /* ignore snapshot retrieval errors */ }
   }
   if (!coupleOk) {
     console.log('ℹ️ Nessuna coppia formata dopo reconnect - considerato accettabile (strict controlla)');
@@ -74,11 +74,11 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
 
   // Snapshot API validation: conferma partnerInfo e sessione se presente
   let authObj = null;
-  try { authObj = storedAuth ? JSON.parse(storedAuth) : null; } catch { /* ignore */ }
+  try { authObj = storedAuth ? JSON.parse(storedAuth) : null; } catch { /* ignore auth parse */ }
   if (authObj?.userId) {
     const snapshotResp = await pageA.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${authObj.userId}`);
     let snapJson = null;
-    try { snapJson = await snapshotResp.json(); } catch { /* ignore */ }
+  try { snapJson = await snapshotResp.json(); } catch { /* ignore snapshot parse */ }
     if (snapJson && snapJson.success) {
       if (!snapJson.status?.coupleId) {
         console.log('ℹ️ Nessuna coppia nella snapshot finale (soft)');

@@ -21,7 +21,7 @@ export async function connectUser(page, name) {
   // Nickname opzionale se campo presente
   const nicknameField = page.locator('input[label="Nickname"], input[placeholder*="Nickname"], input[name="nickname"]');
   if (await nicknameField.count()) {
-    try { await nicknameField.first().fill(name + 'Nick'); } catch {}
+    try { await nicknameField.first().fill(name + 'Nick'); } catch { /* nickname optional - ignore errors */ }
   }
   if (await page.getByTestId('password-input').count()) {
     await page.getByTestId('password-input').fill('e2e1');

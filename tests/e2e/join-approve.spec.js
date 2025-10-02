@@ -62,7 +62,7 @@ test.describe('Flusso join approvazione', () => {
     let coupleId = null;
     for (let i=0;i<20;i++) {
       const resp = await pageA.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${auth.userId}`);
-      let snap=null; try { snap = await resp.json(); } catch {}
+  let snap=null; try { snap = await resp.json(); } catch { /* ignore parse error */ }
       if (snap?.success && snap.status?.coupleId) { coupleId = snap.status.coupleId; break; }
       await pageA.waitForTimeout(1000);
     }

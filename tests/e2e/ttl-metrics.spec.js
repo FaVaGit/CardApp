@@ -42,7 +42,7 @@ test('TTL pruning incrementa metrica e persiste', async ({ browser }) => {
   await expect.poll(async () => await page.locator('text=Scaduta').count(), { timeout: 15000 }).toBeGreaterThan(0);
 
   // Verifica incremento metrica via polling su apiService
-  const afterValue = await expect.poll(async () => await page.evaluate(() => window.__apiService?.prunedJoinCount || 0), { timeout: 15000, message: 'Metric prunedJoinCount non incrementata' }).toBeGreaterThan(initialValue);
+  await expect.poll(async () => await page.evaluate(() => window.__apiService?.prunedJoinCount || 0), { timeout: 15000, message: 'Metric prunedJoinCount non incrementata' }).toBeGreaterThan(initialValue);
 
   // Reload e verifica persistenza
   await page.reload();
