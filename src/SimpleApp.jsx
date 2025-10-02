@@ -14,11 +14,13 @@ function ErrorBoundary({ children }) {
 }
 // Auth replaced with modern AuthPortal (MUI + password)
 import AuthPortal from './components/AuthPortal.jsx';
-import SimpleCardGame from './SimpleCardGame';
-import CoupleGame from './CoupleGame';
+import { Suspense, lazy } from 'react';
 import EventDrivenApiService from './EventDrivenApiService';
-import UserDirectory from './UserDirectory';
-import TTLSettings from './TTLSettings';
+// Lazy loaded heavy modules
+const SimpleCardGame = lazy(()=>import('./SimpleCardGame'));
+const CoupleGame = lazy(()=>import('./CoupleGame'));
+const UserDirectory = lazy(()=>import('./UserDirectory'));
+const TTLSettings = lazy(()=>import('./TTLSettings'));
 import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab, Button } from '@mui/material';
 import DarkModeToggle from './components/DarkModeToggle.jsx';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -74,7 +76,6 @@ export default function SimpleApp() {
   useEffect(() => {
     const handler = (payload) => {
       console.log('🎮 gameSessionStarted event ricevuto:', payload);
-      // Se non c'è un game type scelto, assumiamo Couple
       setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
       setCurrentScreen('playing');
       pushToast('Partita di coppia avviata!','success');
@@ -174,7 +175,7 @@ export default function SimpleApp() {
     setSelectedGameType(null);
   };
 
-  // Render game type selection screen
+   // Render game type selection screen
   const renderLobby = () => (
     <Box sx={{ minHeight:'100vh', background:(theme)=> theme.palette.gradient?.soft || 'linear-gradient(145deg,#fdf3f7 0%,#f3e5f5 60%)', p:3 }}>
       <AppBar position="sticky" color="primary" elevation={4} sx={{ mb:3, background:'linear-gradient(90deg,#8e24aa,#ec407a)' }}>
@@ -263,61 +264,29 @@ export default function SimpleApp() {
     </Box>
   );
 
-  // Render appropriate screen
-  switch (currentScreen) {
-    case 'auth':
-      return (
-        <ErrorBoundary>
-          <AuthPortal apiService={apiService} onAuthSuccess={handleAuthSuccess} />
-        </ErrorBoundary>
-      );
-
-    case 'lobby':
-      return <ErrorBoundary>{renderLobby()}</ErrorBoundary>;
-
-    case 'playing':
-      // Render different components based on game type
-      if (selectedGameType && selectedGameType.id === 'Couple') {
-        return (
-          <ErrorBoundary>
-            <CoupleGame
-              user={authenticatedUser}
-              apiService={apiService}
-              onExit={handleBackToLobby}
-            />
-          </ErrorBoundary>
-        );
-      } else {
-        return (
-          <ErrorBoundary>
-            <SimpleCardGame
-              user={authenticatedUser}
-              gameType={selectedGameType}
-              apiService={apiService}
-              onExit={handleBackToLobby}
-            />
-          </ErrorBoundary>
-        );
-      }
-
-    default:
-      return (
-        <div className="min-h-screen bg-red-100 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-800 mb-4">
-              ❌ Errore
-            </h1>
-            <p className="text-red-600 mb-4">
-              Schermata sconosciuta: {currentScreen}
-            </p>
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              Torna al login
-            </button>
-          </div>
-        </div>
-      );
-  }
+   return (
+     <ErrorBoundary>
+       <Suspense fallback={<div style={{ padding: 32 }}>Caricamento...</div>}>
+         {currentScreen === 'auth' && (
+           <AuthPortal apiService={apiService} onAuthSuccess={handleAuthSuccess} />
+         )}
+         {currentScreen === 'lobby' && renderLobby()}
+         {currentScreen === 'playing' && selectedGameType && selectedGameType.id === 'Couple' && (
+           <CoupleGame user={authenticatedUser} apiService={apiService} onExit={handleBackToLobby} />
+         )}
+         {currentScreen === 'playing' && selectedGameType && selectedGameType.id !== 'Couple' && (
+           <SimpleCardGame user={authenticatedUser} gameType={selectedGameType} apiService={apiService} onExit={handleBackToLobby} />
+         )}
+         {!(currentScreen === 'auth' || currentScreen === 'lobby' || currentScreen === 'playing') && (
+           <div className="min-h-screen bg-red-100 flex items-center justify-center">
+             <div className="text-center">
+               <h1 className="text-2xl font-bold text-red-800 mb-4">❌ Errore</h1>
+               <p className="text-red-600 mb-4">Schermata sconosciuta: {currentScreen}</p>
+               <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Torna al login</button>
+             </div>
+           </div>
+         )}
+       </Suspense>
+     </ErrorBoundary>
+   );
 }
