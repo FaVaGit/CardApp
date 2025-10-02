@@ -10,6 +10,7 @@ public class GameDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Couple> Couples => Set<Couple>();
     public DbSet<CoupleUser> CoupleUsers => Set<CoupleUser>();
+    public DbSet<GameSession> GameSessions => Set<GameSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +35,12 @@ public class GameDbContext : DbContext
             e.HasKey(cu => new { cu.CoupleId, cu.UserId });
             e.HasOne(cu => cu.User)
              .WithMany();
+        });
+
+        modelBuilder.Entity<GameSession>(e =>
+        {
+            e.HasKey(gs => gs.Id);
+            e.HasIndex(gs => gs.CoupleId);
         });
     }
 }
@@ -74,4 +81,12 @@ public class CoupleUser
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     public Couple Couple { get; set; } = null!;
     public User User { get; set; } = null!;
+}
+
+public class GameSession
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string CoupleId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsActive { get; set; } = true;
 }

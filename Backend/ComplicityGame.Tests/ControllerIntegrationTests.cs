@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ComplicityGame.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace ComplicityGame.Tests;
 
@@ -32,38 +33,38 @@ public class ControllerIntegrationTests : IClassFixture<WebApplicationFactory<Pr
         var client = _factory.CreateClient();
 
         // 1. Connect first user
-        var u1 = await client.PostAsJsonAsync("/api/game/connect", new { name = "Anna", gameType = "couple" });
+        var u1 = await client.PostAsJsonAsync("/api/EventDrivenGame/connect", new { name = "Anna", gameType = "couple" });
         u1.EnsureSuccessStatusCode();
-        dynamic u1Payload = await u1.Content.ReadFromJsonAsync<dynamic>();
-        string user1Id = (string)u1Payload.user.id;
-        string code1 = (string)u1Payload.user.personalCode;
+        var u1Json = await u1.Content.ReadFromJsonAsync<JsonElement>();
+        string user1Id = u1Json.GetProperty("userId").GetString()!;
+        string code1 = u1Json.GetProperty("personalCode").GetString()!;
 
         // 2. Connect second user
-        var u2 = await client.PostAsJsonAsync("/api/game/connect", new { name = "Bruno", gameType = "couple" });
+        var u2 = await client.PostAsJsonAsync("/api/EventDrivenGame/connect", new { name = "Bruno", gameType = "couple" });
         u2.EnsureSuccessStatusCode();
-        dynamic u2Payload = await u2.Content.ReadFromJsonAsync<dynamic>();
-        string user2Id = (string)u2Payload.user.id;
-        string code2 = (string)u2Payload.user.personalCode;
+        var u2Json = await u2.Content.ReadFromJsonAsync<JsonElement>();
+        string user2Id = u2Json.GetProperty("userId").GetString()!;
+        string code2 = u2Json.GetProperty("personalCode").GetString()!;
 
-        // 3. user1 richiede join verso user2 (usiamo codice di user2)
-        var rq = await client.PostAsJsonAsync("/api/game/request-join", new { requestingUserId = user1Id, targetUserCode = code2 });
+        // 3. user1 richiede join verso user2 (usiamo userId del target)
+        var rq = await client.PostAsJsonAsync("/api/EventDrivenGame/request-join", new { requestingUserId = user1Id, targetUserId = user2Id });
         rq.EnsureSuccessStatusCode();
-        dynamic rqPayload = await rq.Content.ReadFromJsonAsync<dynamic>();
-        string requestId = (string)rqPayload.request.id;
+        var rqJson = await rq.Content.ReadFromJsonAsync<JsonElement>();
+        string requestId = rqJson.GetProperty("requestId").GetString()!;
 
         // 4. user2 approva
-        var resp = await client.PostAsJsonAsync($"/api/game/respond-join/{requestId}", new { targetUserId = user2Id, approve = true });
+        var resp = await client.PostAsJsonAsync($"/api/EventDrivenGame/respond-join", new { requestId, targetUserId = user2Id, approve = true });
         resp.EnsureSuccessStatusCode();
 
         // 5. snapshot di entrambi e controlla sessionId
-        var snap1 = await client.GetAsync($"/api/game/snapshot/{user1Id}");
-        var snap2 = await client.GetAsync($"/api/game/snapshot/{user2Id}");
+        var snap1 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user1Id}");
+        var snap2 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user2Id}");
         snap1.EnsureSuccessStatusCode();
         snap2.EnsureSuccessStatusCode();
-        dynamic s1 = await snap1.Content.ReadFromJsonAsync<dynamic>();
-        dynamic s2 = await snap2.Content.ReadFromJsonAsync<dynamic>();
-        string session1 = (string?)s1?.activeGameSession?.id;
-        string session2 = (string?)s2?.activeGameSession?.id;
+        var s1Json = await snap1.Content.ReadFromJsonAsync<JsonElement>();
+        var s2Json = await snap2.Content.ReadFromJsonAsync<JsonElement>();
+        string? session1 = s1Json.TryGetProperty("gameSession", out var gs1) && gs1.ValueKind == JsonValueKind.Object && gs1.TryGetProperty("id", out var id1) ? id1.GetString() : null;
+        string? session2 = s2Json.TryGetProperty("gameSession", out var gs2) && gs2.ValueKind == JsonValueKind.Object && gs2.TryGetProperty("id", out var id2) ? id2.GetString() : null;
         Assert.False(string.IsNullOrWhiteSpace(session1));
         Assert.Equal(session1, session2);
     }
