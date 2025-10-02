@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import * as fabricNS from 'fabric';
-const fabric = fabricNS.fabric || fabricNS; // compat import
+import fabric, { loadFabric } from '../fabricShim';
 
 /** Animated subtle hearts background using Fabric.js */
 export default function CoupleBackgroundCanvas({ opacity=0.25 }) {
@@ -8,8 +7,10 @@ export default function CoupleBackgroundCanvas({ opacity=0.25 }) {
   const fabricRef = useRef(null);
 
   useEffect(()=>{
-  if(!ref.current || !fabric) return;
-  const canvas = new fabric.Canvas(ref.current, { selection:false });
+  (async () => {
+    const F = fabric || await loadFabric();
+    if(!ref.current || !F) return;
+    const canvas = new F.Canvas(ref.current, { selection:false });
     fabricRef.current = canvas;
 
     const resize = ()=>{
@@ -42,6 +43,7 @@ export default function CoupleBackgroundCanvas({ opacity=0.25 }) {
     }
 
     return ()=>{ window.removeEventListener('resize', resize); canvas.dispose(); };
+  })();
   },[opacity]);
 
   return <canvas ref={ref} style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none', filter:'blur(0.4px)' }} />;

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import * as fabricNS from 'fabric';
-const fabric = fabricNS.fabric || fabricNS; // compat per diversi bundle
+import fabric, { loadFabric } from '../fabricShim';
 
 /**
  * CanvasCardTable
@@ -102,7 +101,10 @@ export default function CanvasCardTable({ card, onReady }) {
   useEffect(() => {
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
-    const fabricCanvas = new fabric.Canvas(canvasEl, {
+    const ensure = async () => {
+      const F = fabric || await loadFabric();
+      if (!F) return;
+      const fabricCanvas = new F.Canvas(canvasEl, {
       selection: false,
       backgroundColor: '#fdf3f7'
     });
@@ -125,15 +127,18 @@ export default function CanvasCardTable({ card, onReady }) {
         renderCard(card);
       }
     };
-    resize();
-    window.addEventListener('resize', resize);
+  resize();
+  window.addEventListener('resize', resize);
 
     if (onReady) onReady({ renderCard });
 
-    return () => {
-      window.removeEventListener('resize', resize);
-      fabricCanvas.dispose();
+      return () => {
+        window.removeEventListener('resize', resize);
+        fabricCanvas.dispose();
+      };
     };
+    const cleanupPromise = ensure();
+    return () => { cleanupPromise.then(()=>{}).catch(()=>{}); };
   }, [card, onReady, renderCard]);
 
   // Re-render quando prop card cambia
