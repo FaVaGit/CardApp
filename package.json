@@ -17,7 +17,8 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "test:integration": "node scripts/run-integration-tests.mjs"
+  "test:integration": "node scripts/run-integration-tests.mjs",
+  "test:e2e:smoke": "playwright test tests/e2e/join-approve.spec.js tests/e2e/reconnect-flow.spec.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

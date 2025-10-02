@@ -1,0 +1,44 @@
+name: Weekly Security Audit
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Ogni lunedì alle 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install deps (ci fallback)
+        run: npm ci || npm install
+      - name: Run npm audit (prod)
+        id: audit_prod
+        run: |
+          npx npm@latest audit --omit=dev --json > audit-prod.json || true
+          echo "prod_report=$(jq -c .metadata.vulnerabilities audit-prod.json)" >> $GITHUB_OUTPUT
+      - name: Run npm audit (full)
+        id: audit_full
+        run: |
+          npx npm@latest audit --json > audit-full.json || true
+          echo "full_report=$(jq -c .metadata.vulnerabilities audit-full.json)" >> $GITHUB_OUTPUT
+      - name: Summarize
+        run: |
+          echo '## npm audit (production only)' >> $GITHUB_STEP_SUMMARY
+          cat audit-prod.json | jq '.metadata.vulnerabilities' >> $GITHUB_STEP_SUMMARY
+          echo '\n## npm audit (all deps)' >> $GITHUB_STEP_SUMMARY
+          cat audit-full.json | jq '.metadata.vulnerabilities' >> $GITHUB_STEP_SUMMARY
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-reports
+          path: |
+            audit-prod.json
+            audit-full.json
+          if-no-files-found: warn
