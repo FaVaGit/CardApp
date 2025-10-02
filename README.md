@@ -398,6 +398,58 @@ Uso suggerito: collegare un listener a `telemetryBatch` per invio futuro a backe
 | `coupleJoined` | `{ coupleId, partner }` | Coppia formata / approvazione |
 | `partnerUpdated` | `{ userId, name, personalCode }` | Aggiornamento/rilevazione partner |
 | `gameSessionStarted` | `{ sessionId }` | Sessione avviata |
+
+## 🧪 Flag E2E & Modalità CI
+
+Per migliorare stabilità e osservabilità dei test end‑to‑end sono stati introdotti alcuni flag ambiente:
+
+| Variabile | Scope | Effetto |
+|-----------|-------|---------|
+| `VITE_E2E=1` | Build (vite) | Espone `window.__apiService` per test Playwright (lettura metriche, set TTL) – NON usare in produzione |
+| `STRICT_COUPLE_ASSERT=1` | Runtime (Playwright) | Le asserzioni sulla formazione coppia/partner tornano hard‑fail (usa helper `assertStrict`) |
+| `E2E_VERBOSE=1` | Runtime (Playwright) | Logga snippet HTML post‑auth per debug flussi di login/registrazione |
+
+Esempi:
+```bash
+# Esecuzione completa in modalità strict e con log diagnostici
+STRICT_COUPLE_ASSERT=1 E2E_VERBOSE=1 npm run test:e2e
+
+# Costruire il frontend esponendo apiService per E2E
+VITE_E2E=1 npm run dev
+```
+
+Nel workflow CI E2E (`.github/workflows/ci-e2e.yml`) i flag NON sono abilitati di default per mantenere il comportamento standard e evitare di dipendere da API non pubbliche. Abilitare `VITE_E2E` solo se si introducono nuovi test che richiedono accesso diretto alle metriche.
+
+### Strategia Soft vs Strict
+Le asserzioni su coppia e partner sono soft per ridurre flakiness dovuta a latenze backend. Abilitare `STRICT_COUPLE_ASSERT` nelle esecuzioni locali quando si vuole intercettare regressioni early.
+
+## 🛡️ Sicurezza Dipendenze & Vulnerabilità
+
+GitHub Dependabot può mostrare vulnerabilità anche quando `npm audit` locale restituisce 0. Possibili ragioni:
+1. Database advisory GitHub aggiornato prima di quello npm.
+2. Vulnerabilità segnalate per catena transitive già patchate ma non ancora riconosciute da `npm audit`.
+3. Branch default diverso: assicurarsi che il branch `Evolution` sia sincronizzato con `main` (o viceversa) prima di confrontare.
+
+Passi consigliati quando appare un avviso remoto ma audit locale è vuoto:
+1. Apri il tab Security > Dependabot alerts su GitHub per vedere i pacchetti specifici.
+2. Confronta la versione installata (in `package-lock.json`) con la versione risolta suggerita.
+3. Esegui eventualmente:
+    ```bash
+    npm outdated
+    npm install <pacchetto>@latest --save-dev # o --save se prod
+    ```
+4. Riesegui: `npm audit` e test (`npm run test:unit` / E2E).
+
+Se l'alert riguarda un pacchetto transitive non direttamente dipendente, aggiungere un override (npm v8+) / `resolutions` (Yarn) o aprire PR upstream.
+
+Esempio override (npm >=8):
+```json
+"overrides": {
+   "minimatch": "9.0.5"
+}
+```
+
+Attualmente l'audit locale è pulito (0 vulnerabilità). Monitorare periodicamente e valutare l'attivazione di un workflow programmato (cron) per audit automatico.
 | `sessionUpdated` | `{ type:'cardDrawn', card,... }` | Carta pescata |
 | `telemetryBatch` | `{ events, at }` | Flush telemetria |
 | `partnerSyncDelay` | `{ polls, sessionId }` | Ritardo sincronizzazione partner |
