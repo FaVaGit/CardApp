@@ -59,6 +59,25 @@ Caratteristiche:
 
 ## 📁 Project Structure
 
+- `window.__apiService` esposto solo per scenari E2E (usato per impostare TTL e leggere metriche senza click UI fragili).
+- Assert "soft" su formazione coppia / partner name: se il backend è lento non falliscono, ma loggano un messaggio informativo.
+- Flag ambiente supportati:
+   - `E2E_VERBOSE=1` abilita la stampa del frammento HTML post autenticazione.
+   - `STRICT_COUPLE_ASSERT=1` (TODO) renderebbe di nuovo obbligatorie le asserzioni sulla coppia.
+
+Esempio esecuzione verbosa:
+
+```bash
+E2E_VERBOSE=1 npm run test:e2e
+```
+
+Per esecuzione silenziosa (CI):
+
+```bash
+npm run test:e2e
+```
+
+Nota: l'esposizione di `window.__apiService` è pensata unicamente per test end‑to‑end; evitare di farvi affidamento nel codice di produzione.
 ```
 CardApp/
 ├── 🎯 Core Application

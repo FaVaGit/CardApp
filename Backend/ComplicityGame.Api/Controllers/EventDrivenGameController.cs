@@ -575,11 +575,17 @@ namespace ComplicityGame.Api.Controllers
                                     // Se navigation non caricata, recupera utente direttamente
                                     if (other.User == null)
                                     {
-                                        other.User = await context.Users.FirstOrDefaultAsync(u => u.Id == other.UserId);
+                                        // For EF Core nullable navigation: assegniamo eventuale risultato; se rimane null gestito sotto
+                                        var fetchedUser = await context.Users.FirstOrDefaultAsync(u => u.Id == other.UserId);
+                                        if (fetchedUser != null)
+                                        {
+                                            other.User = fetchedUser; // safe assignment
+                                        }
                                     }
-                                    if (other.User != null)
+                                    var ou = other.User; // local var per evitare race cond su navigation
+                                    if (ou != null)
                                     {
-                                        partnerInfo = new { userId = other.User.Id, name = other.User.Name, personalCode = other.User.PersonalCode };
+                                        partnerInfo = new { userId = ou.Id, name = ou.Name, personalCode = ou.PersonalCode };
                                         _logger.LogDebug("[FallbackPartner] Ricostruito partnerInfo via query diretta per userId={UserId}", userId);
                                     }
                                 }
@@ -952,11 +958,6 @@ namespace ComplicityGame.Api.Controllers
     [HttpGet("health")]
     public IActionResult Health() => Ok(new { ok = true, time = DateTime.UtcNow });
 
-        public class ReconnectRequest
-        {
-            public string UserId { get; set; } = string.Empty;
-            public string AuthToken { get; set; } = string.Empty;
-        }
     }
 
     // Request DTOs

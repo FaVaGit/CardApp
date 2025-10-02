@@ -56,13 +56,25 @@ export default function SimpleApp() {
 
   const openInfoMenu = (e)=> setInfoAnchor(e.currentTarget);
   const closeInfoMenu = ()=> setInfoAnchor(null);
-  const openDiagnostics = (tabIndex=0)=>{ setInfoTab(tabIndex); setDrawerOpen(true); closeInfoMenu(); };
+  const openDiagnostics = (tabIndex=0)=>{ 
+    // Chiudi prima il menu per evitare che il backdrop intercetti click sul drawer
+    closeInfoMenu();
+    setInfoTab(tabIndex); 
+    setDrawerOpen(true); 
+  };
 
   // (pushToast definito sopra)
 
   console.log('🚀 SimpleApp rendering...', { currentScreen, authenticatedUser, selectedGameType });
 
   // Cleanup on unmount
+  useEffect(() => {
+    // Espone apiService per test Playwright (uso interno) evitando UI flaky per TTL
+    if (typeof window !== 'undefined') {
+      window.__apiService = apiService;
+    }
+  }, [apiService]);
+
   useEffect(() => {
     return () => {
       apiService.disconnectUser().catch(console.error);
@@ -181,7 +193,7 @@ export default function SimpleApp() {
           <Box sx={{ flexGrow:1 }} />
           <Typography variant="caption" sx={{ mr:2, fontWeight:600 }}>Codice: {authenticatedUser?.userCode}</Typography>
           <DarkModeToggle />
-          <IconButton color="inherit" size="small" onClick={openInfoMenu}><InfoOutlinedIcon/></IconButton>
+          <IconButton data-testid="info-button" color="inherit" size="small" onClick={openInfoMenu}><InfoOutlinedIcon/></IconButton>
         </Toolbar>
       </AppBar>
       <Box sx={{ maxWidth:960, mx:'auto', display:'grid', gap:3, gridTemplateColumns:{ xs:'1fr', md:'1fr 1fr' } }}>
@@ -227,16 +239,16 @@ export default function SimpleApp() {
         </Box>
       </Box>
       <Menu anchorEl={infoAnchor} open={Boolean(infoAnchor)} onClose={closeInfoMenu} keepMounted>
-        <MenuItem onClick={()=>openDiagnostics(0)}><InfoOutlinedIcon fontSize="small" style={{marginRight:8}}/> Info</MenuItem>
-        <MenuItem onClick={()=>openDiagnostics(1)}><SettingsIcon fontSize="small" style={{marginRight:8}}/> TTL / Impostazioni</MenuItem>
-        <MenuItem onClick={()=>openDiagnostics(2)}><BugReportIcon fontSize="small" style={{marginRight:8}}/> Debug</MenuItem>
-        <MenuItem onClick={()=>openDiagnostics(3)}><TerminalIcon fontSize="small" style={{marginRight:8}}/> Canvas</MenuItem>
+        <MenuItem onClick={()=>{openDiagnostics(0); closeInfoMenu();}}><InfoOutlinedIcon fontSize="small" style={{marginRight:8}}/> Info</MenuItem>
+        <MenuItem data-testid="menu-ttl" onClick={()=>{openDiagnostics(1); closeInfoMenu();}}><SettingsIcon fontSize="small" style={{marginRight:8}}/> TTL / Impostazioni</MenuItem>
+        <MenuItem onClick={()=>{openDiagnostics(2); closeInfoMenu();}}><BugReportIcon fontSize="small" style={{marginRight:8}}/> Debug</MenuItem>
+        <MenuItem onClick={()=>{openDiagnostics(3); closeInfoMenu();}}><TerminalIcon fontSize="small" style={{marginRight:8}}/> Canvas</MenuItem>
       </Menu>
-      <Drawer anchor="right" open={drawerOpen} onClose={()=>setDrawerOpen(false)}>
-        <Box sx={{ width:{ xs:300, sm:380 }, p:2 }} role="presentation">
+      <Drawer anchor="right" open={drawerOpen} onClose={()=>setDrawerOpen(false)} data-testid="diagnostics-drawer">
+        <Box sx={{ width:{ xs:300, sm:380 }, p:2 }} role="presentation" data-testid="diagnostics-content">
           <Tabs value={infoTab} onChange={(_,v)=>setInfoTab(v)} variant="scrollable" allowScrollButtonsMobile size="small" sx={{ mb:2 }}>
             <Tab label="Info" />
-            <Tab label="TTL" />
+            <Tab label="TTL" data-testid="ttl-tab" />
             <Tab label="Debug" />
             <Tab label="Canvas" />
           </Tabs>

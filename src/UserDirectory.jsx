@@ -165,7 +165,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
           <div>
             <div className="font-semibold text-blue-700 flex items-center gap-2">
               <span>Tu</span>
-              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">online</span>
+              <span data-testid="online-badge" className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">online</span>
             </div>
             <div className="text-gray-700 mt-0.5 flex flex-col">
               <span className="text-sm">{selfUser.Name || selfUser.name || 'Utente'}</span>
@@ -239,7 +239,7 @@ export default function UserDirectory({ apiService, currentUser, onSendJoin, onR
                       <button data-testid="cancel-request" onClick={() => handleCancel(uid)} className="text-[10px] bg-gray-300 hover:bg-gray-400 text-gray-700 px-2 py-1 rounded">Annulla</button>
                     )}
                     {pendingOut && isExpired && (
-                      <button onClick={() => handleSend(uid)} className="text-[10px] bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded">Riprova</button>
+                      <button data-testid="retry-request" onClick={() => handleSend(uid)} className="text-[10px] bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded">Riprova</button>
                     )}
                   </div>
                 </li>
