@@ -67,15 +67,23 @@ public class ControllerIntegrationTests : IClassFixture<WebApplicationFactory<Pr
         var resp = await client.PostAsJsonAsync($"/api/EventDrivenGame/respond-join", new { requestId, targetUserId = user2Id, approve = true });
         resp.EnsureSuccessStatusCode();
 
-        // 5. snapshot di entrambi e controlla sessionId
-        var snap1 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user1Id}");
-        var snap2 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user2Id}");
-        snap1.EnsureSuccessStatusCode();
-        snap2.EnsureSuccessStatusCode();
-        var s1Payload = await snap1.Content.ReadFromJsonAsync<SnapshotResponse>();
-        var s2Payload = await snap2.Content.ReadFromJsonAsync<SnapshotResponse>();
-        string? session1 = s1Payload?.gameSession?.id;
-        string? session2 = s2Payload?.gameSession?.id;
+        // 5. snapshot di entrambi e controlla sessionId (con polling per stabilità CI)
+        string? session1 = null;
+        string? session2 = null;
+        const int maxAttempts = 8; // ~1.6s if 200ms delay
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var snap1 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user1Id}");
+            var snap2 = await client.GetAsync($"/api/EventDrivenGame/snapshot/{user2Id}");
+            snap1.EnsureSuccessStatusCode();
+            snap2.EnsureSuccessStatusCode();
+            var s1Payload = await snap1.Content.ReadFromJsonAsync<SnapshotResponse>();
+            var s2Payload = await snap2.Content.ReadFromJsonAsync<SnapshotResponse>();
+            session1 = s1Payload?.gameSession?.id;
+            session2 = s2Payload?.gameSession?.id;
+            if (!string.IsNullOrWhiteSpace(session1) && !string.IsNullOrWhiteSpace(session2)) break;
+            await Task.Delay(200);
+        }
         Assert.False(string.IsNullOrWhiteSpace(session1));
         Assert.Equal(session1, session2);
     }
