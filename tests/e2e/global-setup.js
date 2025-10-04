@@ -28,12 +28,35 @@ async function callClearUsers() {
   });
 }
 
+async function waitForHealth(timeoutMs = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const ok = await new Promise(resolve => {
+        const req = http.request({ method: 'GET', host: 'localhost', port: BACKEND_PORT, path: '/api/health' }, res => {
+          res.resume();
+          resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.end();
+      });
+      if (ok) return true;
+    } catch { /* ignore */ }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return false;
+}
+
 /** @type {import('@playwright/test').FullConfig} */
 export default async function globalSetup() {
   const enabled = (process.env.CLEAR_USERS_ON_SETUP ?? 'true').toLowerCase() === 'true';
   if (!enabled) {
     console.log('[global-setup] CLEAR_USERS_ON_SETUP=false: skip');
     return;
+  }
+  const healthy = await waitForHealth();
+  if (!healthy) {
+    console.warn('[global-setup] backend non raggiungibile prima di clear-users, procedo comunque');
   }
   await callClearUsers();
 }

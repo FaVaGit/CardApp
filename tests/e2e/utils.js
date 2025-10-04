@@ -66,3 +66,22 @@ export async function connectUser(page, name) {
 export async function waitForRequestTag(page) {
   await expect(page.locator('text=Richiesta per te')).toBeVisible({ timeout: 10000 });
 }
+
+// Poll snapshot API until condition met (e.g., coupleId present) or timeout
+export async function pollSnapshot(page, { userId, predicate, timeoutMs = 20000, intervalMs = 500 }) {
+  const start = Date.now();
+  let last;
+  while (Date.now() - start < timeoutMs) {
+    const resp = await page.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${userId}`);
+    try { last = await resp.json(); } catch { /* ignore parse error */ }
+    if (predicate(last)) return { success: true, snapshot: last };
+    await page.waitForTimeout(intervalMs);
+  }
+  return { success: false, snapshot: last };
+}
+
+export async function waitForCouple(page, userId, { strict = false } = {}) {
+  const res = await pollSnapshot(page, { userId, predicate: s => !!s?.status?.coupleId });
+  if (!res.success && strict) throw new Error('Couple non formata entro timeout');
+  return res.snapshot?.status?.coupleId || null;
+}

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connectUser, assertStrict } from './utils';
+import { connectUser, assertStrict, waitForCouple } from './utils';
 
 // Helpers original removed; using shared utils.connectUser now
 
@@ -46,7 +46,7 @@ test.describe('Flusso join approvazione', () => {
   await expect(pageA.locator('text=In attesa')).toBeVisible({ timeout: 5000 });
 
   // Bob vede la richiesta (attendi un ciclo polling + verifica)
-  await pageB.waitForTimeout(3000); // allow backend snapshot poll to include join request
+  // Attendi richiesta in arrivo con polling robusto
   await waitForIncoming(pageB);
   const acceptBtn = pageB.getByTestId('accept-request').first();
     await acceptBtn.click();
@@ -59,13 +59,7 @@ test.describe('Flusso join approvazione', () => {
     const authJson = await pageA.evaluate(() => localStorage.getItem('complicity_auth'));
     expect(authJson).toBeTruthy();
     const auth = JSON.parse(authJson);
-    let coupleId = null;
-    for (let i=0;i<20;i++) {
-      const resp = await pageA.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${auth.userId}`);
-  let snap=null; try { snap = await resp.json(); } catch { /* ignore parse error */ }
-      if (snap?.success && snap.status?.coupleId) { coupleId = snap.status.coupleId; break; }
-      await pageA.waitForTimeout(1000);
-    }
+    const coupleId = await waitForCouple(pageA, auth.userId);
     if (!coupleId) {
       console.log('ℹ️ Nessun coupleId dopo approvazione (soft pass)');
       assertStrict(false, 'CoupleId non generato dopo approvazione join');
