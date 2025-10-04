@@ -61,7 +61,7 @@ Caratteristiche:
 
 ## 📁 Project Structure
 
-- `window.__apiService` esposto solo per scenari E2E (usato per impostare TTL e leggere metriche senza click UI fragili).
+- `window.__apiService` (singleton) esposto solo per scenari E2E quando build con `VITE_E2E=1` (TTL, metriche senza UI fragile). La precedente strumentazione multi‑istanza è stata rimossa.
 - Assert "soft" su formazione coppia / partner name: se il backend è lento non falliscono, ma loggano un messaggio informativo.
 - Flag ambiente supportati:
    - `E2E_VERBOSE=1` abilita la stampa del frammento HTML post autenticazione.
@@ -517,7 +517,7 @@ Per migliorare stabilità e osservabilità dei test end‑to‑end sono stati in
 
 | Variabile | Scope | Effetto |
 |-----------|-------|---------|
-| `VITE_E2E=1` | Build (vite) | Espone `window.__apiService` per test Playwright (lettura metriche, set TTL) – NON usare in produzione |
+| `VITE_E2E=1` | Build (vite) | Espone il singleton `window.__apiService` per test Playwright (metriche, TTL) – NON usare in produzione |
 | `STRICT_COUPLE_ASSERT=1` | Runtime (Playwright) | Le asserzioni sulla formazione coppia/partner tornano hard‑fail (usa helper `assertStrict`) |
 | `E2E_VERBOSE=1` | Runtime (Playwright) | Logga snippet HTML post‑auth per debug flussi di login/registrazione |
 

@@ -45,27 +45,24 @@ test('TTL pruning incrementa metrica e persiste', async ({ browser }) => {
   console.log('[E2E][ttl-metrics] Debug dopo send-request:', debugAfterSend);
 
   // Forza scadenza immediata tramite helper
-  await page.evaluate(()=> { try { window.__forceExpireAllOptimistic ? window.__forceExpireAllOptimistic() : (window.__forceExpireOptimistic && window.__forceExpireOptimistic()); } catch {} });
+  await page.evaluate(()=> { try { window.__forceExpireOptimistic && window.__forceExpireOptimistic(); } catch {} });
   const debugAfterForce = await page.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
   console.log('[E2E][ttl-metrics] Debug dopo forceExpire:', debugAfterForce);
   await expect.poll(async () => {
     const badge = await page.locator('text=Scaduta').count();
     if (badge > 0) return 1;
-    const aggregate = await page.evaluate(()=> window.__aggregateOptimisticState && window.__aggregateOptimisticState());
-    if (aggregate && (aggregate.metricsTotal > initialValue || aggregate.anyExpired)) return 1;
     const dbg = await page.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
     if (process.env.E2E_VERBOSE) console.log('[E2E][ttl-metrics] Poll snapshot', dbg);
-    return 0;
+    return (dbg?.outgoing||[]).some(r=>r.expired) ? 1 : 0;
   }, { timeout: 12000 }).toBeGreaterThan(0);
 
   // Verifica incremento metrica via polling su apiService
   await expect.poll(async () => {
-    const agg = await page.evaluate(()=> window.__aggregateOptimisticState && window.__aggregateOptimisticState());
-    return agg ? agg.metricsTotal : 0;
-  }, { timeout: 15000, message: 'Metric prunedJoinCount non incrementata (aggregate)' }).toBeGreaterThan(initialValue);
+    return await page.evaluate(()=> window.__apiService?.prunedJoinCount || 0);
+  }, { timeout: 15000, message: 'Metric prunedJoinCount non incrementata' }).toBeGreaterThan(initialValue);
 
   // Reload e verifica persistenza
   await page.reload();
-  const persistedAgg = await page.evaluate(()=> window.__aggregateOptimisticState && window.__aggregateOptimisticState());
-  expect(persistedAgg.metricsTotal).toBeGreaterThan(initialValue);
+  const persistedMetric = await page.evaluate(()=> window.__apiService?.prunedJoinCount || 0);
+  expect(persistedMetric).toBeGreaterThan(initialValue);
 });

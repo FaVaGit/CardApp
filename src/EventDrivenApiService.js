@@ -53,77 +53,28 @@ class EventDrivenApiService {
     this._partnerRetryActive = false; // (legacy retry, will be removed)
     this._lastUsersLogSig = null;
         // E2E test hook: optional manual prune trigger (assigned in browser context)
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && import.meta.env && import.meta.env.VITE_E2E) {
             try {
-                // Track instances for E2E diagnostics
-                if (!window.__apiServiceInstances) window.__apiServiceInstances = [];
-                this.__instanceId = 'svc-' + (window.__apiServiceInstances.length + 1) + '-' + Date.now();
-                window.__apiServiceInstances.push(this);
-                console.log('[Svc][Init] New EventDrivenApiService instance', this.__instanceId);
-                // Hook joinRequestsUpdated to log for each instance
-                this.on('joinRequestsUpdated', cache => {
-                    console.log('[Svc][JRUpdate]', this.__instanceId, { outgoing: cache.outgoing.length, incoming: cache.incoming.length });
-                });
-                if (!window.__forcePruneOptimistic) {
-                    window.__forcePruneOptimistic = () => {
-                        try { this._manualPruneRun && this._manualPruneRun(); } catch { /* ignore */ }
-                    };
-                }
-                if (!window.__forceExpireOptimistic) {
-                    window.__forceExpireOptimistic = () => {
-                        try {
-                            let changed = false;
-                            this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.map(r => {
-                                if (!r._expired) { // relax: expire any pending outgoing (even if backend already echoed)
-                                    changed = true;
-                                    this.incrementMetric('prunedJoinCount', 1);
-                                    this.emit('joinRequestExpired', { request: r, forced:true, relaxed: !r._optimistic });
-                                    return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
-                                }
-                                return r;
-                            });
-                            console.log('[E2E] __forceExpireOptimistic invoked', { changed, outgoing: this.joinRequestCache.outgoing.map(o=>({id:o.requestId, optimistic:o._optimistic, expired:o._expired})) });
-                            if (changed) this.emit('joinRequestsUpdated', this.joinRequestCache);
-                        } catch { /* ignore */ }
-                    };
-                }
-                // Expose apiService instance & debug helper for E2E introspection (idempotent)
-                // Always update pointer so tests see the active instance
+                // Minimal E2E exposure (singleton expected)
                 window.__apiService = this;
-                if (!window.__forceExpireAllOptimistic) {
-                    window.__forceExpireAllOptimistic = () => {
-                        (window.__apiServiceInstances||[]).forEach(svc => {
-                            try {
-                                let changed = false;
-                                svc.joinRequestCache.outgoing = svc.joinRequestCache.outgoing.map(r => {
-                                    if (!r._expired) {
-                                        changed = true;
-                                        svc.incrementMetric('prunedJoinCount', 1);
-                                        svc.emit('joinRequestExpired', { request: r, forced:true, multi:true });
-                                        return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
-                                    }
-                                    return r;
-                                });
-                                if (changed) svc.emit('joinRequestsUpdated', svc.joinRequestCache);
-                            } catch {/* ignore */}
+                window.__forceExpireOptimistic = () => {
+                    try {
+                        let changed = false;
+                        this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.map(r => {
+                            if (!r._expired && r._optimistic) {
+                                changed = true;
+                                this.incrementMetric('prunedJoinCount', 1);
+                                this.emit('joinRequestExpired', { request: r, forced:true });
+                                return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
+                            }
+                            return r;
                         });
-                    };
-                }
-                if (!window.__aggregateOptimisticState) {
-                    window.__aggregateOptimisticState = () => {
-                        const list = (window.__apiServiceInstances||[]).map(svc => ({ id: svc.__instanceId, userId: svc.userId, outgoing: svc.joinRequestCache.outgoing }));
-                        const totalOutgoing = list.reduce((a,b)=> a + b.outgoing.length, 0);
-                        const anyExpired = list.some(i => i.outgoing.some(r=>r._expired));
-                        const metricsTotal = (window.__apiServiceInstances||[]).reduce((acc,svc)=> acc + (svc.prunedJoinCount||0), 0);
-                        return { instances: list.map(i => ({ id: i.id, userId: i.userId, count: i.outgoing.length })), totalOutgoing, anyExpired, metricsTotal };
-                    };
-                }
+                        if (changed) this.emit('joinRequestsUpdated', this.joinRequestCache);
+                    } catch { /* ignore */ }
+                };
                 window.__debugOptimisticState = () => ({
-                    outgoing: this.joinRequestCache.outgoing.map(r=>({id:r.requestId, target:r.targetUserId, optimistic:r._optimistic, expired:r._expired, createdAt:r.createdAt, expiredAt:r.expiredAt})),
+                    outgoing: this.joinRequestCache.outgoing.map(r=>({id:r.requestId, optimistic:r._optimistic, expired:r._expired})),
                     metrics: { prunedJoinCount: this.prunedJoinCount, optimisticJoinTTL: this.optimisticJoinTTL },
-                    haveForceExpire: !!window.__forceExpireOptimistic,
-                    instances: (window.__apiServiceInstances||[]).map(i => ({ id: i.__instanceId, userId: i.userId, outgoing: i.joinRequestCache?.outgoing?.length })),
-                    aggregate: window.__aggregateOptimisticState ? window.__aggregateOptimisticState() : null,
                     timestamp: Date.now()
                 });
             } catch { /* ignore exposure errors */ }
