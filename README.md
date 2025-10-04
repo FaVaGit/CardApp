@@ -532,6 +532,15 @@ VITE_E2E=1 npm run dev
 
 Nel workflow CI E2E (`.github/workflows/ci-e2e.yml`) i flag NON sono abilitati di default per mantenere il comportamento standard e evitare di dipendere da API non pubbliche. Abilitare `VITE_E2E` solo se si introducono nuovi test che richiedono accesso diretto alle metriche.
 
+### Shortcut E2E Pulita
+Per eseguire rapidamente i test Playwright in headless partendo da un report pulito:
+
+```
+npm run test:e2e:clean
+```
+
+Questo script rimuove la cartella `playwright-report/` precedente e usa il reporter `list` per output compatto (utile in CI locale). Per il report HTML completo continua a usare `npm run test:e2e` e poi `npm run test:e2e:report`.
+
 ### Strategia Soft vs Strict
 Le asserzioni su coppia e partner sono soft per ridurre flakiness dovuta a latenze backend. Abilitare `STRICT_COUPLE_ASSERT` nelle esecuzioni locali quando si vuole intercettare regressioni early.
 
