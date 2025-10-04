@@ -13,6 +13,7 @@ export default function CanvasCardTable({ card, onReady }) {
   const currentGroupRef = useRef(null);
 
   const fabricLibRef = useRef(null);
+  const pendingCardRef = useRef(null); // memorizza carta arrivata prima del load
 
   const renderCard = useCallback((c) => {
     if (!fabricRef.current || !fabricLibRef.current) return;
@@ -87,11 +88,12 @@ export default function CanvasCardTable({ card, onReady }) {
     currentGroupRef.current = group;
 
     // composite animation: opacity, scale, angle overshoot
-  F.util.animate({
+    try {
+      F.util.animate({
       startValue: 0,
       endValue: 1,
       duration: 520,
-      easing: fabric.util.ease.easeOutCubic,
+        easing: (F.util.ease && (F.util.ease.easeOutCubic || F.util.ease.quadOut)) || (t=>t),
       onChange: v => {
         const overshoot = v < 0.7 ? (v/0.7) : (1 - (v-0.7)/0.3 * 0.4); // quick rise then slight settle
         const scale = 0.9 + overshoot * 0.12; // 0.9 -> ~1.02 -> 1.0
@@ -99,7 +101,8 @@ export default function CanvasCardTable({ card, onReady }) {
         group.set({ opacity: v, scaleX: scale, scaleY: scale, angle });
         canvas.renderAll();
       }
-    });
+      });
+    } catch { canvas.renderAll(); }
   }, []);
 
   useEffect(() => {
@@ -107,9 +110,9 @@ export default function CanvasCardTable({ card, onReady }) {
     if (!canvasEl) return;
     const ensure = async () => {
       if (fabricRef.current) return; // evita doppia init
-  const F = fabric || await loadFabric();
+      const F = fabric || await loadFabric();
       if (!F) return;
-  fabricLibRef.current = F;
+      fabricLibRef.current = F;
       const fabricCanvas = new F.Canvas(canvasEl, {
         selection: false,
         backgroundColor: '#fdf3f7'
@@ -138,6 +141,13 @@ export default function CanvasCardTable({ card, onReady }) {
 
     if (onReady) onReady({ renderCard });
 
+      // Se era arrivata una carta mentre Fabric non era pronto, renderizzala ora
+      if (pendingCardRef.current) {
+        const pc = pendingCardRef.current;
+        pendingCardRef.current = null;
+        try { renderCard(pc); } catch { /* ignore */ }
+      }
+
       return () => {
         window.removeEventListener('resize', resize);
         try {
@@ -153,8 +163,16 @@ export default function CanvasCardTable({ card, onReady }) {
 
   // Re-render quando prop card cambia
   useEffect(() => {
-    if (card) renderCard(card);
-    else renderCard(null);
+    if (!card) {
+      renderCard(null);
+      return;
+    }
+    if (!fabricRef.current || !fabricLibRef.current) {
+      // Libreria non ancora pronta: accoda
+      pendingCardRef.current = card;
+      return;
+    }
+    renderCard(card);
   }, [card, renderCard]);
 
   return (
