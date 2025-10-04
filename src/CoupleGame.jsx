@@ -1,5 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, Grid, Snackbar, Alert, Stack, Paper } from '@mui/material';
+import {
+  Box,
+  Grid,
+  Snackbar,
+  Alert,
+  Stack,
+  Paper,
+  AppBar,
+  Toolbar,
+  Typography,
+  Chip,
+  Divider,
+  List,
+  ListItem,
+  ListItemText
+} from '@mui/material';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import BugReportIcon from '@mui/icons-material/BugReport';
 import CardActionButtons from './components/CardActionButtons.jsx';
 import CanvasCardTable from './components/CanvasCardTable.jsx';
 
