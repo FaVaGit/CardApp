@@ -33,10 +33,9 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci || npm install
-      - name: Lint
-        run: npm run lint --if-present
-      - name: Unit tests
-        run: npm run test:unit --if-present
+      - name: Run consolidated verify script
+        run: |
+          if npm run | grep -q "verify"; then npm run verify; else echo "No verify script found"; fi
       - name: Setup .NET (backend for smoke tests)
         uses: actions/setup-dotnet@v4
         with:

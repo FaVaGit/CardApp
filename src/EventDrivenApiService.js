@@ -1,5 +1,6 @@
 // Event-Driven API Service for the new RabbitMQ architecture
 import { API_BASE } from './apiConfig';
+import logger from './utils/logger.js';
 
 // Centralizzazione endpoint per evitare typo e facilitare refactor
 const ENDPOINTS = Object.freeze({
@@ -296,55 +297,44 @@ class EventDrivenApiService {
                     return respond({ success: false, error: 'session not found' });
                 }
             } catch (mockErr) {
-                if (!suppressErrorLog) console.warn('Test mock handler error:', mockErr);
+                if (!suppressErrorLog) logger.warn('Test mock handler error:', mockErr);
                 return { success: false, error: mockErr.message };
             }
         }
 
+        // ==== Real network path ====
         try {
             const response = await fetch(url, fetchOptions);
             let data;
-            const canJson = response && typeof response.json === 'function';
-            const canText = response && typeof response.text === 'function';
-            // Più tollerante: se esiste json() proviamo comunque a usarlo anche senza content-type
-            if (canJson) {
+            const contentType = (response.headers && response.headers.get) ? (response.headers.get('content-type') || '') : '';
+            if (contentType.includes('application/json')) {
                 try {
                     data = await response.json();
                 } catch (parseErr) {
-                    // Fallback a text se disponibile
-                    if (canText) {
-                        try {
-                            const raw = await response.text();
-                            if (raw && raw.trim().startsWith('{')) {
-                                try { data = JSON.parse(raw); } catch { data = { raw }; }
-                            } else {
-                                data = { raw };
-                            }
-                        } catch {
-                            console.error('JSON + text parse failure', parseErr);
-                            throw new Error('Invalid JSON response');
-                        }
-                    } else {
-                        console.error('JSON parse error', parseErr);
-                        throw new Error('Invalid JSON response');
-                    }
-                }
-            } else if (canText) {
-                data = await response.text();
-                if (typeof data === 'string' && data.trim().startsWith('{')) {
-                    try { data = JSON.parse(data); } catch { /* ignore */ }
+                    if (!suppressErrorLog) logger.error('JSON parse error', parseErr);
+                    throw new Error('Invalid JSON response');
                 }
             } else {
-                data = { success: false, note: 'Mock response without body readers' };
+                // Fallback: attempt text then JSON parse
+                try {
+                    const raw = await response.text();
+                    if (raw && raw.trim().length) {
+                        try { data = JSON.parse(raw); } catch { data = { raw }; }
+                    } else {
+                        data = {};
+                    }
+                } catch (e) {
+                    data = {};
+                }
             }
             if (!response.ok) {
-                const errMsg = typeof data === 'object' && data?.error ? data.error : `HTTP ${response.status}`;
+                const errMsg = (data && typeof data === 'object' && data.error) ? data.error : `HTTP ${response.status}`;
                 throw new Error(errMsg);
             }
             return data;
         } catch (error) {
             if (!suppressErrorLog) {
-                console.error(`API call failed: ${method} ${endpoint} -> ${error.message}`);
+                logger.error(`API call failed: ${method} ${endpoint} -> ${error.message}`);
             }
             throw error;
         }
@@ -363,10 +353,8 @@ class EventDrivenApiService {
             this.userId = normalizedStatus.userId;
             this.connectionId = normalizedStatus.connectionId;
             this.authToken = response.authToken || null;
-            console.log('✅ User connected:', response.status);
-            
-            // Debug connection response data
-            console.log('📋 Connect response:', {
+            logger.info('User connected', response.status);
+            logger.debug('Connect response', {
                 userId: response.status.userId,
                 personalCode: response.personalCode,
                 name: name
@@ -448,10 +436,10 @@ class EventDrivenApiService {
         }
         try {
             await this.apiCall(ENDPOINTS.DISCONNECT, 'POST', { connectionId: this.connectionId });
-            console.log('👤 Disconnected user connectionId=', this.connectionId);
+            logger.info('Disconnected user', { connectionId: this.connectionId });
         } catch (e) {
             // Non-fatal – we still clear local state
-            console.warn('Disconnect warning:', e.message);
+            logger.warn('Disconnect warning:', e.message);
         } finally {
             this.stopEventPolling();
             this.connectionId = null;
@@ -486,7 +474,7 @@ class EventDrivenApiService {
         if ((out.length === 0) && (optimisticExisting.length || (nowMs - this._lastOptimisticAddedAt) < 2000)) {
             // Preserve existing optimistic/expired entries
             out = this.joinRequestCache.outgoing;
-            console.log('[Join][Preserve] listUsersWithRequests kept optimistic entries');
+            logger.debug('[Join][Preserve] listUsersWithRequests kept optimistic entries');
         }
         // If backend echoes them back (with ids) remove _optimistic flag
         if (out.length > 0) {
@@ -497,7 +485,7 @@ class EventDrivenApiService {
             this.joinRequestCache = { incoming: inc, outgoing: out };
             this.emit('joinRequestsUpdated', this.joinRequestCache);
         }
-    } catch (e) { console.warn('[Join] preserve logic error (non fatale)', e.message); }
+    } catch (e) { logger.warn('[Join] preserve logic error (non fatale)', e.message); }
     return merged;
     }
 
@@ -508,7 +496,7 @@ class EventDrivenApiService {
             if (!token) throw new Error('No auth token available');
             await this.apiCall(ENDPOINTS.LOGOUT, 'POST', { userId: this.userId, authToken: token });
         } catch (e) {
-            console.warn('Logout warning:', e.message);
+            logger.warn('Logout warning:', e.message);
         } finally {
             this.stopEventPolling();
             this.userId = null;
@@ -530,14 +518,14 @@ class EventDrivenApiService {
         });
 
         if (response.success) {
-            console.log('✅ Joined couple:', response.couple);
+            logger.info('Joined couple', response.couple);
             
             // The backend will publish RabbitMQ events for couple creation
             // Our polling mechanism will detect these changes
             
             // Check if game auto-started
             if (response.gameSession) {
-                console.log('🎮 Game auto-started:', response.gameSession);
+                logger.info('Game auto-started', response.gameSession);
             }
             
             return response;
@@ -550,7 +538,7 @@ class EventDrivenApiService {
     async startGame(coupleId) {
     const response = await this.apiCall(ENDPOINTS.START_GAME, 'POST', { coupleId });
         if (response.success) {
-            console.log('🎮 Game started:', response.gameSession);
+            logger.info('Game started', response.gameSession);
             return response.gameSession;
         }
         throw new Error('Failed to start game');
@@ -636,7 +624,7 @@ class EventDrivenApiService {
         const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
         const optimisticRecord = { requestId: tempId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString(), _optimistic: true };
     this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, optimisticRecord];
-    console.log('[Join] Added optimistic outgoing request', { id: optimisticRecord.requestId, target: targetUserId });
+    logger.debug('[Join] Added optimistic outgoing request', { id: optimisticRecord.requestId, target: targetUserId });
     this._lastOptimisticAddedAt = Date.now();
         this.emit('joinRequestsUpdated', this.joinRequestCache);
         try {
@@ -729,22 +717,22 @@ class EventDrivenApiService {
     startEventPolling() {
         if (this.pollingInterval) clearInterval(this.pollingInterval);
         this.pollingInterval = setInterval(() => {
-            this.pollForUpdates().catch(err => console.error('❌ Error polling for updates:', err));
+            this.pollForUpdates().catch(err => logger.error('Error polling for updates', err));
         }, this.pollingFrequency);
     // start telemetry flush timer
     if (!this.telemetryTimer) {
         this.telemetryTimer = setInterval(() => this.flushTelemetry(), this.telemetryFlushIntervalMs);
     }
-        console.log('🔄 Started event polling for RabbitMQ updates');
+    logger.info('Started event polling');
     // Perform an immediate poll so UI updates without initial delay
-    this.pollForUpdates().catch(err => console.warn('Initial poll error:', err));
+    this.pollForUpdates().catch(err => logger.warn('Initial poll error', err));
     }
 
     stopEventPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
-            console.log('⏹️ Stopped event polling');
+            logger.info('Stopped event polling');
         }
         if (this.telemetryTimer) {
             clearInterval(this.telemetryTimer);
@@ -788,13 +776,13 @@ class EventDrivenApiService {
                     if (snap.users) {
                         const sig = JSON.stringify(snap.users.map(u => [u.id||u.Id, u.personalCode||u.PersonalCode]));
                         if (sig !== this._lastUsersLogSig) {
-                            console.log('📡 Utenti ricevuti:', snap.users);
+                            logger.debug('Utenti ricevuti snapshot', snap.users);
                             this._lastUsersLogSig = sig;
                         }
                     }
                     // Debug: se prima non avevamo partner/sessione e ancora mancano, log grezzo (temporaneo)
                     if (!debugBefore.havePartner && !partnerInfo && !snap.partnerInfo && (status?.coupleId || status?.CoupleId)) {
-                        console.warn('[Diag] partnerInfo ancora assente dopo snapshot completa:', { status, gameSession: snap.gameSession, events: snap.events });
+                        logger.debug('[Diag] partnerInfo ancora assente dopo snapshot completa', { status, gameSession: snap.gameSession, events: snap.events });
                     }
                     
                     // Users delta
@@ -859,13 +847,13 @@ class EventDrivenApiService {
                         this.joinRequestCache = { incoming: inc, outgoing: out };
                         this.emit('joinRequestsUpdated', this.joinRequestCache);
                         if (snap.users) {
-                            console.log('🔄 Re-emitting usersUpdated after join requests change:', snap.users);
+                            logger.debug('Re-emitting usersUpdated after join requests change', snap.users);
                             this.emit('usersUpdated', { users: snap.users, outbound: out, inbound: inc, outgoing: out, incoming: inc });
                         }
                     }
                 }
             } catch (err) {
-                console.error('❌ Error in pollForUpdates snapshot:', err);
+                logger.error('Error in pollForUpdates snapshot', err);
             }
             if (!usedSnapshot) {
                 const resp = await this.apiCall(ENDPOINTS.USER_STATUS(this.userId));
@@ -929,7 +917,7 @@ class EventDrivenApiService {
             if (this.sessionId && !partnerInfo && !this.lastKnownPartner) {
                 this._partnerSyncPolls++;
                 if (this._partnerSyncPolls === 3) { // ~6 secondi con polling 2s
-                    console.warn('[Diag] partnerInfo ancora mancante dopo 3 poll dalla sessione');
+                    logger.warn('PartnerInfo ancora mancante dopo 3 poll dalla sessione');
                     this.emit('partnerSyncDelay', { polls: this._partnerSyncPolls, sessionId: this.sessionId });
                 }
             } else if (partnerInfo || this.lastKnownPartner) {
@@ -945,13 +933,13 @@ class EventDrivenApiService {
                         try {
                             const cardData = JSON.parse(latest.cardData);
                             this.emit('sessionUpdated', { type: 'cardDrawn', card: cardData, drawnBy: latest.sharedById, timestamp: latest.sharedAt });
-                        } catch (e) { console.error('Error parsing shared card data:', e); }
+                        } catch (e) { logger.error('Error parsing shared card data', e); }
                     }
                 }
             }
             this.lastKnownStatus = status;
         } catch (error) {
-            if (error.message !== 'Failed to get user status') console.warn('⚠️ Polling error:', error);
+            if (error.message !== 'Failed to get user status') logger.warn('Polling error', error);
         }
     }
 
@@ -983,7 +971,7 @@ class EventDrivenApiService {
                 try {
                     handler(...args);
                 } catch (error) {
-                    console.error(`❌ Error in event handler for ${event}:`, error);
+                    logger.error(`Error in event handler for ${event}`, error);
                 }
             });
         }
@@ -1009,7 +997,7 @@ class EventDrivenApiService {
             this.userId = null; this.connectionId = null; this.sessionId = null; this.authToken = null; this.lastKnownStatus = null; this.lastKnownPartner = null; this.lastKnownCardCount = 0;
             return { success: true };
         } catch (e) {
-            console.error('Admin purgeAllUsers error:', e.message);
+            logger.error('Admin purgeAllUsers error', e.message);
             return { success: false, error: e.message };
         }
     }

@@ -544,38 +544,55 @@ Questo script rimuove la cartella `playwright-report/` precedente e usa il repor
 ### Strategia Soft vs Strict
 Le asserzioni su coppia e partner sono soft per ridurre flakiness dovuta a latenze backend. Abilitare `STRICT_COUPLE_ASSERT` nelle esecuzioni locali quando si vuole intercettare regressioni early.
 
-## 🛡️ Sicurezza Dipendenze & Vulnerabilità
+## 🪵 Logging Configurabile (DEBUG_API)
 
-GitHub Dependabot può mostrare vulnerabilità anche quando `npm audit` locale restituisce 0. Possibili ragioni:
-1. Database advisory GitHub aggiornato prima di quello npm.
-2. Vulnerabilità segnalate per catena transitive già patchate ma non ancora riconosciute da `npm audit`.
-3. Branch default diverso: assicurarsi che il branch `Evolution` sia sincronizzato con `main` (o viceversa) prima di confrontare.
+Per ridurre il rumore in console durante l'uso normale, i log dettagliati dell'`EventDrivenApiService` ora passano tramite `src/utils/logger.js`.
 
-Passi consigliati quando appare un avviso remoto ma audit locale è vuoto:
-1. Apri il tab Security > Dependabot alerts su GitHub per vedere i pacchetti specifici.
-2. Confronta la versione installata (in `package-lock.json`) con la versione risolta suggerita.
-3. Esegui eventualmente:
-    ```bash
-    npm outdated
-    npm install <pacchetto>@latest --save-dev # o --save se prod
-    ```
-4. Riesegui: `npm audit` e test (`npm run test:unit` / E2E).
+Livelli disponibili:
+- `logger.debug` (mostrato solo se abilitato)
+- `logger.info`
+- `logger.warn`
+- `logger.error`
 
-Se l'alert riguarda un pacchetto transitive non direttamente dipendente, aggiungere un override (npm v8+) / `resolutions` (Yarn) o aprire PR upstream.
+Abilitazione debug (tutti i log):
+```bash
+# Solo runtime (vite):
+DEBUG_API=1 npm run dev
+# Oppure build-time + runtime
+VITE_DEBUG_API=1 npm run dev
+```
+Nota: `VITE_DEBUG_API` viene iniettata nel bundle, mentre `DEBUG_API` è letta a runtime (utile nei test).
 
-Esempio override (npm >=8):
-```json
-"overrides": {
-   "minimatch": "9.0.5"
-}
+## 🧪 Helper Playwright (`tests/e2e/lib/serviceHelpers.js`)
+Con `VITE_E2E=1` il singleton `window.__apiService` viene esposto solo in ambiente di test. Gli helper forniscono astrazioni stabili:
+
+| Helper | Scopo |
+|--------|-------|
+| `getJoinMetrics(page)` | Ritorna metriche TTL join |
+| `forceExpireOptimistic(page)` | Forza expire richieste ottimistiche |
+| `setOptimisticTTL(page, ms)` | Modifica TTL locale per test |
+| `drawCard(page)` | Esegue una `drawCard` sulla sessione corrente |
+| `waitForCardDrawEvent(page,{timeoutMs})` | Attende evento `sessionUpdated` tipo `cardDrawn` |
+| `getClientState(page)` | Snapshot rapido dello stato client |
+
+Esempio uso in test:
+```js
+import { drawCard, waitForCardDrawEvent } from './lib/serviceHelpers';
+const p = waitForCardDrawEvent(page);
+await drawCard(page);
+const evt = await p;
+expect(evt.success).toBeTruthy();
 ```
 
-Attualmente l'audit locale è pulito (0 vulnerabilità). Monitorare periodicamente e valutare l'attivazione di un workflow programmato (cron) per audit automatico.
-| `sessionUpdated` | `{ type:'cardDrawn', card,... }` | Carta pescata |
-| `telemetryBatch` | `{ events, at }` | Flush telemetria |
-| `partnerSyncDelay` | `{ polls, sessionId }` | Ritardo sincronizzazione partner |
+## 🔥 Card Draw Smoke Test
+File: `tests/e2e/card-draw-smoke.spec.js`
+Verifica rapidamente:
+1. Due utenti si collegano
+2. Formano coppia usando personal code
+3. Sessione disponibile
+4. Pesca carta → evento `sessionUpdated` ricevuto
 
-Documentazione dettagliata: vedi `docs/FRONTEND_EVENTS.md`.
+Questo test viene eseguito nello step Smoke del workflow `verify`.
 
 ## 🧾 File Aggiuntivi Consigliati
 Creare (o verificare) i seguenti file per approfondimenti:
