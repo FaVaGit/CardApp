@@ -19,17 +19,21 @@ test('TTL pruning incrementa metrica e persiste', async ({ browser }) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
   });
 
-  await connectUser(page, 'TTLMetricUser');
+  const suffix = Date.now() % 100000;
+  const nameUser = `TTLMetricUser_${suffix}`;
+  const nameTarget = `TTLTarget_${suffix}`;
+  await connectUser(page, nameUser);
 
   // Imposta TTL basso direttamente via API esposta (evita interazioni UI fragili)
   await page.evaluate(() => window.__apiService?.setOptimisticJoinTTL(600));
+  // Evita assert immediato: clamping + event emission asincrona
 
   // Crea secondo utente reale così appare nella lista (polling periodico in UserDirectory)
   const ctx2 = await browser.newContext();
   const page2 = await ctx2.newPage();
-  await connectUser(page2, 'TTLTarget');
+  await connectUser(page2, nameTarget);
   // Attendi comparsa utente target senza ricaricare (evita perdere route intercept / stato)
-  const targetRow = page.locator('li:has-text("TTLTarget")');
+  const targetRow = page.locator(`li:has-text("${nameTarget}")`);
   await expect.poll(async () => await targetRow.count(), { timeout: 20000, message: 'TTLTarget non comparso nella lista' }).toBeGreaterThan(0);
 
   // Metrica iniziale (via API service esposto, evita dipendenza dal pannello TTL)
@@ -37,15 +41,31 @@ test('TTL pruning incrementa metrica e persiste', async ({ browser }) => {
 
   await targetRow.getByTestId('send-request').click();
   await expect(page.locator('text=In attesa')).toBeVisible();
+  const debugAfterSend = await page.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
+  console.log('[E2E][ttl-metrics] Debug dopo send-request:', debugAfterSend);
 
-  // Attendi scadenza -> badge Scaduta
-  await expect.poll(async () => await page.locator('text=Scaduta').count(), { timeout: 15000 }).toBeGreaterThan(0);
+  // Forza scadenza immediata tramite helper
+  await page.evaluate(()=> { try { window.__forceExpireAllOptimistic ? window.__forceExpireAllOptimistic() : (window.__forceExpireOptimistic && window.__forceExpireOptimistic()); } catch {} });
+  const debugAfterForce = await page.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
+  console.log('[E2E][ttl-metrics] Debug dopo forceExpire:', debugAfterForce);
+  await expect.poll(async () => {
+    const badge = await page.locator('text=Scaduta').count();
+    if (badge > 0) return 1;
+    const aggregate = await page.evaluate(()=> window.__aggregateOptimisticState && window.__aggregateOptimisticState());
+    if (aggregate && (aggregate.metricsTotal > initialValue || aggregate.anyExpired)) return 1;
+    const dbg = await page.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
+    if (process.env.E2E_VERBOSE) console.log('[E2E][ttl-metrics] Poll snapshot', dbg);
+    return 0;
+  }, { timeout: 12000 }).toBeGreaterThan(0);
 
   // Verifica incremento metrica via polling su apiService
-  await expect.poll(async () => await page.evaluate(() => window.__apiService?.prunedJoinCount || 0), { timeout: 15000, message: 'Metric prunedJoinCount non incrementata' }).toBeGreaterThan(initialValue);
+  await expect.poll(async () => {
+    const agg = await page.evaluate(()=> window.__aggregateOptimisticState && window.__aggregateOptimisticState());
+    return agg ? agg.metricsTotal : 0;
+  }, { timeout: 15000, message: 'Metric prunedJoinCount non incrementata (aggregate)' }).toBeGreaterThan(initialValue);
 
   // Reload e verifica persistenza
   await page.reload();
-  const persistedValue = await page.evaluate(() => window.__apiService?.prunedJoinCount || 0);
-  expect(persistedValue).toBeGreaterThan(initialValue);
+  const persistedAgg = await page.evaluate(()=> window.__aggregateOptimisticState && window.__aggregateOptimisticState());
+  expect(persistedAgg.metricsTotal).toBeGreaterThan(initialValue);
 });

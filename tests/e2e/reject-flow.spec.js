@@ -18,19 +18,21 @@ test('Flusso rifiuto: richiesta rimossa e nessuna coppia', async ({ browser }) =
   const pageB = await ctxB.newPage();
 
   // Global setup già esegue eventuale clear-users
+  const suffix = Date.now() % 100000; // riduce collisioni cross-run
+  const userA = `RaffaE2E_${suffix}`;
+  const userB = `LiaE2E_${suffix}`;
 
-  await connectUser(pageA, 'RaffaE2E');
-  await connectUser(pageB, 'LiaE2E');
+  await connectUser(pageA, userA);
+  await connectUser(pageB, userB);
 
-  // A manda richiesta mirata per LiaE2E (almeno 1 altro utente)
+  // A manda richiesta mirata per B (almeno 1 altro utente)
   await expect.poll(async () => await pageA.locator('li[class*="p-3"]').count()).toBeGreaterThan(0);
-  const liaRow = pageA.locator('li:has-text("LiaE2E")');
+  const liaRow = pageA.locator(`li:has-text("${userB}")`);
   await expect(liaRow).toBeVisible();
   await liaRow.getByTestId('send-request').click();
   await expect(pageA.locator('text=In attesa')).toBeVisible({ timeout: 5000 });
 
   // B vede richiesta e rifiuta (attendi ciclo polling)
-  await pageB.waitForTimeout(3000);
   await waitForIncoming(pageB);
   await pageB.getByTestId('reject-request').click();
 

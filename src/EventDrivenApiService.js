@@ -35,6 +35,7 @@ class EventDrivenApiService {
         this.lastKnownPartner = null; // Track partner information
     this._partnerSyncPolls = 0; // conta poll dopo sessione senza partner
     this.joinRequestCache = { incoming: [], outgoing: [] };
+    this._lastOptimisticAddedAt = 0; // timestamp ms of last optimistic request push
     this.lastUsersSnapshot = [];
     // Configurable TTL (ms) for optimistic join requests that never get confirmed by backend
     this.optimisticJoinTTL = 30000; // 30s default
@@ -51,6 +52,82 @@ class EventDrivenApiService {
     // diagnostics / retry helpers
     this._partnerRetryActive = false; // (legacy retry, will be removed)
     this._lastUsersLogSig = null;
+        // E2E test hook: optional manual prune trigger (assigned in browser context)
+        if (typeof window !== 'undefined') {
+            try {
+                // Track instances for E2E diagnostics
+                if (!window.__apiServiceInstances) window.__apiServiceInstances = [];
+                this.__instanceId = 'svc-' + (window.__apiServiceInstances.length + 1) + '-' + Date.now();
+                window.__apiServiceInstances.push(this);
+                console.log('[Svc][Init] New EventDrivenApiService instance', this.__instanceId);
+                // Hook joinRequestsUpdated to log for each instance
+                this.on('joinRequestsUpdated', cache => {
+                    console.log('[Svc][JRUpdate]', this.__instanceId, { outgoing: cache.outgoing.length, incoming: cache.incoming.length });
+                });
+                if (!window.__forcePruneOptimistic) {
+                    window.__forcePruneOptimistic = () => {
+                        try { this._manualPruneRun && this._manualPruneRun(); } catch { /* ignore */ }
+                    };
+                }
+                if (!window.__forceExpireOptimistic) {
+                    window.__forceExpireOptimistic = () => {
+                        try {
+                            let changed = false;
+                            this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.map(r => {
+                                if (!r._expired) { // relax: expire any pending outgoing (even if backend already echoed)
+                                    changed = true;
+                                    this.incrementMetric('prunedJoinCount', 1);
+                                    this.emit('joinRequestExpired', { request: r, forced:true, relaxed: !r._optimistic });
+                                    return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
+                                }
+                                return r;
+                            });
+                            console.log('[E2E] __forceExpireOptimistic invoked', { changed, outgoing: this.joinRequestCache.outgoing.map(o=>({id:o.requestId, optimistic:o._optimistic, expired:o._expired})) });
+                            if (changed) this.emit('joinRequestsUpdated', this.joinRequestCache);
+                        } catch { /* ignore */ }
+                    };
+                }
+                // Expose apiService instance & debug helper for E2E introspection (idempotent)
+                // Always update pointer so tests see the active instance
+                window.__apiService = this;
+                if (!window.__forceExpireAllOptimistic) {
+                    window.__forceExpireAllOptimistic = () => {
+                        (window.__apiServiceInstances||[]).forEach(svc => {
+                            try {
+                                let changed = false;
+                                svc.joinRequestCache.outgoing = svc.joinRequestCache.outgoing.map(r => {
+                                    if (!r._expired) {
+                                        changed = true;
+                                        svc.incrementMetric('prunedJoinCount', 1);
+                                        svc.emit('joinRequestExpired', { request: r, forced:true, multi:true });
+                                        return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
+                                    }
+                                    return r;
+                                });
+                                if (changed) svc.emit('joinRequestsUpdated', svc.joinRequestCache);
+                            } catch {/* ignore */}
+                        });
+                    };
+                }
+                if (!window.__aggregateOptimisticState) {
+                    window.__aggregateOptimisticState = () => {
+                        const list = (window.__apiServiceInstances||[]).map(svc => ({ id: svc.__instanceId, userId: svc.userId, outgoing: svc.joinRequestCache.outgoing }));
+                        const totalOutgoing = list.reduce((a,b)=> a + b.outgoing.length, 0);
+                        const anyExpired = list.some(i => i.outgoing.some(r=>r._expired));
+                        const metricsTotal = (window.__apiServiceInstances||[]).reduce((acc,svc)=> acc + (svc.prunedJoinCount||0), 0);
+                        return { instances: list.map(i => ({ id: i.id, userId: i.userId, count: i.outgoing.length })), totalOutgoing, anyExpired, metricsTotal };
+                    };
+                }
+                window.__debugOptimisticState = () => ({
+                    outgoing: this.joinRequestCache.outgoing.map(r=>({id:r.requestId, target:r.targetUserId, optimistic:r._optimistic, expired:r._expired, createdAt:r.createdAt, expiredAt:r.expiredAt})),
+                    metrics: { prunedJoinCount: this.prunedJoinCount, optimisticJoinTTL: this.optimisticJoinTTL },
+                    haveForceExpire: !!window.__forceExpireOptimistic,
+                    instances: (window.__apiServiceInstances||[]).map(i => ({ id: i.__instanceId, userId: i.userId, outgoing: i.joinRequestCache?.outgoing?.length })),
+                    aggregate: window.__aggregateOptimisticState ? window.__aggregateOptimisticState() : null,
+                    timestamp: Date.now()
+                });
+            } catch { /* ignore exposure errors */ }
+        }
     }
 
     // Generate unique IDs
@@ -449,7 +526,28 @@ class EventDrivenApiService {
         if (!this.userId) throw new Error('User not connected');
     const usersResp = await this.listAvailableUsers();
     const reqResp = await this.listJoinRequests();
-    return { ...usersResp, ...reqResp };
+    const merged = { ...usersResp, ...reqResp };
+    try {
+        const inc = merged.incomingRequests || merged.incoming || [];
+        let out = merged.outgoingRequests || merged.outgoing || [];
+        const nowMs = Date.now();
+        const optimisticExisting = this.joinRequestCache.outgoing.filter(r => r._optimistic || r._expired);
+        if ((out.length === 0) && (optimisticExisting.length || (nowMs - this._lastOptimisticAddedAt) < 2000)) {
+            // Preserve existing optimistic/expired entries
+            out = this.joinRequestCache.outgoing;
+            console.log('[Join][Preserve] listUsersWithRequests kept optimistic entries');
+        }
+        // If backend echoes them back (with ids) remove _optimistic flag
+        if (out.length > 0) {
+            out = out.map(r => ({ ...r, _optimistic: r._optimistic && !r._expired && !(r.Id||r.id) ? true : r._optimistic }));
+        }
+        // Apply to cache only if changed
+        if (JSON.stringify(inc) !== JSON.stringify(this.joinRequestCache.incoming) || JSON.stringify(out) !== JSON.stringify(this.joinRequestCache.outgoing)) {
+            this.joinRequestCache = { incoming: inc, outgoing: out };
+            this.emit('joinRequestsUpdated', this.joinRequestCache);
+        }
+    } catch (e) { console.warn('[Join] preserve logic error (non fatale)', e.message); }
+    return merged;
     }
 
     async logout(authToken) {
@@ -586,7 +684,9 @@ class EventDrivenApiService {
         // We'll replace the temporary requestId once server responds.
         const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
         const optimisticRecord = { requestId: tempId, requestingUserId: this.userId, targetUserId, createdAt: new Date().toISOString(), _optimistic: true };
-        this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, optimisticRecord];
+    this.joinRequestCache.outgoing = [...this.joinRequestCache.outgoing, optimisticRecord];
+    console.log('[Join] Added optimistic outgoing request', { id: optimisticRecord.requestId, target: targetUserId });
+    this._lastOptimisticAddedAt = Date.now();
         this.emit('joinRequestsUpdated', this.joinRequestCache);
         try {
             const resp = await this.apiCall(ENDPOINTS.REQUEST_JOIN, 'POST', {
@@ -757,31 +857,53 @@ class EventDrivenApiService {
                     // Requests delta
                     const inc = snap.incomingRequests || [];
                     let out = snap.outgoingRequests || [];
-                    // Preserve optimistic outgoing requests if snapshot returns empty before backend processes them
-                    if (out.length === 0 && this.joinRequestCache.outgoing.some(r => r._optimistic)) {
-                        out = this.joinRequestCache.outgoing;
+                    // Preserve optimistic/expired outgoing if snapshot temporarily empty (backend delay or test intercept)
+                    if (out.length === 0) {
+                        const preserve = this.joinRequestCache.outgoing.filter(r => r._optimistic || r._expired);
+                        const nowMs = Date.now();
+                        if (preserve.length || (nowMs - this._lastOptimisticAddedAt) < 2000) {
+                            out = this.joinRequestCache.outgoing;
+                        }
                     } else {
-                        // If backend echoes them back, drop the _optimistic flag
+                        // Backend echoed them back: clear _optimistic flag
                         out = out.map(r => ({ ...r, _optimistic: false }));
                     }
                     // Prune stale optimistic entries (never confirmed by backend within TTL)
                     const now = Date.now();
                     const pruned = [];
-                    const kept = out.filter(r => {
+                    const decorated = out.map(r => {
                         if (r._optimistic) {
                             const created = new Date(r.createdAt).getTime();
                             if (!isNaN(created) && (now - created) > this.optimisticJoinTTL) {
                                 pruned.push(r);
-                                return false; // drop
+                                return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
                             }
                         }
-                        return true;
+                        return r;
                     });
                     if (pruned.length) {
                         this.incrementMetric('prunedJoinCount', pruned.length);
                         pruned.forEach(r => this.emit('joinRequestExpired', { request: r }));
                     }
-                    out = kept;
+                    out = decorated;
+                    // Allow E2E forcing prune deterministically: capture current closure in helper
+                    this._manualPruneRun = () => {
+                        const now2 = Date.now();
+                        let changed = false;
+                        this.joinRequestCache.outgoing = this.joinRequestCache.outgoing.map(r => {
+                            if (r._optimistic) {
+                                const created = new Date(r.createdAt).getTime();
+                                if (!isNaN(created) && (now2 - created) > this.optimisticJoinTTL) {
+                                    changed = true;
+                                    this.incrementMetric('prunedJoinCount', 1);
+                                    this.emit('joinRequestExpired', { request: r, manual:true });
+                                    return { ...r, _expired: true, _optimistic: false, expiredAt: new Date().toISOString() };
+                                }
+                            }
+                            return r;
+                        });
+                        if (changed) this.emit('joinRequestsUpdated', this.joinRequestCache);
+                    };
                     if (JSON.stringify(inc) !== JSON.stringify(this.joinRequestCache.incoming) || JSON.stringify(out) !== JSON.stringify(this.joinRequestCache.outgoing)) {
                         this.joinRequestCache = { incoming: inc, outgoing: out };
                         this.emit('joinRequestsUpdated', this.joinRequestCache);

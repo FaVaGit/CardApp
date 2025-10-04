@@ -247,6 +247,116 @@ Sono stati introdotti `data-testid` in `UserDirectory.jsx` per ridurre la fragil
 - `GET  /api/admin/cards-status` - Stato deck carte
 - `GET  /api/health` - Health check
 
+### 📘 Dettaglio Backend API (Esempi JSON)
+
+#### 1. Connect
+Request:
+```json
+POST /api/EventDrivenGame/connect
+{ "name": "Anna", "gameType": "couple" }
+```
+Response:
+```json
+{
+  "success": true,
+  "status": { "userId": "f2e...", "isOnline": true, "coupleId": null },
+  "personalCode": "A1B2C3",
+  "authToken": "<guid>",
+  "userId": "f2e..."
+}
+```
+
+Campi notevoli:
+- `personalCode`: codice condivisibile (non segreto) per pairing legacy
+- `authToken`: usato per `reconnect`
+
+#### 2. Request Join
+```json
+POST /api/EventDrivenGame/request-join
+{ "requestingUserId": "U1", "targetUserId": "U2" }
+```
+Response:
+```json
+{ "success": true, "requestId": "<guid>", "status": "Pending" }
+```
+Rate limiting: max 5 richieste (A->B) per 30s (`429` + header `Retry-After`).
+
+#### 3. Respond Join
+```json
+POST /api/EventDrivenGame/respond-join
+{ "requestId": "<guid>", "targetUserId": "U2", "approve": true }
+```
+Response (approve):
+```json
+{
+  "success": true,
+  "approved": true,
+  "coupleId": "<guid>",
+  "gameSession": { "id": "<guid>", "isActive": true, "createdAt": "2025-10-02T12:00:00Z" },
+  "partnerInfo": { "userId": "U1", "name": "Anna", "personalCode": "A1B2C3" }
+}
+```
+Response (reject):
+```json
+{ "success": true, "approved": false }
+```
+
+#### 4. Snapshot
+```http
+GET /api/EventDrivenGame/snapshot/U1
+```
+Response (parziale):
+```json
+{
+  "success": true,
+  "status": { "userId": "U1", "coupleId": "<guid>" },
+  "gameSession": { "id": "<guid>", "isActive": true },
+  "partnerInfo": { "userId": "U2", "name": "Bruno" },
+  "users": [ { "id": "U1", "name": "Anna" }, { "id": "U2", "name": "Bruno" } ],
+  "outgoingRequests": [],
+  "incomingRequests": [],
+  "expiresAfterMinutes": 10
+}
+```
+
+#### 5. Draw Card
+```json
+POST /api/EventDrivenGame/draw-card
+{ "sessionId": "<guid>", "userId": "U1" }
+```
+Response:
+```json
+{
+  "success": true,
+  "card": { "id": 42, "gameType": "couple", "category": "dialogo", "content": "Domanda...", "level": 2 }
+}
+```
+
+#### 6. Start / End Game
+Start (fallback manuale):
+```json
+POST /api/EventDrivenGame/start-game
+{ "coupleId": "<guid>" }
+```
+Response:
+```json
+{ "success": true, "gameSession": { "id": "<guid>", "isActive": true } }
+```
+End:
+```json
+POST /api/EventDrivenGame/end-game
+{ "sessionId": "<guid>" }
+```
+Response:
+```json
+{ "success": true }
+```
+
+Edge cases:
+- `404/400` se `coupleId` o `sessionId` inesistenti o non autorizzati
+- `draw-card` ritorna `400` se mazzo esaurito
+- `request-join` ritorna stesso `requestId` se richiesta pendente già esiste (idempotenza soft)
+
 ## 🎮 Game Flow
 
 ### Single Player

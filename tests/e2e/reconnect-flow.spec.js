@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connectUser, assertStrict } from './utils';
+import { connectUser, assertStrict, pollSnapshot } from './utils';
 
 // Reconnect end-to-end: forma una coppia, verifica che dopo reload + reconnect lo stato persista (partner & eventuale sessione).
 test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) => {
@@ -8,12 +8,15 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
   const pageA = await ctxA.newPage();
   const pageB = await ctxB.newPage();
 
-  // Connetti entrambi
-  await connectUser(pageA, 'RecA');
-  await connectUser(pageB, 'RecB');
+  // Connetti entrambi con suffisso per evitare collisioni run paralleli / riusi
+  const suffix = Date.now() % 100000;
+  const nameA = `RecA_${suffix}`;
+  const nameB = `RecB_${suffix}`;
+  await connectUser(pageA, nameA);
+  await connectUser(pageB, nameB);
 
   // A invia richiesta a B
-  const rowB = pageA.locator('li:has-text("RecB")');
+  const rowB = pageA.locator(`li:has-text("${nameB}")`);
   await expect(rowB).toBeVisible();
   await rowB.getByTestId('send-request').click();
   await expect(pageA.locator('text=In attesa')).toBeVisible();
@@ -45,20 +48,15 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
   if (storedAuthAfter) {
     try {
       const auth = JSON.parse(storedAuthAfter);
-      for (let i=0;i<15 && !coupleOk;i++) {
-        const resp = await pageA.request.get(`http://localhost:5000/api/EventDrivenGame/snapshot/${auth.userId}`);
-  let snap = null; try { snap = await resp.json(); } catch { /* ignore parse error */ }
-        if (snap?.success && snap.status?.coupleId) {
-          coupleOk = true;
-          partnerOk = snap.partnerInfo?.name === 'RecB';
-          break;
-        }
-        await pageA.waitForTimeout(1000);
+      const res = await pollSnapshot(pageA, { userId: auth.userId, predicate: s => !!s?.status?.coupleId, timeoutMs: 18000, intervalMs: 700 });
+      if (res.success) {
+        coupleOk = true;
+        partnerOk = res.snapshot?.partnerInfo?.name === nameB;
       }
-  } catch { /* ignore snapshot retrieval errors */ }
+    } catch { /* ignore snapshot retrieval errors */ }
   }
   if (!coupleOk) {
-    console.log('ℹ️ Nessuna coppia formata dopo reconnect - considerato accettabile (strict controlla)');
+    console.log('ℹ️ Nessuna coppia formata dopo reconnect - (strict può fallire)');
     assertStrict(false, 'Coppia non formata dopo reconnect');
   } else if (!partnerOk) {
     console.log('⚠️ Partner name non ancora nella snapshot, proseguo');
@@ -83,7 +81,7 @@ test('Reconnect persistenza coppia e sessione dopo reload', async ({ browser }) 
       if (!snapJson.status?.coupleId) {
         console.log('ℹ️ Nessuna coppia nella snapshot finale (soft)');
       } else {
-        if (snapJson.partnerInfo && snapJson.partnerInfo.name !== 'RecB') {
+        if (snapJson.partnerInfo && snapJson.partnerInfo.name !== nameB) {
           console.log('⚠️ Partner name inatteso nella snapshot finale:', snapJson.partnerInfo.name);
         }
         if (snapJson.gameSession) {

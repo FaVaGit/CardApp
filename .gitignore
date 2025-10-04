@@ -211,3 +211,7 @@ pnpm-debug.log*
 .idea/.idea.
 
 *.log
+Backend/ComplicityGame.Core/bin/
+Backend/ComplicityGame.Core/obj/
+Backend/ComplicityGame.Tests/obj/
+Backend/ComplicityGame.Tests/bin/
