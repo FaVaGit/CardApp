@@ -12,9 +12,12 @@ export default function CanvasCardTable({ card, onReady }) {
   const fabricRef = useRef(null);
   const currentGroupRef = useRef(null);
 
+  const fabricLibRef = useRef(null);
+
   const renderCard = useCallback((c) => {
-    if (!fabricRef.current) return;
+    if (!fabricRef.current || !fabricLibRef.current) return;
     const canvas = fabricRef.current;
+    const F = fabricLibRef.current;
     // Rimuovi gruppo precedente
     if (currentGroupRef.current) {
       canvas.remove(currentGroupRef.current);
@@ -32,7 +35,8 @@ export default function CanvasCardTable({ card, onReady }) {
     const cardWidth = Math.min(420, WIDTH * 0.9);
     const cardHeight = Math.min(260, HEIGHT * 0.6);
 
-    const bg = new fabric.Rect({
+  if (!F.Rect || !F.Gradient || !F.Textbox || !F.Group || !F.util) return;
+  const bg = new F.Rect({
       rx: 24,
       ry: 24,
       width: cardWidth,
@@ -49,7 +53,7 @@ export default function CanvasCardTable({ card, onReady }) {
     });
 
     // Simula gradient con pattern semplice (Fabric non supporta string gradient CSS diretta)
-    const gradient = new fabric.Gradient({
+  const gradient = new F.Gradient({
       type: 'linear',
       coords: { x1: 0, y1: 0, x2: cardWidth, y2: cardHeight },
       colorStops: [
@@ -59,7 +63,7 @@ export default function CanvasCardTable({ card, onReady }) {
     });
     bg.set('fill', gradient);
 
-    const text = new fabric.Textbox(c.content || c.title || 'Carta', {
+  const text = new F.Textbox(c.content || c.title || 'Carta', {
       width: cardWidth - 48,
       fontSize: 20,
       fill: '#ffffff',
@@ -68,7 +72,7 @@ export default function CanvasCardTable({ card, onReady }) {
     });
     text.set({ left: -text.width / 2, top: -text.height / 2 });
 
-    const group = new fabric.Group([bg, text], {
+  const group = new F.Group([bg, text], {
       left: WIDTH / 2,
       top: HEIGHT / 2,
       originX: 'center',
@@ -83,7 +87,7 @@ export default function CanvasCardTable({ card, onReady }) {
     currentGroupRef.current = group;
 
     // composite animation: opacity, scale, angle overshoot
-    fabric.util.animate({
+  F.util.animate({
       startValue: 0,
       endValue: 1,
       duration: 520,
@@ -103,8 +107,9 @@ export default function CanvasCardTable({ card, onReady }) {
     if (!canvasEl) return;
     const ensure = async () => {
       if (fabricRef.current) return; // evita doppia init
-      const F = fabric || await loadFabric();
+  const F = fabric || await loadFabric();
       if (!F) return;
+  fabricLibRef.current = F;
       const fabricCanvas = new F.Canvas(canvasEl, {
         selection: false,
         backgroundColor: '#fdf3f7'
