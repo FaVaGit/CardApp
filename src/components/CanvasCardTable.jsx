@@ -102,13 +102,14 @@ export default function CanvasCardTable({ card, onReady }) {
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
     const ensure = async () => {
+      if (fabricRef.current) return; // evita doppia init
       const F = fabric || await loadFabric();
       if (!F) return;
       const fabricCanvas = new F.Canvas(canvasEl, {
-      selection: false,
-      backgroundColor: '#fdf3f7'
-    });
-    fabricRef.current = fabricCanvas;
+        selection: false,
+        backgroundColor: '#fdf3f7'
+      });
+      fabricRef.current = fabricCanvas;
 
     const resize = () => {
       const parent = canvasEl.parentElement;
@@ -134,7 +135,11 @@ export default function CanvasCardTable({ card, onReady }) {
 
       return () => {
         window.removeEventListener('resize', resize);
-        fabricCanvas.dispose();
+        try {
+          // Dispose solo se ancora attivo e non già nullo
+          if (!fabricCanvas.disposed) fabricCanvas.dispose();
+        } catch { /* ignore dispose errors */ }
+        fabricRef.current = null;
       };
     };
     const cleanupPromise = ensure();

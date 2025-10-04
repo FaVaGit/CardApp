@@ -305,7 +305,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const renderPlaying = () => (
     <Box sx={{ maxWidth: 1480, mx: 'auto', px: 2, py: 3 }}>
   <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+    <Grid size={{ xs: 12, md: 8 }}>
           <Paper elevation={4} sx={{ p: 3, position: 'relative', overflow: 'hidden' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap' }}>
               <FavoriteIcon color="secondary" />
@@ -345,7 +345,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
             )}
           </Paper>
         </Grid>
-        <Grid item xs={12} md={4}>
+  <Grid size={{ xs: 12, md: 4 }}>
           <Paper elevation={3} sx={{ p: 2, height: { md: '100%' } }}>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>Log Attività</Typography>
             <Divider sx={{ mb: 1 }} />
