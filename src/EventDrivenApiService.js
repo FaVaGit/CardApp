@@ -712,8 +712,14 @@ class EventDrivenApiService {
             if (this.joinRequestCache.outgoing.length) {
                 this.joinRequestCache.outgoing = [];
             }
-            // Emit coupleJoined immediately
-            this.emit('coupleJoined', { coupleId: resp.coupleId || resp.coupleID || resp.CoupleId, partner: resp.partnerInfo });
+            // Emit coupleJoined immediately with session info if available
+            const coupleData = { 
+                coupleId: resp.coupleId || resp.coupleID || resp.CoupleId, 
+                partner: resp.partnerInfo,
+                gameSession: resp.gameSession,
+                sessionId: resp.gameSession?.id
+            };
+            this.emit('coupleJoined', coupleData);
             if (resp.gameSession?.id) {
                 this.sessionId = resp.gameSession.id;
                     this.emit('gameSessionStarted', { 
@@ -807,7 +813,12 @@ class EventDrivenApiService {
                         if (startEvt && (!this.sessionId || this.sessionId !== (startEvt.sessionId || startEvt.SessionId))) {
                             const sessId = startEvt.sessionId || startEvt.SessionId;
                             this.sessionId = sessId;
-                            this.emit('gameSessionStarted', { sessionId: sessId, coupleId: startEvt.coupleId || startEvt.CoupleId });
+                            this.emit('gameSessionStarted', { 
+                                sessionId: sessId, 
+                                coupleId: startEvt.coupleId || startEvt.CoupleId,
+                                isNewSession: true, // Questa è sempre una nuova sessione dal polling
+                                partnerInfo: partnerInfo // Include partner info from snapshot
+                            });
                             // FAST FOLLOW POLL: se manca partnerInfo subito dopo avvio, ripolliamo a breve per sincronizzare il requester
                             // Partner ormai disponibile subito dal backend; niente retry attivo
                         }

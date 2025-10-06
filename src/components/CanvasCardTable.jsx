@@ -118,10 +118,19 @@ export default function CanvasCardTable({ card, onReady }) {
         fabricLibRef.current = null;
       }
       
-      // Controlla se l'elemento canvas DOM ha già attributi Fabric
-      if (canvasEl.hasAttribute('data-fabric') || canvasEl.__fabric) {
-        console.warn('Canvas already initialized, skipping');
+      // Controlla se l'elemento canvas DOM ha già attributi Fabric o se è già in corso un'inizializzazione
+      if (canvasEl.hasAttribute('data-fabric') || 
+          canvasEl.hasAttribute('data-fabric-initializing') || 
+          canvasEl.__fabric || 
+          fabricRef.current) {
+        console.warn('Canvas already initialized or initializing, skipping');
         return () => {}; // Return empty cleanup if already initialized
+      }
+      
+      // Verifica se esiste già un canvas Fabric sul DOM element
+      if (canvasEl.fabric || canvasEl._fabric) {
+        console.warn('Fabric canvas detected on DOM element, skipping');
+        return () => {};
       }
       
       // Marca il canvas come in fase di inizializzazione
@@ -140,8 +149,6 @@ export default function CanvasCardTable({ card, onReady }) {
           backgroundColor: '#fdf3f7'
         });
         fabricRef.current = fabricCanvas;
-        canvasEl.removeAttribute('data-fabric-initializing');
-        canvasEl.setAttribute('data-fabric', 'true');
         canvasEl.removeAttribute('data-fabric-initializing');
         canvasEl.setAttribute('data-fabric', 'true');
 
@@ -187,6 +194,8 @@ export default function CanvasCardTable({ card, onReady }) {
             canvasEl.removeAttribute('data-fabric');
             canvasEl.removeAttribute('data-fabric-initializing');
             delete canvasEl.__fabric;
+            delete canvasEl.fabric;
+            delete canvasEl._fabric;
           }
           fabricRef.current = null;
           fabricLibRef.current = null;

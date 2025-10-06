@@ -143,8 +143,23 @@ export default function SimpleApp() {
   }, [apiService, currentScreen]);
 
   useEffect(() => {
-  const coupleHandler = (_data) => {
+  const coupleHandler = async (data) => {
       if (currentScreen === 'game-selection') pushToast('Coppia formata, avvio in corso...','info');
+      
+      // Se abbiamo informazioni sulla sessione di gioco, avviala immediatamente
+      if (data.gameSession || data.sessionId) {
+        const sessionId = data.gameSession?.id || data.sessionId;
+        if (sessionId) {
+          setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
+          setCurrentScreen('playing');
+          pushToast('Partita di coppia avviata!','success');
+        }
+      } else {
+        // Altrimenti, forza un poll per controllare se c'è una sessione attiva
+        setTimeout(() => {
+          apiService.pollForUpdates();
+        }, 500); // Piccolo delay per permettere al backend di propagare
+      }
     };
     apiService.on('coupleJoined', coupleHandler);
     return () => apiService.off('coupleJoined', coupleHandler);
