@@ -118,55 +118,66 @@ export default function CanvasCardTable({ card, onReady }) {
         fabricLibRef.current = null;
       }
       
+      // Controlla se l'elemento canvas DOM ha già attributi Fabric
+      if (canvasEl.hasAttribute('data-fabric')) {
+        return; // Element already initialized by Fabric, skip
+      }
+      
       const F = fabric || await loadFabric();
       if (!F) return;
       fabricLibRef.current = F;
-      const fabricCanvas = new F.Canvas(canvasEl, {
-        selection: false,
-        backgroundColor: '#fdf3f7'
-      });
-      fabricRef.current = fabricCanvas;
+      
+      try {
+        const fabricCanvas = new F.Canvas(canvasEl, {
+          selection: false,
+          backgroundColor: '#fdf3f7'
+        });
+        fabricRef.current = fabricCanvas;
 
-    const resize = () => {
-      const parent = canvasEl.parentElement;
-      const w = parent.clientWidth;
-      const h = Math.min(400, Math.max(260, w * 0.55));
-      fabricCanvas.setWidth(w);
-      fabricCanvas.setHeight(h);
-      fabricCanvas.renderAll();
-      if (currentGroupRef.current) {
-        // Re-centra il gruppo corrente su resize
-        const WIDTH = fabricCanvas.getWidth();
-        const HEIGHT = fabricCanvas.getHeight();
-        currentGroupRef.current.set({ left: WIDTH / 2, top: HEIGHT / 2, originX: 'center', originY: 'center' });
-        fabricCanvas.renderAll();
-      } else if (card) {
-        renderCard(card);
-      }
-    };
-  resize();
-  window.addEventListener('resize', resize);
-
-    if (onReady) onReady({ renderCard });
-
-      // Se era arrivata una carta mentre Fabric non era pronto, renderizzala ora
-      if (pendingCardRef.current) {
-        const pc = pendingCardRef.current;
-        pendingCardRef.current = null;
-        try { renderCard(pc); } catch { /* ignore */ }
-      }
-
-      return () => {
-        window.removeEventListener('resize', resize);
-        try {
-          // Dispose solo se ancora attivo e non già nullo
-          if (fabricRef.current && !fabricRef.current.disposed) {
-            fabricRef.current.dispose();
+        const resize = () => {
+          const parent = canvasEl.parentElement;
+          const w = parent.clientWidth;
+          const h = Math.min(400, Math.max(260, w * 0.55));
+          fabricCanvas.setWidth(w);
+          fabricCanvas.setHeight(h);
+          fabricCanvas.renderAll();
+          if (currentGroupRef.current) {
+            // Re-centra il gruppo corrente su resize
+            const WIDTH = fabricCanvas.getWidth();
+            const HEIGHT = fabricCanvas.getHeight();
+            currentGroupRef.current.set({ left: WIDTH / 2, top: HEIGHT / 2, originX: 'center', originY: 'center' });
+            fabricCanvas.renderAll();
+          } else if (card) {
+            renderCard(card);
           }
-        } catch { /* ignore dispose errors */ }
-        fabricRef.current = null;
-        fabricLibRef.current = null;
-      };
+        };
+        resize();
+        window.addEventListener('resize', resize);
+
+        if (onReady) onReady({ renderCard });
+
+        // Se era arrivata una carta mentre Fabric non era pronto, renderizzala ora
+        if (pendingCardRef.current) {
+          const pc = pendingCardRef.current;
+          pendingCardRef.current = null;
+          try { renderCard(pc); } catch { /* ignore */ }
+        }
+
+        return () => {
+          window.removeEventListener('resize', resize);
+          try {
+            // Dispose solo se ancora attivo e non già nullo
+            if (fabricRef.current && !fabricRef.current.disposed) {
+              fabricRef.current.dispose();
+            }
+          } catch { /* ignore dispose errors */ }
+          fabricRef.current = null;
+          fabricLibRef.current = null;
+        };
+      } catch (fabricError) {
+        console.warn('Canvas initialization failed:', fabricError);
+        return () => {}; // empty cleanup
+      }
     };
     const cleanupPromise = ensure();
     return () => { cleanupPromise.then(()=>{}).catch(()=>{}); };
