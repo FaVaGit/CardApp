@@ -33,7 +33,8 @@ export default function CoupleBackgroundCanvas({ opacity=0.25 }) {
       canvas.add(path);
       const float = ()=>{
         const toY = y - 40 - Math.random()*60;
-        path.animate('top', toY, { duration: 8000 + Math.random()*4000, onChange: canvas.renderAll.bind(canvas), easing: fabric.util.ease.easeInOutSine, onComplete: ()=>{ path.top = y; float(); } });
+        const easing = (F.util && F.util.ease && F.util.ease.easeInOutSine) || (t => t);
+        path.animate('top', toY, { duration: 8000 + Math.random()*4000, onChange: canvas.renderAll.bind(canvas), easing, onComplete: ()=>{ path.top = y; float(); } });
       };
       setTimeout(()=>{
         path.animate('opacity', opacity, { duration: 1800, onChange: canvas.renderAll.bind(canvas) });
