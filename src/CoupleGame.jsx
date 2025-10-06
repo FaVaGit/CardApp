@@ -42,6 +42,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
+  const [isRestoredSession, setIsRestoredSession] = useState(false); // Track if this is a restored session
   // Drawer rimossa – evitiamo duplicazione del log (unica colonna destra)
   const [snack, setSnack] = useState(null); // {text, type}
   // Flags per deduplicare i log
@@ -113,10 +114,16 @@ export default function CoupleGame({ user, apiService, onExit }) {
       // Listen for game session started events (RabbitMQ: GameSessionStarted)
       const handleGameSessionStarted = (data) => {
         console.log('🎮 Received game session started event:', data);
-        if (!flagsRef.current.loggedGameStarted) {
+        
+        // Controlla se questa è una sessione ripristinata confrontando con l'esistenza di partnerInfo
+        if (partnerInfo && !flagsRef.current.loggedGameStarted) {
+          setIsRestoredSession(true);
+          addMessage('🔄 Sessione di gioco ripristinata', 'info');
+        } else if (!flagsRef.current.loggedGameStarted) {
           addMessage('🎮 Partita avviata automaticamente!', 'success');
-          flagsRef.current.loggedGameStarted = true;
         }
+        
+        flagsRef.current.loggedGameStarted = true;
         if (data.sessionId) {
           setGameSession({ id: data.sessionId, isActive: true });
         }
@@ -312,6 +319,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
               <Typography variant="h5" fontWeight={600}>Gioco di Coppia</Typography>
               {!gameSession?.id && (
                 <Chip icon={<AccessTimeIcon />} color="warning" size="small" label="Sessione in avvio" sx={{ ml: 1 }} />
+              )}
+              {isRestoredSession && (
+                <Chip icon={<AccessTimeIcon />} color="info" size="small" label="Sessione ripristinata" sx={{ ml: 1 }} />
               )}
               {flagsRef.current.loggedPartnerSyncDelay && !partnerInfo && (
                 <Chip icon={<BugReportIcon />} color="warning" size="small" label="Diagnostica partner" />

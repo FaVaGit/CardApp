@@ -88,15 +88,37 @@ export default function SimpleApp() {
 
   // Auto switch to playing when backend starts a game session (e.g., dopo accept join coppia)
   useEffect(() => {
-    const handler = (_payload) => {
-      console.log('🎮 gameSessionStarted event ricevuto:', _payload);
-      setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
-      setCurrentScreen('playing');
-      pushToast('Partita di coppia avviata!','success');
+    const handler = (payload) => {
+      console.log('🎮 gameSessionStarted event ricevuto:', payload);
+      
+      // Se siamo già in playing, procedi normalmente
+      if (currentScreen === 'playing') {
+        return;
+      }
+      
+      // Se stiamo ripristinando una sessione esistente (non una nuova), 
+      // verifica se il partner è ancora connesso prima di entrare automaticamente
+      if (currentScreen === 'lobby') {
+        // Mostra un prompt di conferma per sessioni ripristinate
+        if (window.confirm('È stata trovata una sessione di gioco precedente. Vuoi riprendere la partita?')) {
+          setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
+          setCurrentScreen('playing');
+          pushToast('Sessione di gioco ripristinata!','success');
+        } else {
+          // L'utente ha rifiutato il ripristino - termina la sessione
+          apiService.endGame(payload.sessionId).catch(console.error);
+          pushToast('Sessione precedente terminata','info');
+        }
+      } else {
+        // Per tutti gli altri casi (game-selection, etc.), procedi normalmente
+        setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
+        setCurrentScreen('playing');
+        pushToast('Partita di coppia avviata!','success');
+      }
     };
     apiService.on('gameSessionStarted', handler);
     return () => apiService.off('gameSessionStarted', handler);
-  }, [apiService]);
+  }, [apiService, currentScreen]);
 
   useEffect(() => {
   const coupleHandler = (_data) => {
