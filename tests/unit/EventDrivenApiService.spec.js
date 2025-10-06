@@ -94,7 +94,15 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     await service.respondJoin('REQX', true);
     expect(service.joinRequestCache.incoming).toHaveLength(0);
     expect(service.joinRequestCache.outgoing).toHaveLength(0);
-    expect(events.find(e => e[0] === 'coupleJoined')).toBeTruthy();
+    const coupleEvent = events.find(e => e[0] === 'coupleJoined');
+    expect(coupleEvent).toBeTruthy();
+    // Verify enhanced coupleJoined event includes session info
+    expect(coupleEvent[1]).toMatchObject({
+      coupleId: 'COUP1',
+      partner: { userId: 'U1', name: 'Alice' },
+      gameSession: { id: 'S1' },
+      sessionId: 'S1'
+    });
     expect(service.sessionId).toBe('S1');
   });
 
@@ -287,5 +295,40 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     expect(service.sessionId).toBeNull();
     expect(ended.length).toBe(1);
     expect(ended[0].sessionId).toBe('SXYZ');
+  });
+
+  it('emits gameSessionStarted from polling with enhanced event data', async () => {
+    const sessionEvents = [];
+    service.on('gameSessionStarted', e => sessionEvents.push(e));
+    
+    // Mock sequence: connect -> lists -> join-requests -> snapshot with GameSessionStarted event
+    mockFetchSequence([
+      { success: true, status: { userId: 'UPOLL', connectionId: 'CPOLL' }, personalCode: 'POLL1', authToken: 'TKPOLL' },
+      { success: true, users: [], available: [] },
+      { success: true, incoming: [], outgoing: [] },
+      { 
+        success: true, 
+        status: { userId: 'UPOLL', connectionId: 'CPOLL', coupleId: 'CPOLL1' }, 
+        partnerInfo: { userId: 'UPARTNER', name: 'PartnerName' },
+        gameSession: { id: 'SPOLL1', sharedCards: [] },
+        events: [
+          { eventType: 'GameSessionStarted', sessionId: 'SPOLL1', coupleId: 'CPOLL1' }
+        ]
+      }
+    ]);
+    
+    await service.connectUser('PollUser');
+    await service.pollForUpdates();
+    
+    // Due to both event processing and fallback logic, we might get multiple events
+    expect(sessionEvents.length).toBeGreaterThanOrEqual(1);
+    // Check the first event has the expected structure
+    expect(sessionEvents[0]).toMatchObject({
+      sessionId: 'SPOLL1',
+      coupleId: 'CPOLL1',
+      isNewSession: true,
+      partnerInfo: { userId: 'UPARTNER', name: 'PartnerName' }
+    });
+    expect(service.sessionId).toBe('SPOLL1');
   });
 });

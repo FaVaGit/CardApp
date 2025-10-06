@@ -55,6 +55,18 @@ test.describe('Flusso join approvazione', () => {
     await expect.poll(async () => {
       return await pageA.locator('text=In attesa').count();
     }, { timeout: 15000, message: 'Badge In attesa ancora presente dopo approvazione' }).toBe(0);
+    
+    // Verifica che ENTRAMBI gli utenti entrino nella schermata di gioco
+    console.log('🎮 Verificando transizione alla schermata di gioco per entrambi gli utenti...');
+    
+    // Bob (che ha accettato) dovrebbe entrare immediatamente
+    await expect(pageB.locator('[data-testid="couple-game"], .couple-game-container, text=Carte Estratte')).toBeVisible({ timeout: 10000 });
+    console.log('✅ Bob ha raggiunto la schermata di gioco');
+    
+    // Alice (che ha richiesto) dovrebbe ricevere l'evento tramite polling/coupleJoined
+    await expect(pageA.locator('[data-testid="couple-game"], .couple-game-container, text=Carte Estratte')).toBeVisible({ timeout: 15000 });
+    console.log('✅ Alice ha raggiunto la schermata di gioco');
+    
     // Verifica formazione coppia via snapshot API (più affidabile della UI lazy)
     const authJson = await pageA.evaluate(() => localStorage.getItem('complicity_auth'));
     expect(authJson).toBeTruthy();
@@ -64,5 +76,7 @@ test.describe('Flusso join approvazione', () => {
       console.log('ℹ️ Nessun coupleId dopo approvazione (soft pass)');
       assertStrict(false, 'CoupleId non generato dopo approvazione join');
     }
+    
+    console.log('✅ Test completato: entrambi gli utenti hanno raggiunto la schermata di gioco');
   });
 });
