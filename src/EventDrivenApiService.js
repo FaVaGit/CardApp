@@ -365,7 +365,7 @@ class EventDrivenApiService {
                     } else {
                         data = {};
                     }
-                } catch (e) {
+                } catch {
                     data = {};
                 }
             }

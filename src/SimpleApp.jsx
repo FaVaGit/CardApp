@@ -67,7 +67,7 @@ export default function SimpleApp() {
   };
 
   // Session restore handlers
-  const handleRestoreSession = async (sessionId) => {
+  const handleRestoreSession = async (_sessionId) => {
     try {
       setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
       setCurrentScreen('playing');

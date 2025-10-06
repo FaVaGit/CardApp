@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connectUser, assertStrict, waitForCouple } from './utils';
+import { connectUser } from './utils';
 
 async function waitForUsers(page, min = 1) {
   await expect.poll(async () => {

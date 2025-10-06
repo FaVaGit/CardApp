@@ -46,7 +46,7 @@ test('Richiesta ottimistica scade e mostra badge Scaduta', async ({ browser }) =
   // Con singleton non è più necessaria iniezione multi-istanza; se non presente lasciamo che il TTL/polling gestisca.
 
   // Forza scadenza immediata (helper test) per evitare dipendenza dal timer TTL reale
-  await pageA.evaluate(()=> { try { window.__forceExpireOptimistic && window.__forceExpireOptimistic(); } catch {} });
+  await pageA.evaluate(()=> { try { window.__forceExpireOptimistic && window.__forceExpireOptimistic(); } catch { /* ignore */ } });
   // Dump stato debug per tracciare condizione subito dopo force expire
   const debugAfterForce = await pageA.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
   console.log('[E2E][expiry-flow] Debug dopo forceExpire:', debugAfterForce);

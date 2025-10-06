@@ -45,7 +45,7 @@ test('TTL pruning incrementa metrica e persiste', async ({ browser }) => {
   console.log('[E2E][ttl-metrics] Debug dopo send-request:', debugAfterSend);
 
   // Forza scadenza immediata tramite helper
-  await page.evaluate(()=> { try { window.__forceExpireOptimistic && window.__forceExpireOptimistic(); } catch {} });
+  await page.evaluate(()=> { try { window.__forceExpireOptimistic && window.__forceExpireOptimistic(); } catch { /* ignore */ } });
   const debugAfterForce = await page.evaluate(()=> window.__debugOptimisticState && window.__debugOptimisticState());
   console.log('[E2E][ttl-metrics] Debug dopo forceExpire:', debugAfterForce);
   await expect.poll(async () => {

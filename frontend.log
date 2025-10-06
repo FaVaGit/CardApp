@@ -3,9 +3,7 @@
 > vite
 
 
-  VITE v6.3.6  ready in 398 ms
+  VITE v6.3.6  ready in 270 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-12:01:12 AM [vite] (client) ✨ new dependencies optimized: @mui/icons-material/AccessTime
-12:01:12 AM [vite] (client) ✨ optimized dependencies changed. reloading

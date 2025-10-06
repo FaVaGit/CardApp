@@ -6,7 +6,9 @@
  */
 const isBrowser = typeof window !== 'undefined';
 const env = (import.meta && import.meta.env) ? import.meta.env : {};
-const debugFlag = (isBrowser && window.DEBUG_API) || env.VITE_DEBUG_API || env.DEBUG_API || process?.env?.DEBUG_API;
+// Safe resolution dell'environment flag evitando ReferenceError in browser (process non definito)
+const nodeProcessDebug = (typeof process !== 'undefined' && process.env) ? (process.env.DEBUG_API || process.env.VITE_DEBUG_API) : undefined;
+const debugFlag = (isBrowser && window.DEBUG_API) || env.VITE_DEBUG_API || env.DEBUG_API || nodeProcessDebug;
 
 function ts() { return new Date().toISOString(); }
 
@@ -15,7 +17,6 @@ function makeLogger(enabled) {
     // minimize overhead if disabled
     if (!enabled && level === 'debug') return;
     const prefix = `[Api][${level.toUpperCase()}][${ts()}]`;
-    // eslint-disable-next-line no-console
     (console[level] || console.log)(prefix, ...args);
   };
   return {
