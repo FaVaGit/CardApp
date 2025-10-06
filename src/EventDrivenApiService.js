@@ -809,9 +809,12 @@ class EventDrivenApiService {
                     partnerInfo = snap.partnerInfo;
                     // NEW: process raw events array for dedicated GameSessionStartedEvent so anche il requester entra subito
                     if (Array.isArray(snap.events)) {
+                        logger.debug('[Poll] Processing events array:', snap.events);
+                        
                         const startEvt = snap.events.find(e => e.eventType === 'GameSessionStarted' || e.EventType === 'GameSessionStarted');
                         if (startEvt && (!this.sessionId || this.sessionId !== (startEvt.sessionId || startEvt.SessionId))) {
                             const sessId = startEvt.sessionId || startEvt.SessionId;
+                            logger.info('[Poll] GameSessionStarted event found, sessionId:', sessId);
                             this.sessionId = sessId;
                             this.emit('gameSessionStarted', { 
                                 sessionId: sessId, 
@@ -819,8 +822,19 @@ class EventDrivenApiService {
                                 isNewSession: true, // Questa è sempre una nuova sessione dal polling
                                 partnerInfo: partnerInfo // Include partner info from snapshot
                             });
-                            // FAST FOLLOW POLL: se manca partnerInfo subito dopo avvio, ripolliamo a breve per sincronizzare il requester
-                            // Partner ormai disponibile subito dal backend; niente retry attivo
+                        }
+                        
+                        // Check for CoupleJoined events too (for the requester)
+                        const coupleEvt = snap.events.find(e => e.eventType === 'CoupleJoined' || e.EventType === 'CoupleJoined');
+                        if (coupleEvt) {
+                            logger.info('[Poll] CoupleJoined event found:', coupleEvt);
+                            const coupleData = {
+                                coupleId: coupleEvt.coupleId || coupleEvt.CoupleId,
+                                partner: coupleEvt.partnerInfo || partnerInfo,
+                                gameSession: coupleEvt.gameSession,
+                                sessionId: coupleEvt.gameSession?.id || coupleEvt.sessionId
+                            };
+                            this.emit('coupleJoined', coupleData);
                         }
                         
                         // Handle GameSessionEnded events
@@ -834,8 +848,27 @@ class EventDrivenApiService {
                     
                     // Fallback: se snapshot ha gameSession ma non abbiamo ancora sessionId interno/emesso evento
                     if (snap.gameSession && snap.gameSession.id && !this.sessionId) {
+                        logger.info('[Poll] Fallback: gameSession found in snapshot, sessionId:', snap.gameSession.id);
                         this.sessionId = snap.gameSession.id;
-                        this.emit('gameSessionStarted', { sessionId: snap.gameSession.id, coupleId: (status && status.coupleId) || (status && status.CoupleId) });
+                        this.emit('gameSessionStarted', { 
+                            sessionId: snap.gameSession.id, 
+                            coupleId: (status && status.coupleId) || (status && status.CoupleId),
+                            isNewSession: true,
+                            partnerInfo: partnerInfo
+                        });
+                    }
+                    
+                    // Additional fallback: emit coupleJoined if we have couple info but no recent couple event
+                    if (status && status.coupleId && partnerInfo && !this._lastCoupleJoinedEmitted) {
+                        logger.info('[Poll] Fallback: emitting coupleJoined from snapshot data');
+                        const coupleData = {
+                            coupleId: status.coupleId,
+                            partner: partnerInfo,
+                            gameSession: snap.gameSession,
+                            sessionId: snap.gameSession?.id
+                        };
+                        this.emit('coupleJoined', coupleData);
+                        this._lastCoupleJoinedEmitted = Date.now();
                     }
 
                     // Log user data for debugging (throttled by signature)

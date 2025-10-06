@@ -144,21 +144,41 @@ export default function SimpleApp() {
 
   useEffect(() => {
   const coupleHandler = async (data) => {
+      console.log('🎉 coupleJoined event received:', data, 'currentScreen:', currentScreen);
+      
       if (currentScreen === 'game-selection') pushToast('Coppia formata, avvio in corso...','info');
       
       // Se abbiamo informazioni sulla sessione di gioco, avviala immediatamente
       if (data.gameSession || data.sessionId) {
         const sessionId = data.gameSession?.id || data.sessionId;
+        console.log('✅ Session info available in coupleJoined, starting game with sessionId:', sessionId);
         if (sessionId) {
           setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
           setCurrentScreen('playing');
           pushToast('Partita di coppia avviata!','success');
         }
       } else {
-        // Altrimenti, forza un poll per controllare se c'è una sessione attiva
+        console.log('⏳ No session info in coupleJoined, triggering polling for session detection');
+        // Forza un poll immediato e poi uno ritardato
+        apiService.pollForUpdates();
         setTimeout(() => {
+          console.log('⏳ Delayed polling for session...');
           apiService.pollForUpdates();
-        }, 500); // Piccolo delay per permettere al backend di propagare
+        }, 1000);
+        
+        // Fallback aggressivo: se dopo 3 secondi non abbiamo una sessione, forza transizione
+        setTimeout(async () => {
+          if (currentScreen !== 'playing') {
+            console.log('🔄 Fallback: forcing session check after 3s delay');
+            // Verifica se abbiamo un sessionId nel service
+            if (apiService.sessionId) {
+              console.log('✅ Found sessionId in service, transitioning to game');
+              setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
+              setCurrentScreen('playing');
+              pushToast('Partita di coppia avviata!','success');
+            }
+          }
+        }, 3000);
       }
     };
     apiService.on('coupleJoined', coupleHandler);
