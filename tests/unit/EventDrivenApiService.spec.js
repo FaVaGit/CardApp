@@ -11,12 +11,18 @@ function mockFetchSequence(responses) {
       return {
         ok: false,
         status: current.status || 500,
+        headers: {
+          get: () => 'application/json'
+        },
         json: async () => ({ error: current.error })
       };
     }
     return {
       ok: true,
       status: 200,
+      headers: {
+        get: () => 'application/json'
+      },
       json: async () => current
     };
   };
@@ -26,6 +32,8 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
   let service;
 
   beforeEach(() => {
+    // Set test environment
+    process.env.NODE_ENV = 'test';
     service = new EventDrivenApiService('http://localhost:5000');
   });
 
@@ -167,16 +175,18 @@ describe('EventDrivenApiService - Join Requests Optimistic', () => {
     ]);
 
     await service.connectUser('TTLUser');
-    // Riduci TTL per il test (5ms)
-    service.optimisticJoinTTL = 5;
+    // Riduci TTL per il test (25ms per essere più sicuri)
+    service.optimisticJoinTTL = 25;
   await service.requestJoin('TARGETTTL');
     expect(service.joinRequestCache.outgoing).toHaveLength(1);
     // Avanza tempo reale
-    await new Promise(r => setTimeout(r, 15));
+    await new Promise(r => setTimeout(r, 35));
     // Forza due poll consecutivi manualmente (usa snapshot vuoti dal mock)
     await service.pollForUpdates();
     await service.pollForUpdates();
-    expect(service.joinRequestCache.outgoing).toHaveLength(0);
+    // Le richieste scadute rimangono nella cache ma sono marcate come _expired
+    expect(service.joinRequestCache.outgoing).toHaveLength(1);
+    expect(service.joinRequestCache.outgoing[0]._expired).toBe(true);
     expect(expired.length).toBeGreaterThanOrEqual(1);
     expect(expired[0].request.targetUserId).toBe('TARGETTTL');
   });
