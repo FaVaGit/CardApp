@@ -116,6 +116,7 @@ class EventDrivenApiService {
                     join: { incoming: {}, outgoing: {} }, // per userId arrays
                     couples: {}, // coupleId -> { users: [u1,u2] }
                     sessions: {}, // sessionId -> { id, coupleId, sharedCards: [] }
+                    events: [], // { eventType, sessionId, coupleId, timestamp, ... }
                     nextIds: { user: 1, couple: 1, session: 1, request: 1 },
                     suppressOutgoingInFirstSnapshot: new Set() // userIds with initial empty outgoing to test optimistic retention
                 };
@@ -264,7 +265,22 @@ class EventDrivenApiService {
                         outgoing = [];
                         S.suppressOutgoingInFirstSnapshot.delete(uid);
                     }
-                    return respond({ success: true, status: { userId: uid, connectionId: `C-${uid}`, coupleId }, partnerInfo, gameSession, users: listUsers(), incomingRequests: S.join.incoming[uid]||[], outgoingRequests: outgoing });
+                    // Include relevant events for this user (events for their couple)
+                    const relevantEvents = S.events.filter(event => 
+                        event.coupleId === coupleId || 
+                        event.sessionId === user.sessionId ||
+                        (event.eventType === 'GameSessionEnded' && event.coupleId === coupleId)
+                    );
+                    return respond({ 
+                        success: true, 
+                        status: { userId: uid, connectionId: `C-${uid}`, coupleId }, 
+                        partnerInfo, 
+                        gameSession, 
+                        users: listUsers(), 
+                        incomingRequests: S.join.incoming[uid]||[], 
+                        outgoingRequests: outgoing,
+                        events: relevantEvents
+                    });
                 }
                 // USER STATUS
                 if (endpoint.startsWith('/user-status/')) {
@@ -293,6 +309,32 @@ class EventDrivenApiService {
                         const card = { id: `card-${sess.sharedCards.length+1}`, type: 'prompt', text: 'Carta di test', createdAt: new Date().toISOString() };
                         sess.sharedCards.push({ cardData: JSON.stringify(card), sharedById: body?.userId, sharedAt: new Date().toISOString() });
                         return respond({ success: true, card });
+                    }
+                    return respond({ success: false, error: 'session not found' });
+                }
+
+                if (endpoint === '/end-game' && method === 'POST') {
+                    const sessionId = body?.sessionId;
+                    const sess = sessionId && S.sessions[sessionId];
+                    if (sess) {
+                        const coupleId = sess.coupleId;
+                        // Add a GameSessionEnded event for both users in the couple
+                        S.events.push({
+                            eventType: 'GameSessionEnded',
+                            sessionId: sessionId,
+                            coupleId: coupleId,
+                            timestamp: new Date().toISOString(),
+                            terminatedBy: body?.userId || 'unknown'
+                        });
+                        // Remove the session from the mock state
+                        delete S.sessions[sessionId];
+                        // Find the couple that owned this session
+                        const couple = S.couples[coupleId];
+                        if (couple) {
+                            // Reset the couple so they can start a new session
+                            delete couple.sessionId;
+                        }
+                        return respond({ success: true, sessionId });
                     }
                     return respond({ success: false, error: 'session not found' });
                 }
@@ -546,7 +588,8 @@ class EventDrivenApiService {
 
     async endGame(sessionId) {
         const response = await this.apiCall(ENDPOINTS.END_GAME, 'POST', {
-            sessionId: sessionId
+            sessionId: sessionId,
+            userId: this.userId
         });
         if (response.success) {
             const endedId = this.sessionId || sessionId;
@@ -673,7 +716,11 @@ class EventDrivenApiService {
             this.emit('coupleJoined', { coupleId: resp.coupleId || resp.coupleID || resp.CoupleId, partner: resp.partnerInfo });
             if (resp.gameSession?.id) {
                 this.sessionId = resp.gameSession.id;
-                this.emit('gameSessionStarted', { sessionId: resp.gameSession.id });
+                    this.emit('gameSessionStarted', { 
+                        sessionId: resp.gameSession.id, 
+                        isNewSession: true, // Flag per indicare che è una nuova sessione, non un ripristino
+                        partnerInfo: resp.partnerInfo 
+                    });
             }
             // Forza un poll immediato per propagare al requester l'avvio della sessione senza attendere l'intervallo
             try { this.pollForUpdates(); } catch { /* ignore */ }
@@ -763,6 +810,14 @@ class EventDrivenApiService {
                             this.emit('gameSessionStarted', { sessionId: sessId, coupleId: startEvt.coupleId || startEvt.CoupleId });
                             // FAST FOLLOW POLL: se manca partnerInfo subito dopo avvio, ripolliamo a breve per sincronizzare il requester
                             // Partner ormai disponibile subito dal backend; niente retry attivo
+                        }
+                        
+                        // Handle GameSessionEnded events
+                        const endEvt = snap.events.find(e => e.eventType === 'GameSessionEnded' || e.EventType === 'GameSessionEnded');
+                        if (endEvt && (this.sessionId === (endEvt.sessionId || endEvt.SessionId))) {
+                            const sessId = endEvt.sessionId || endEvt.SessionId;
+                            this.sessionId = null; // Clear our session ID
+                            this.emit('gameSessionEnded', { sessionId: sessId, coupleId: endEvt.coupleId || endEvt.CoupleId, terminatedBy: endEvt.terminatedBy });
                         }
                     }
                     

@@ -19,6 +19,7 @@ import EventDrivenApiService from './EventDrivenApiService';
 // Lazy loaded heavy modules
 const SimpleCardGame = lazy(()=>import('./SimpleCardGame'));
 const CoupleGame = lazy(()=>import('./CoupleGame'));
+const SessionRestorePrompt = lazy(()=>import('./components/SessionRestorePrompt'));
 const UserDirectory = lazy(()=>import('./UserDirectory'));
 const TTLSettings = lazy(()=>import('./TTLSettings'));
 import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Box, Divider, Drawer, Tabs, Tab, Button } from '@mui/material';
@@ -47,6 +48,8 @@ export default function SimpleApp() {
   const [apiService] = useState(new EventDrivenApiService());
   const [purging, setPurging] = useState(false);
   const [joinCounts, setJoinCounts] = useState({ incoming: 0, outgoing: 0 });
+  // Session restore prompt state
+  const [sessionRestoreData, setSessionRestoreData] = useState(null); // null | { sessionId, partnerName, lastPlayed }
   // Toast system semplificato: per ora solo log, nessuno stato React per evitare lint errors
   const pushToast = (text, tone='info') => console.log('[toast]', tone, text);
   // Info / Diagnostics UI
@@ -61,6 +64,30 @@ export default function SimpleApp() {
     closeInfoMenu();
     setInfoTab(tabIndex); 
     setDrawerOpen(true); 
+  };
+
+  // Session restore handlers
+  const handleRestoreSession = async (sessionId) => {
+    try {
+      setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
+      setCurrentScreen('playing');
+      setSessionRestoreData(null); // Chiudi il prompt
+      pushToast('Sessione di gioco ripristinata!','success');
+    } catch (error) {
+      console.error('Errore durante il ripristino della sessione:', error);
+      pushToast('Errore durante il ripristino','error');
+    }
+  };
+
+  const handleTerminateSession = async (sessionId) => {
+    try {
+      await apiService.endGame(sessionId);
+      setSessionRestoreData(null); // Chiudi il prompt
+      pushToast('Sessione precedente terminata','info');
+    } catch (error) {
+      console.error('Errore durante la terminazione della sessione:', error);
+      pushToast('Errore durante la terminazione','error');
+    }
   };
 
   // (pushToast definito sopra)
@@ -96,19 +123,18 @@ export default function SimpleApp() {
         return;
       }
       
-      // Se stiamo ripristinando una sessione esistente (non una nuova), 
-      // verifica se il partner è ancora connesso prima di entrare automaticamente
-      if (currentScreen === 'lobby') {
-        // Mostra un prompt di conferma per sessioni ripristinate
-        if (window.confirm('È stata trovata una sessione di gioco precedente. Vuoi riprendere la partita?')) {
+        // Se è una nuova sessione (appena creata da join/acceptance), procedi direttamente
+        if (payload.isNewSession || payload.partnerInfo) {
           setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
           setCurrentScreen('playing');
-          pushToast('Sessione di gioco ripristinata!','success');
-        } else {
-          // L'utente ha rifiutato il ripristino - termina la sessione
-          apiService.endGame(payload.sessionId).catch(console.error);
-          pushToast('Sessione precedente terminata','info');
-        }
+          pushToast('Partita di coppia avviata!','success');
+        } else if (currentScreen === 'lobby') {
+          // È un ripristino di sessione esistente - mostra il prompt di conferma
+          setSessionRestoreData({
+            sessionId: payload.sessionId,
+            partnerName: payload.partnerName || 'Partner sconosciuto',
+            lastPlayed: payload.lastPlayed || new Date().toISOString()
+          });
       } else {
         // Per tutti gli altri casi (game-selection, etc.), procedi normalmente
         setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
@@ -127,6 +153,26 @@ export default function SimpleApp() {
     apiService.on('coupleJoined', coupleHandler);
     return () => apiService.off('coupleJoined', coupleHandler);
   }, [apiService, currentScreen]);
+
+  // Listen for session termination events from partner
+  useEffect(() => {
+    const sessionEndedHandler = (data) => {
+      console.log('🎮 gameSessionEnded event ricevuto:', data);
+      // Se il nostro partner ha terminato la sessione, notifichiamo l'utente
+      if (currentScreen === 'playing' && data.sessionId) {
+        pushToast('Il partner ha terminato la sessione di gioco','warning');
+        // Torna alla lobby automaticamente
+        handleBackToLobby();
+      }
+      // Se abbiamo il prompt aperto e la sessione viene terminata dall'esterno, chiudilo
+      if (sessionRestoreData && sessionRestoreData.sessionId === data.sessionId) {
+        setSessionRestoreData(null);
+        pushToast('La sessione è stata terminata','info');
+      }
+    };
+    apiService.on('gameSessionEnded', sessionEndedHandler);
+    return () => apiService.off('gameSessionEnded', sessionEndedHandler);
+  }, [apiService, currentScreen, sessionRestoreData]);
 
   // Clear all users (admin function) - using new API
   const clearAllUsers = async () => {
@@ -321,6 +367,16 @@ export default function SimpleApp() {
                <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Torna al login</button>
              </div>
            </div>
+         )}
+         
+         {/* Session Restore Prompt - Integrated UI for session confirmation */}
+         {sessionRestoreData && (
+           <SessionRestorePrompt
+             sessionInfo={sessionRestoreData}
+             partnerInfo={{ name: sessionRestoreData.partnerName }}
+             onRestore={() => handleRestoreSession(sessionRestoreData.sessionId)}
+             onTerminate={() => handleTerminateSession(sessionRestoreData.sessionId)}
+           />
          )}
        </Suspense>
      </ErrorBoundary>
