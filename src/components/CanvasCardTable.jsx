@@ -119,12 +119,19 @@ export default function CanvasCardTable({ card, onReady }) {
       }
       
       // Controlla se l'elemento canvas DOM ha già attributi Fabric
-      if (canvasEl.hasAttribute('data-fabric')) {
-        return; // Element already initialized by Fabric, skip
+      if (canvasEl.hasAttribute('data-fabric') || canvasEl.__fabric) {
+        console.warn('Canvas already initialized, skipping');
+        return () => {}; // Return empty cleanup if already initialized
       }
       
+      // Marca il canvas come in fase di inizializzazione
+      canvasEl.setAttribute('data-fabric-initializing', 'true');
+      
       const F = fabric || await loadFabric();
-      if (!F) return;
+      if (!F) {
+        canvasEl.removeAttribute('data-fabric-initializing');
+        return () => {};
+      }
       fabricLibRef.current = F;
       
       try {
@@ -133,6 +140,10 @@ export default function CanvasCardTable({ card, onReady }) {
           backgroundColor: '#fdf3f7'
         });
         fabricRef.current = fabricCanvas;
+        canvasEl.removeAttribute('data-fabric-initializing');
+        canvasEl.setAttribute('data-fabric', 'true');
+        canvasEl.removeAttribute('data-fabric-initializing');
+        canvasEl.setAttribute('data-fabric', 'true');
 
         const resize = () => {
           const parent = canvasEl.parentElement;
@@ -171,6 +182,12 @@ export default function CanvasCardTable({ card, onReady }) {
               fabricRef.current.dispose();
             }
           } catch { /* ignore dispose errors */ }
+          // Cleanup DOM markers
+          if (canvasEl) {
+            canvasEl.removeAttribute('data-fabric');
+            canvasEl.removeAttribute('data-fabric-initializing');
+            delete canvasEl.__fabric;
+          }
           fabricRef.current = null;
           fabricLibRef.current = null;
         };

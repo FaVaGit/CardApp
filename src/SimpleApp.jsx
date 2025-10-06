@@ -123,23 +123,19 @@ export default function SimpleApp() {
         return;
       }
       
-        // Se è una nuova sessione (appena creata da join/acceptance), procedi direttamente
-        if (payload.isNewSession || payload.partnerInfo) {
-          setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
-          setCurrentScreen('playing');
-          pushToast('Partita di coppia avviata!','success');
-        } else if (currentScreen === 'lobby') {
-          // È un ripristino di sessione esistente - mostra il prompt di conferma
-          setSessionRestoreData({
-            sessionId: payload.sessionId,
-            partnerName: payload.partnerName || 'Partner sconosciuto',
-            lastPlayed: payload.lastPlayed || new Date().toISOString()
-          });
-      } else {
-        // Per tutti gli altri casi (game-selection, etc.), procedi normalmente
+      // Se è una nuova sessione (appena creata da join/acceptance), procedi direttamente
+      if (payload.isNewSession || payload.partnerInfo) {
         setSelectedGameType(prev => prev || { id: 'Couple', name: 'Gioco di Coppia' });
         setCurrentScreen('playing');
         pushToast('Partita di coppia avviata!','success');
+      } else {
+        // È un ripristino di sessione esistente - SEMPRE mostra il prompt di conferma
+        setSessionRestoreData({
+          sessionId: payload.sessionId,
+          partnerName: payload.partnerName || 'Partner sconosciuto',
+          lastPlayed: payload.lastPlayed || new Date().toISOString()
+        });
+        // Non procedere automaticamente - attendere decisione utente
       }
     };
     apiService.on('gameSessionStarted', handler);
