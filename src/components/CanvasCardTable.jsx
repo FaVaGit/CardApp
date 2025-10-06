@@ -109,7 +109,15 @@ export default function CanvasCardTable({ card, onReady }) {
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
     const ensure = async () => {
-      if (fabricRef.current) return; // evita doppia init
+      // Controllo più robusto: se esiste già un canvas fabric attivo su questo elemento, disposalo prima
+      if (fabricRef.current) {
+        try {
+          if (!fabricRef.current.disposed) fabricRef.current.dispose();
+        } catch { /* ignore */ }
+        fabricRef.current = null;
+        fabricLibRef.current = null;
+      }
+      
       const F = fabric || await loadFabric();
       if (!F) return;
       fabricLibRef.current = F;
@@ -152,9 +160,12 @@ export default function CanvasCardTable({ card, onReady }) {
         window.removeEventListener('resize', resize);
         try {
           // Dispose solo se ancora attivo e non già nullo
-          if (!fabricCanvas.disposed) fabricCanvas.dispose();
+          if (fabricRef.current && !fabricRef.current.disposed) {
+            fabricRef.current.dispose();
+          }
         } catch { /* ignore dispose errors */ }
         fabricRef.current = null;
+        fabricLibRef.current = null;
       };
     };
     const cleanupPromise = ensure();
