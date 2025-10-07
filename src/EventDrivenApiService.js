@@ -490,6 +490,8 @@ class EventDrivenApiService {
             this.lastKnownStatus = null;
             this.lastKnownPartner = null;
             this.lastKnownCardCount = 0;
+            // Reset couple event emission state
+            this.lastCoupleJoinedEmissionTime = null;
         }
     }
 
@@ -859,7 +861,9 @@ class EventDrivenApiService {
                     }
                     
                     // Additional fallback: emit coupleJoined if we have couple info but no recent couple event
-                    if (status && status.coupleId && partnerInfo && !this._lastCoupleJoinedEmitted) {
+                    const currentTime = Date.now();
+                    if (status && status.coupleId && partnerInfo && 
+                        (!this._lastCoupleJoinedEmitted || (currentTime - this._lastCoupleJoinedEmitted) > 30000)) {
                         logger.info('[Poll] Fallback: emitting coupleJoined from snapshot data');
                         const coupleData = {
                             coupleId: status.coupleId,
@@ -868,7 +872,7 @@ class EventDrivenApiService {
                             sessionId: snap.gameSession?.id
                         };
                         this.emit('coupleJoined', coupleData);
-                        this._lastCoupleJoinedEmitted = Date.now();
+                        this._lastCoupleJoinedEmitted = currentTime;
                     }
 
                     // Log user data for debugging (throttled by signature)

@@ -123,13 +123,18 @@ export default function CanvasCardTable({ card, onReady }) {
           canvasEl.hasAttribute('data-fabric-initializing') || 
           canvasEl.__fabric || 
           fabricRef.current) {
-        console.warn('Canvas already initialized or initializing, skipping');
+        // Solo debug in sviluppo, non warning per evitare noise
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Canvas already initialized or initializing, skipping');
+        }
         return () => {}; // Return empty cleanup if already initialized
       }
       
       // Verifica se esiste già un canvas Fabric sul DOM element
       if (canvasEl.fabric || canvasEl._fabric) {
-        console.warn('Fabric canvas detected on DOM element, skipping');
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Fabric canvas detected on DOM element, skipping');
+        }
         return () => {};
       }
       

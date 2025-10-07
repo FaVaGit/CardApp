@@ -8,6 +8,8 @@
 <!-- If Codecov is enabled add: -->
 ![Coverage](https://img.shields.io/badge/coverage-11.3%25-blue?style=flat)
 
+**🌟 Novità**: Elementi decorativi romantici per un'esperienza visiva migliorata! Cuori fluttuanti, particelle animate, gradienti e effetti glassmorphism.
+
 A modern card game application built with **Event-Driven Architecture** using React, ASP.NET Core, and RabbitMQ. Designed for couples to strengthen their relationship through meaningful conversation prompts.
 
 ## ✨ Features
@@ -18,6 +20,7 @@ A modern card game application built with **Event-Driven Architecture** using Re
 - ⚡ **Partner Sync Immediato**: `respond-join` ora restituisce direttamente `partnerInfo` evitando attese
 - 🎴 **Card Sharing Sincronizzato**: Stato carte condivise in snapshot (storico `sharedCards`)
 - 🎲 **150+ Carte Conversazione**: Prompt curati in italiano
+- 💕 **Elementi Decorativi**: Cuori fluttuanti, particelle animate, gradienti romantici per un'atmosfera speciale
 - 🔄 **Eventi Real-time / Polling Resiliente**: RabbitMQ (o polling snapshot come fallback)
 - 🩺 **Diagnostica Sync Partner**: Evento `partnerSyncDelay` dopo 3 poll se partner mancante
 - 🧪 **Test Integrazione Automatizzati**: Suite Vitest per flussi coppia e pesca carta

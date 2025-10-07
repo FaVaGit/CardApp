@@ -20,6 +20,11 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import CardActionButtons from './components/CardActionButtons.jsx';
 import CanvasCardTable from './components/CanvasCardTable.jsx';
+// Componenti decorativi
+import FloatingHearts from './components/FloatingHearts.jsx';
+import GradientOverlay from './components/GradientOverlay.jsx';
+import AnimatedBorder from './components/AnimatedBorder.jsx';
+import FloatingParticles from './components/FloatingParticles.jsx';
 
 /**
  * Modern Couple Game Component - Event-Driven Architecture
@@ -385,13 +390,41 @@ export default function CoupleGame({ user, apiService, onExit }) {
 
   // Main render
   return (
-    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg,#fdf3f7 0%,#f3e5f5 60%)' }}>
-      <AppBar position="sticky" elevation={3} color="primary">
+    <Box sx={{ 
+      minHeight: '100vh', 
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Elementi decorativi di sfondo */}
+      <GradientOverlay variant="sunset" intensity="low" />
+      <FloatingHearts count={6} size="small" speed="slow" />
+      <FloatingParticles count={8} type="hearts" color="pink" size="small" speed="slow" />
+      
+      <AppBar position="sticky" elevation={3} color="primary" className="glass-effect">
         <Toolbar variant="dense">
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Complicità • Coppia</Typography>
+          <Typography 
+            variant="subtitle1" 
+            sx={{ fontWeight: 600 }}
+            className="text-gradient"
+          >
+            Complicità • Coppia
+          </Typography>
           <Box sx={{ flexGrow: 1 }} />
-          {partnerInfo && <Chip size="small" color="secondary" label={partnerInfo.personalCode || partnerInfo.userCode} sx={{ mr: 1 }} />}
-          <Chip size="small" label={user.userCode} variant="outlined" />
+          {partnerInfo && (
+            <Chip 
+              size="small" 
+              color="secondary" 
+              label={partnerInfo.personalCode || partnerInfo.userCode} 
+              sx={{ mr: 1 }}
+              className="animate-pulse-soft" 
+            />
+          )}
+          <Chip 
+            size="small" 
+            label={user.userCode} 
+            variant="outlined"
+            className="animate-twinkle" 
+          />
         </Toolbar>
       </AppBar>
       {renderPlaying()}

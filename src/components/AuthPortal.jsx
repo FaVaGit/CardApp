@@ -7,6 +7,11 @@ import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import LoginIcon from '@mui/icons-material/Login';
 import { hashPassword, hashWithNewSalt } from '../utils/passwordHash.js';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+// Componenti decorativi
+import FloatingHearts from './FloatingHearts.jsx';
+import GradientOverlay from './GradientOverlay.jsx';
+import AnimatedBorder from './AnimatedBorder.jsx';
+import FloatingParticles from './FloatingParticles.jsx';
 // Lazy load heavy Fabric background after idle
 const LazyBg = React.lazy(()=> import('./CoupleBackgroundCanvas.jsx'));
 
@@ -118,32 +123,98 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
   },[]);
 
   return (
-  <Box data-testid="auth-portal" sx={{ minHeight:'100vh', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', p:3, background:'radial-gradient(circle at 30% 30%, #ffe1f1 0%, #f3e5f5 60%)' }}>
+    <Box data-testid="auth-portal" sx={{ 
+      minHeight:'100vh', 
+      position:'relative', 
+      display:'flex', 
+      alignItems:'center', 
+      justifyContent:'center', 
+      p:3, 
+      overflow: 'hidden'
+    }}>
+      {/* Elementi decorativi di sfondo */}
+      <GradientOverlay variant="romantic" intensity="medium" />
+      <FloatingHearts count={8} size="medium" speed="normal" />
+      <FloatingParticles count={12} type="sparkle" color="mixed" size="varied" speed="normal" />
+      
       {enableBg && (
         <Suspense fallback={null}>
           <LazyBg opacity={0.18} />
         </Suspense>
       )}
-      <Paper elevation={8} sx={{ p:5, width:'100%', maxWidth:520, position:'relative', overflow:'hidden', backdropFilter:'blur(6px)', background:'rgba(255,255,255,0.88)' }}>
-        <Box sx={{ display:'flex', alignItems:'center', mb:1 }}>
-          <FavoriteIcon color="secondary" sx={{ mr:1 }} />
-          <Typography variant="h4" fontWeight={700}>Complicità</Typography>
-        </Box>
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mb:2 }}>Crea il tuo spazio di coppia o entra con il tuo profilo</Typography>
-        <Chip size="small" label={mode==='login' ? 'Accesso' : 'Nuovo Account'} color={mode==='login' ? 'primary':'secondary'} sx={{ mb:2 }} />
-        <Tabs value={mode} onChange={(_,v)=>{ setMode(v); resetFields(); }} sx={{ mb:2 }}>
-          <Tab value="login" label="Login" icon={<LoginIcon fontSize="small"/>} iconPosition="start" />
-          <Tab value="register" label="Registrati" icon={<PersonAddAlt1Icon fontSize="small"/>} iconPosition="start" />
-        </Tabs>
-        <Stack spacing={2} component="form" onSubmit={e=>{ e.preventDefault(); mode==='login'?handleLogin():handleRegister(); }}>
-          <TextField label="Nome" placeholder="Il tuo nome" inputProps={{ 'data-testid':'name-input' }} value={name} onChange={e=>setName(e.target.value)} required size="small" autoFocus disabled={loading} />
-          <TextField label="Nickname" value={nickname} onChange={e=>setNickname(e.target.value)} size="small" disabled={loading || mode==='login'} helperText={mode==='register'? 'Opzionale':'(definito in fase di registrazione)'} />
-          <TextField label="Password" placeholder="Password" inputProps={{ 'data-testid':'password-input' }} value={password} onChange={e=>setPassword(e.target.value)} type={showPwd?'text':'password'} size="small" disabled={loading} InputProps={{ endAdornment:(<InputAdornment position="end"><IconButton size="small" onClick={()=>setShowPwd(p=>!p)}>{showPwd? <VisibilityOff/>:<Visibility/>}</IconButton></InputAdornment>) }} required />
-          {mode==='register' && <Fade in={mode==='register'}><TextField label="Conferma Password" inputProps={{ 'data-testid':'confirm-password-input' }} value={confirm} onChange={e=>setConfirm(e.target.value)} type={showPwd?'text':'password'} size="small" disabled={loading} required /></Fade>}
-          {error && <Alert severity="error" variant="outlined" onClose={()=>setError('')}>{error}</Alert>}
-          <Button data-testid="submit-auth" disabled={loading || !name.trim()} type="submit" variant="contained" size="large" startIcon={mode==='login'? <LockOpenIcon/>:<PersonAddAlt1Icon/>} sx={{ py:1.2, fontWeight:600, letterSpacing:'.5px', background: mode==='login'? 'linear-gradient(90deg,#8e24aa,#ec407a)' : 'linear-gradient(90deg,#ec407a,#ba68c8)', boxShadow:'0 4px 14px -4px rgba(236,64,122,.5)' }}>{loading? 'Attendere...': mode==='login'? 'Entra':'Crea Account'}</Button>
-        </Stack>
-      </Paper>
+      
+      <AnimatedBorder variant="glow" color="purple" speed="normal">
+        <Paper 
+          elevation={8} 
+          className="glass-effect animate-fade-in" 
+          sx={{ 
+            p:5, 
+            width:'100%', 
+            maxWidth:520, 
+            position:'relative', 
+            overflow:'hidden'
+          }}
+        >
+          <Box sx={{ display:'flex', alignItems:'center', mb:1 }}>
+            <FavoriteIcon 
+              color="secondary" 
+              sx={{ mr:1 }} 
+              className="animate-heartbeat text-pink-500" 
+            />
+            <Typography 
+              variant="h4" 
+              fontWeight={700}
+              className="text-gradient"
+            >
+              Complicità
+            </Typography>
+          </Box>
+          <Typography 
+            variant="subtitle2" 
+            color="text.secondary" 
+            sx={{ mb:2 }}
+            className="animate-slide-up"
+          >
+            Crea il tuo spazio di coppia o entra con il tuo profilo
+          </Typography>
+          <Chip 
+            size="small" 
+            label={mode==='login' ? 'Accesso' : 'Nuovo Account'} 
+            color={mode==='login' ? 'primary':'secondary'} 
+            sx={{ mb:2 }}
+            className="animate-pulse-soft" 
+          />
+          <Tabs value={mode} onChange={(_,v)=>{ setMode(v); resetFields(); }} sx={{ mb:2 }}>
+            <Tab value="login" label="Login" icon={<LoginIcon fontSize="small"/>} iconPosition="start" />
+            <Tab value="register" label="Registrati" icon={<PersonAddAlt1Icon fontSize="small"/>} iconPosition="start" />
+          </Tabs>
+          <Stack spacing={2} component="form" onSubmit={e=>{ e.preventDefault(); mode==='login'?handleLogin():handleRegister(); }}>
+            <TextField label="Nome" placeholder="Il tuo nome" inputProps={{ 'data-testid':'name-input' }} value={name} onChange={e=>setName(e.target.value)} required size="small" autoFocus disabled={loading} />
+            <TextField label="Nickname" value={nickname} onChange={e=>setNickname(e.target.value)} size="small" disabled={loading || mode==='login'} helperText={mode==='register'? 'Opzionale':'(definito in fase di registrazione)'} />
+            <TextField label="Password" placeholder="Password" inputProps={{ 'data-testid':'password-input' }} value={password} onChange={e=>setPassword(e.target.value)} type={showPwd?'text':'password'} size="small" disabled={loading} InputProps={{ endAdornment:(<InputAdornment position="end"><IconButton size="small" onClick={()=>setShowPwd(p=>!p)}>{showPwd? <VisibilityOff/>:<Visibility/>}</IconButton></InputAdornment>) }} required />
+            {mode==='register' && <Fade in={mode==='register'}><TextField label="Conferma Password" inputProps={{ 'data-testid':'confirm-password-input' }} value={confirm} onChange={e=>setConfirm(e.target.value)} type={showPwd?'text':'password'} size="small" disabled={loading} required /></Fade>}
+            {error && <Alert severity="error" variant="outlined" onClose={()=>setError('')}>{error}</Alert>}
+            <Button 
+              data-testid="submit-auth" 
+              disabled={loading || !name.trim()} 
+              type="submit" 
+              variant="contained" 
+              size="large" 
+              startIcon={mode==='login'? <LockOpenIcon/>:<PersonAddAlt1Icon/>} 
+              className="animate-bounce-soft shadow-romantic"
+              sx={{ 
+                py:1.2, 
+                fontWeight:600, 
+                letterSpacing:'.5px', 
+                background: mode==='login'? 'linear-gradient(90deg,#8e24aa,#ec407a)' : 'linear-gradient(90deg,#ec407a,#ba68c8)', 
+                boxShadow:'0 4px 14px -4px rgba(236,64,122,.5)' 
+              }}
+            >
+              {loading? 'Attendere...': mode==='login'? 'Entra':'Crea Account'}
+            </Button>
+          </Stack>
+        </Paper>
+      </AnimatedBorder>
     </Box>
   );
 }

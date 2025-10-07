@@ -28,6 +28,10 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SettingsIcon from '@mui/icons-material/Settings';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import TerminalIcon from '@mui/icons-material/Terminal';
+// Componenti decorativi
+import FloatingHearts from './components/FloatingHearts.jsx';
+import GradientOverlay from './components/GradientOverlay.jsx';
+import FloatingParticles from './components/FloatingParticles.jsx';
 const CanvasCardTable = lazy(()=>import('./components/CanvasCardTable'));
 
 /**
@@ -166,10 +170,10 @@ export default function SimpleApp() {
           apiService.pollForUpdates();
         }, 1000);
         
-        // Fallback aggressivo: se dopo 3 secondi non abbiamo una sessione, forza transizione
+        // Fallback aggressivo: se dopo 1.5 secondi non abbiamo una sessione, forza transizione
         setTimeout(async () => {
           if (currentScreen !== 'playing') {
-            console.log('🔄 Fallback: forcing session check after 3s delay');
+            console.log('🔄 Fallback: forcing session check after 1.5s delay');
             // Verifica se abbiamo un sessionId nel service
             if (apiService.sessionId) {
               console.log('✅ Found sessionId in service, transitioning to game');
@@ -178,7 +182,7 @@ export default function SimpleApp() {
               pushToast('Partita di coppia avviata!','success');
             }
           }
-        }, 3000);
+        }, 1500);
       }
     };
     apiService.on('coupleJoined', coupleHandler);
@@ -290,26 +294,98 @@ export default function SimpleApp() {
 
    // Render game type selection screen
   const renderLobby = () => (
-    <Box sx={{ minHeight:'100vh', background:(theme)=> theme.palette.gradient?.soft || 'linear-gradient(145deg,#fdf3f7 0%,#f3e5f5 60%)', p:3 }}>
-      <AppBar position="sticky" color="primary" elevation={4} sx={{ mb:3, background:'linear-gradient(90deg,#8e24aa,#ec407a)' }}>
+    <Box sx={{ 
+      minHeight:'100vh', 
+      position: 'relative',
+      overflow: 'hidden',
+      p:3 
+    }}>
+      {/* Elementi decorativi per la lobby */}
+      <GradientOverlay variant="gentle" intensity="low" />
+      <FloatingHearts count={4} size="small" speed="slow" />
+      <FloatingParticles count={6} type="flowers" color="purple" size="small" speed="normal" />
+      
+      <AppBar 
+        position="sticky" 
+        color="primary" 
+        elevation={4} 
+        sx={{ mb:3 }}
+        className="glass-effect animate-slide-up"
+      >
         <Toolbar variant="dense" sx={{ display:'flex', alignItems:'center' }}>
-          <Typography variant="h6" fontWeight={600} sx={{ display:'flex', alignItems:'center', gap:1 }}>💑 Lobby di Coppia</Typography>
+          <Typography 
+            variant="h6" 
+            fontWeight={600} 
+            sx={{ display:'flex', alignItems:'center', gap:1 }}
+            className="text-gradient"
+          >
+            💑 Lobby di Coppia
+          </Typography>
           <Box sx={{ flexGrow:1 }} />
-          <Typography variant="caption" sx={{ mr:2, fontWeight:600 }}>Codice: {authenticatedUser?.userCode}</Typography>
+          <Typography 
+            variant="caption" 
+            sx={{ mr:2, fontWeight:600 }}
+            className="animate-twinkle"
+          >
+            Codice: {authenticatedUser?.userCode}
+          </Typography>
           <DarkModeToggle />
           <IconButton data-testid="info-button" color="inherit" size="small" onClick={openInfoMenu}><InfoOutlinedIcon/></IconButton>
         </Toolbar>
       </AppBar>
       <Box sx={{ maxWidth:960, mx:'auto', display:'grid', gap:3, gridTemplateColumns:{ xs:'1fr', md:'1fr 1fr' } }}>
         <Box>
-          <Box sx={{ mb:2, p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 18px -6px rgba(142,36,170,.25)', border:'1px solid', borderColor:'divider' }}>
+          <Box 
+            sx={{ 
+              mb:2, 
+              p:2.5, 
+              bgcolor:'background.paper', 
+              borderRadius:3, 
+              border:'1px solid', 
+              borderColor:'divider' 
+            }}
+            className="glass-effect animate-fade-in shadow-soft"
+          >
             <Typography variant="subtitle1" fontWeight={700}>Ciao {authenticatedUser?.name}</Typography>
             <Typography variant="body2" color="text.secondary">Invita un partner o avvia una partita singola per iniziare subito.</Typography>
           </Box>
-          <Box sx={{ p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 18px -6px rgba(236,64,122,.35)', mb:2, border:'1px solid', borderColor:'divider' }}>
-            <Button fullWidth variant="contained" size="large" onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)} sx={{ background:'linear-gradient(90deg,#ec407a,#ba68c8)', fontWeight:600, letterSpacing:'.5px', py:1.2 }}>🎴 Avvia Gioco Singolo</Button>
+          <Box 
+            sx={{ 
+              p:2.5, 
+              bgcolor:'background.paper', 
+              borderRadius:3, 
+              mb:2, 
+              border:'1px solid', 
+              borderColor:'divider' 
+            }}
+            className="glass-effect animate-scale-in shadow-romantic"
+          >
+            <Button 
+              fullWidth 
+              variant="contained" 
+              size="large" 
+              onClick={() => handleGameTypeSelected({ id: 'Single', name: 'Gioco Singolo' }, authenticatedUser)} 
+              sx={{ 
+                background:'linear-gradient(90deg,#ec407a,#ba68c8)', 
+                fontWeight:600, 
+                letterSpacing:'.5px', 
+                py:1.2 
+              }}
+              className="animate-bounce-soft"
+            >
+              🎴 Avvia Gioco Singolo
+            </Button>
           </Box>
-          <Box sx={{ p:2.5, bgcolor:'background.paper', borderRadius:3, boxShadow:'0 4px 18px -6px rgba(142,36,170,.25)', border:'1px solid', borderColor:'divider' }}>
+          <Box 
+            sx={{ 
+              p:2.5, 
+              bgcolor:'background.paper', 
+              borderRadius:3, 
+              border:'1px solid', 
+              borderColor:'divider' 
+            }}
+            className="glass-effect animate-slide-up shadow-soft"
+          >
             <UserDirectory
               apiService={apiService}
               currentUser={authenticatedUser}

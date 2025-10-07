@@ -31,6 +31,56 @@
   .animate-glow {
     animation: glow 2s ease-in-out infinite alternate;
   }
+
+  /* Nuove animazioni decorative */
+  .animate-bounce-soft {
+    animation: bounceSoft 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 3s ease-in-out infinite;
+  }
+
+  .animate-rotate-slow {
+    animation: rotateSlow 10s linear infinite;
+  }
+
+  .animate-gradient-x {
+    animation: gradientX 3s ease infinite;
+    background-size: 200% 200%;
+  }
+
+  .animate-drift {
+    animation: drift 15s linear infinite;
+  }
+
+  .animate-twinkle {
+    animation: twinkle 2s ease-in-out infinite;
+  }
+
+  .animate-heartbeat {
+    animation: heartbeat 1.5s ease-in-out infinite;
+  }
+
+  /* Animazioni per responsività */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-float,
+    .animate-float-delayed,
+    .animate-slide-up,
+    .animate-scale-in,
+    .animate-shake,
+    .animate-glow,
+    .animate-bounce-soft,
+    .animate-pulse-soft,
+    .animate-rotate-slow,
+    .animate-gradient-x,
+    .animate-drift,
+    .animate-twinkle,
+    .animate-heartbeat {
+      animation: none !important;
+    }
+  }
 }
 
 @keyframes fadeIn {
@@ -90,6 +140,88 @@
   }
 }
 
+/* Nuove animazioni decorative */
+@keyframes bounceSoft {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.05);
+  }
+}
+
+@keyframes pulseSoft {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes rotateSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gradientX {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-100px) translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10%, 90% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(100vw + 100px)) translateY(-50px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.1);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.1);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -118,4 +250,46 @@ html {
 ::selection {
   background: #f3e8ff;
   color: #7c3aed;
+}
+
+/* Gradient backgrounds per elementi decorativi */
+.bg-romantic-gradient {
+  background: linear-gradient(135deg, #fdf2f8 0%, #fae8ff 50%, #ede9fe 100%);
+}
+
+.bg-sunset-gradient {
+  background: linear-gradient(135deg, #fef7cd 0%, #fecaca 50%, #e0e7ff 100%);
+}
+
+.bg-aurora-gradient {
+  background: linear-gradient(45deg, #dbeafe 0%, #e0e7ff 25%, #fce7f3 50%, #fed7d7 75%, #dbeafe 100%);
+}
+
+/* Glass effect per elementi moderni */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Effetti decorativi */
+.text-gradient {
+  background: linear-gradient(135deg, #a855f7, #ec4899, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shadow-romantic {
+  box-shadow: 0 10px 25px rgba(236, 72, 153, 0.15), 0 4px 6px rgba(168, 85, 247, 0.1);
+}
+
+.shadow-soft {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.08);
 }

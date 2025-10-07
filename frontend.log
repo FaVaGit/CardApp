@@ -3,10 +3,9 @@
 > vite
 
 
-  VITE v6.3.6  ready in 323 ms
+  VITE v6.3.6  ready in 387 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-4:03:05 PM [vite] (client) hmr update /src/components/CanvasCardTable.jsx, /src/index.css
-4:03:24 PM [vite] (client) hmr update /src/components/CanvasCardTable.jsx, /src/index.css
-4:04:35 PM [vite] (client) hmr update /src/SimpleApp.jsx, /src/index.css
+10:45:02 AM [vite] (client) hmr update /src/index.css
+10:45:16 AM [vite] (client) hmr update /src/components/FloatingParticles.jsx, /src/index.css
