@@ -3,9 +3,7 @@
 > vite
 
 
-  VITE v6.3.6  ready in 387 ms
+  VITE v6.3.6  ready in 1077 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-10:45:02 AM [vite] (client) hmr update /src/index.css
-10:45:16 AM [vite] (client) hmr update /src/components/FloatingParticles.jsx, /src/index.css

@@ -31,14 +31,19 @@ export default function FloatingHearts({ count = 6, size = 'medium', speed = 'no
     >
       {hearts.map((_, index) => (
         <div
-          key={index}
-          className={`absolute text-pink-300 animate-float opacity-20 ${getSizeClass()}`}
-          style={{
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 4}s`,
-            animationDuration: getAnimationDuration(),
-            top: `${Math.random() * 100}%`,
-          }}
+          key={i}
+        style={{
+          position: 'absolute',
+          left: `${Math.random() * 100}%`,
+          animationDelay: `${Math.random() * 2}s`,
+          animationPlayState: 'running',
+          animationFillMode: 'both',
+          willChange: 'transform',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          isolation: 'isolate',
+          contain: 'layout style paint'
+        }}
         >
           💕
         </div>
@@ -54,6 +59,9 @@ export default function FloatingHearts({ count = 6, size = 'medium', speed = 'no
             top: `${Math.random() * 100}%`,
             animationDelay: `${Math.random() * 6}s`,
             animationDuration: '8s',
+            animationPlayState: 'running',
+            pointerEvents: 'none',
+            userSelect: 'none'
           }}
         >
           ❤️

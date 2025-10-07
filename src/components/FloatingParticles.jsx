@@ -77,7 +77,14 @@ export default function FloatingParticles({
             top: `${Math.random() * 100}%`,
             animationDelay: `${Math.random() * 5}s`,
             animationDuration: getAnimationDuration(index),
+            animationPlayState: 'running',
+            animationFillMode: 'both',
+            willChange: 'transform, opacity',
             transform: `rotate(${Math.random() * 360}deg)`,
+            pointerEvents: 'none',
+            userSelect: 'none',
+            isolation: 'isolate',
+            contain: 'layout style paint'
           }}
         >
           {getParticleSymbol(index)}
@@ -96,6 +103,9 @@ export default function FloatingParticles({
             left: `-10%`,
             top: `${Math.random() * 100}%`,
             animationDelay: `${Math.random() * 10}s`,
+            animationPlayState: 'running',
+            pointerEvents: 'none',
+            userSelect: 'none'
           }}
         >
           {getParticleSymbol(i)}

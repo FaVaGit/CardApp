@@ -125,12 +125,19 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
   return (
     <Box data-testid="auth-portal" sx={{ 
       minHeight:'100vh', 
-      position:'relative', 
+      position:'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       display:'flex', 
       alignItems:'center', 
       justifyContent:'center', 
       p:3, 
-      overflow: 'hidden'
+      overflow: 'hidden',
+      // Centratura verticale e orizzontale perfetta
+      placeItems: 'center',
+      placeContent: 'center'
     }}>
       {/* Elementi decorativi di sfondo */}
       <GradientOverlay variant="romantic" intensity="medium" />

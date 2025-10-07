@@ -5,61 +5,101 @@
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.8s ease-out;
+    animation-play-state: running;
   }
 
   .animate-float {
     animation: float 3s ease-in-out infinite;
+    animation-play-state: running;
   }
 
   .animate-float-delayed {
     animation: float 3s ease-in-out infinite;
     animation-delay: 1.5s;
+    animation-play-state: running;
   }
 
   .animate-slide-up {
     animation: slideUp 0.5s ease-out;
+    animation-play-state: running;
   }
 
   .animate-scale-in {
     animation: scaleIn 0.3s ease-out;
+    animation-play-state: running;
   }
 
   .animate-shake {
     animation: shake 0.6s ease-in-out;
+    animation-play-state: running;
   }
 
   .animate-glow {
     animation: glow 2s ease-in-out infinite alternate;
+    animation-play-state: running;
   }
 
-  /* Nuove animazioni decorative */
+  /* Nuove animazioni decorative - completamente autonome e isolate */
   .animate-bounce-soft {
     animation: bounceSoft 2s ease-in-out infinite;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: transform;
+    pointer-events: none;
+    user-select: none;
   }
 
   .animate-pulse-soft {
     animation: pulseSoft 3s ease-in-out infinite;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: opacity;
+    pointer-events: none;
+    user-select: none;
   }
 
   .animate-rotate-slow {
     animation: rotateSlow 10s linear infinite;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: transform;
+    pointer-events: none;
+    user-select: none;
   }
 
   .animate-gradient-x {
     animation: gradientX 3s ease infinite;
     background-size: 200% 200%;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: background-position;
   }
 
   .animate-drift {
     animation: drift 15s linear infinite;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: transform;
+    pointer-events: none;
+    user-select: none;
   }
 
   .animate-twinkle {
     animation: twinkle 2s ease-in-out infinite;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: opacity;
+    pointer-events: none;
+    user-select: none;
   }
 
   .animate-heartbeat {
     animation: heartbeat 1.5s ease-in-out infinite;
+    animation-play-state: running;
+    animation-fill-mode: both;
+    will-change: transform;
+    pointer-events: none;
+    user-select: none;
   }
 
   /* Animazioni per responsività */
@@ -292,4 +332,90 @@ html {
 
 .shadow-soft {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Prevenzione interferenze tastiera/mouse con animazioni decorative */
+.animate-float,
+.animate-float-delayed,
+.animate-bounce-soft,
+.animate-pulse-soft,
+.animate-rotate-slow,
+.animate-drift,
+.animate-twinkle,
+.animate-heartbeat,
+.animate-glow {
+  /* Animazioni completamente autonome - non influenzate da focus, hover, active */
+  animation-play-state: running !important;
+}
+
+.animate-float:focus,
+.animate-float:hover,
+.animate-float:active,
+.animate-float-delayed:focus,
+.animate-float-delayed:hover,
+.animate-float-delayed:active,
+.animate-bounce-soft:focus,
+.animate-bounce-soft:hover,
+.animate-bounce-soft:active,
+.animate-pulse-soft:focus,
+.animate-pulse-soft:hover,
+.animate-pulse-soft:active,
+.animate-rotate-slow:focus,
+.animate-rotate-slow:hover,
+.animate-rotate-slow:active,
+.animate-drift:focus,
+.animate-drift:hover,
+.animate-drift:active,
+.animate-twinkle:focus,
+.animate-twinkle:hover,
+.animate-twinkle:active,
+.animate-heartbeat:focus,
+.animate-heartbeat:hover,
+.animate-heartbeat:active,
+.animate-glow:focus,
+.animate-glow:hover,
+.animate-glow:active {
+  animation-play-state: running !important;
+}
+
+/* Isolamento da eventi di input e digitazione - le animazioni decorative sono indipendenti */
+body:focus-within .animate-bounce-soft,
+body:focus-within .animate-pulse-soft,
+body:focus-within .animate-rotate-slow,
+body:focus-within .animate-drift,
+body:focus-within .animate-twinkle,
+body:focus-within .animate-heartbeat,
+body:focus-within .animate-glow,
+input:focus ~ * .animate-bounce-soft,
+input:focus ~ * .animate-pulse-soft,
+input:focus ~ * .animate-rotate-slow,
+input:focus ~ * .animate-drift,
+input:focus ~ * .animate-twinkle,
+input:focus ~ * .animate-heartbeat,
+input:focus ~ * .animate-glow,
+textarea:focus ~ * .animate-bounce-soft,
+textarea:focus ~ * .animate-pulse-soft,
+textarea:focus ~ * .animate-rotate-slow,
+textarea:focus ~ * .animate-drift,
+textarea:focus ~ * .animate-twinkle,
+textarea:focus ~ * .animate-heartbeat,
+textarea:focus ~ * .animate-glow {
+  animation-play-state: running !important;
+  animation-duration: inherit !important;
+  animation-timing-function: inherit !important;
+  animation-iteration-count: inherit !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Gli elementi decorativi NON devono essere influenzati dal typing */
+.MuiTextField-root ~ .animate-bounce-soft,
+.MuiTextField-root ~ .animate-pulse-soft,
+.MuiTextField-root ~ .animate-rotate-slow,
+.MuiTextField-root ~ .animate-drift,
+.MuiTextField-root ~ .animate-twinkle,
+.MuiTextField-root ~ .animate-heartbeat,
+.MuiTextField-root ~ .animate-glow {
+  animation-play-state: running !important;
+  isolation: isolate;
 }
