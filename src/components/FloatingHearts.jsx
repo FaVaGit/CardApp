@@ -31,7 +31,7 @@ export default function FloatingHearts({ count = 6, size = 'medium', speed = 'no
     >
       {hearts.map((_, index) => (
         <div
-          key={i}
+          key={index}
         style={{
           position: 'absolute',
           left: `${Math.random() * 100}%`,

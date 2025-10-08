@@ -3,7 +3,9 @@
 > vite
 
 
-  VITE v6.3.6  ready in 1077 ms
+  VITE v6.3.6  ready in 673 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
+10:33:52 AM [vite] (client) hmr update /src/components/FloatingHearts.jsx, /src/index.css
+10:33:52 AM [vite] (client) hmr update /src/components/FloatingHearts.jsx, /src/index.css
