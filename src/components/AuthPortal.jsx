@@ -125,6 +125,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
   return (
     <Box data-testid="auth-portal" sx={{ 
       minHeight:'100vh', 
+      width: '100vw',
       position:'fixed',
       top: 0,
       left: 0,
@@ -134,20 +135,33 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
       alignItems:'center', 
       justifyContent:'center', 
       p:3, 
-      overflow: 'hidden',
-      // Centratura verticale e orizzontale perfetta
-      placeItems: 'center',
-      placeContent: 'center'
+      overflow: 'hidden'
     }}>
-      {/* Elementi decorativi di sfondo */}
-      <GradientOverlay variant="romantic" intensity="medium" />
-      <FloatingHearts count={8} size="medium" speed="normal" />
-      <FloatingParticles count={12} type="sparkle" color="mixed" size="varied" speed="normal" />
+      {/* Elementi decorativi di sfondo - COMPLETAMENTE ISOLATI */}
+      <Box sx={{ 
+        position: 'absolute', 
+        inset: 0, 
+        zIndex: 1, 
+        pointerEvents: 'none',
+        isolation: 'isolate'
+      }}>
+        <GradientOverlay variant="romantic" intensity="medium" />
+        <FloatingHearts count={8} size="medium" speed="normal" />
+        <FloatingParticles count={12} type="sparkle" color="mixed" size="varied" speed="normal" />
+      </Box>
       
       {enableBg && (
-        <Suspense fallback={null}>
-          <LazyBg opacity={0.18} />
-        </Suspense>
+        <Box sx={{ 
+          position: 'absolute', 
+          inset: 0, 
+          zIndex: 0, 
+          pointerEvents: 'none',
+          isolation: 'isolate'
+        }}>
+          <Suspense fallback={null}>
+            <LazyBg opacity={0.18} />
+          </Suspense>
+        </Box>
       )}
       
       <AnimatedBorder variant="glow" color="purple" speed="normal">
@@ -159,7 +173,9 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
             width:'100%', 
             maxWidth:520, 
             position:'relative', 
-            overflow:'hidden'
+            overflow:'hidden',
+            zIndex: 10,
+            margin: 'auto'
           }}
         >
           <Box sx={{ display:'flex', alignItems:'center', mb:1 }}>

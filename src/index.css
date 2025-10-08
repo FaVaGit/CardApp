@@ -419,3 +419,42 @@ textarea:focus ~ * .animate-glow {
   animation-play-state: running !important;
   isolation: isolate;
 }
+
+/* Isolamento TOTALE delle animazioni decorative - non devono reagire a NULLA */
+.animate-bounce-soft,
+.animate-pulse-soft,
+.animate-rotate-slow,
+.animate-drift,
+.animate-twinkle,
+.animate-heartbeat,
+.animate-glow {
+  position: relative !important;
+  isolation: isolate !important;
+  contain: layout style paint !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  animation-play-state: running !important;
+}
+
+/* Prevenzione completa di interferenze da input - le animazioni devono rimanere stabili */
+.animate-bounce-soft,
+.animate-pulse-soft,
+.animate-rotate-slow,
+.animate-drift,
+.animate-twinkle,
+.animate-heartbeat,
+.animate-glow {
+  animation-play-state: running !important;
+}
+
+/* Isolamento da qualsiasi evento globale */
+body:focus-within .animate-bounce-soft,
+body:focus-within .animate-pulse-soft,
+body:focus-within .animate-rotate-slow,
+body:focus-within .animate-drift,
+body:focus-within .animate-twinkle,
+body:focus-within .animate-heartbeat,
+body:focus-within .animate-glow {
+  animation-play-state: running !important;
+  transform: none !important;
+}
