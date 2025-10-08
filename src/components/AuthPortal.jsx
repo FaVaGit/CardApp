@@ -141,7 +141,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
       <Box sx={{ 
         position: 'absolute', 
         inset: 0, 
-        zIndex: 1, 
+        zIndex: 0, 
         pointerEvents: 'none',
         isolation: 'isolate'
       }}>
@@ -174,7 +174,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
             maxWidth:520, 
             position:'relative', 
             overflow:'hidden',
-            zIndex: 10,
+            zIndex: 1,
             margin: 'auto'
           }}
         >
