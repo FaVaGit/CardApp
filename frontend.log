@@ -3,7 +3,14 @@
 > vite
 
 
-  VITE v6.3.6  ready in 350 ms
+  VITE v6.3.6  ready in 511 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
+11:57:02 AM [vite] (client) hmr update /src/components/AuthPortal.jsx, /src/index.css
+11:57:02 AM [vite] (client) hmr update /src/components/FloatingHearts.jsx, /src/index.css
+11:57:02 AM [vite] (client) hmr update /src/components/GradientOverlay.jsx, /src/index.css
+11:57:02 AM [vite] (client) hmr update /src/components/FloatingParticles.jsx, /src/index.css
+11:58:32 AM [vite] (client) hmr update /src/components/AuthPortal.jsx, /src/index.css
+11:58:51 AM [vite] (client) hmr update /src/components/AuthPortal.jsx, /src/index.css
+11:59:20 AM [vite] (client) hmr update /src/index.css

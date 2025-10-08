@@ -135,7 +135,12 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
       alignItems:'center', 
       justifyContent:'center', 
       p:3, 
-      overflow: 'hidden'
+      overflow: 'hidden',
+      // Assicura che solo il form riceva i click
+      pointerEvents: 'none',
+      '& > *': {
+        pointerEvents: 'auto'
+      }
     }}>
       {/* Elementi decorativi di sfondo - COMPLETAMENTE ISOLATI */}
       <Box sx={{ 
@@ -175,7 +180,8 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
             position:'relative', 
             overflow:'hidden',
             zIndex: 100,
-            margin: 'auto'
+            margin: 'auto',
+            pointerEvents: 'auto'
           }}
         >
           <Box sx={{ display:'flex', alignItems:'center', mb:1 }}>

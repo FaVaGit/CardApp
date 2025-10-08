@@ -123,6 +123,36 @@
   }
 }
 
+/* Assicura che i campi di input siano sempre cliccabili */
+.MuiTextField-root,
+.MuiTextField-root input,
+.MuiTextField-root textarea,
+.MuiInputBase-root,
+.MuiInputBase-input,
+.MuiOutlinedInput-root,
+.MuiOutlinedInput-input {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 101 !important;
+}
+
+/* Assicura che i bottoni siano sempre cliccabili */
+.MuiButton-root,
+.MuiButtonBase-root,
+.MuiIconButton-root {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 101 !important;
+}
+
+/* Assicura che i Tabs siano sempre cliccabili */
+.MuiTabs-root,
+.MuiTab-root {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 101 !important;
+}
+
 @keyframes particleFloat {
   0%, 100% {
     transform: translateY(0px) translateX(0px) rotate(0deg);
