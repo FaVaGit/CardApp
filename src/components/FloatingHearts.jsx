@@ -32,7 +32,7 @@ export default function FloatingHearts({ count = 6, size = 'medium', speed = 'no
         inset: 0,
         pointerEvents: 'none',
         overflow: 'hidden',
-        zIndex: 1
+        zIndex: -1
       }}
     >
       {hearts.map((_, index) => (

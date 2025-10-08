@@ -174,7 +174,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
             maxWidth:520, 
             position:'relative', 
             overflow:'hidden',
-            zIndex: 1,
+            zIndex: 100,
             margin: 'auto'
           }}
         >

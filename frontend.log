@@ -3,8 +3,7 @@
 > vite
 
 
-  VITE v6.3.6  ready in 455 ms
+  VITE v6.3.6  ready in 350 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-11:27:36 AM [vite] (client) hmr update /src/components/AuthPortal.jsx, /src/index.css

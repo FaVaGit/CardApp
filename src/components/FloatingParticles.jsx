@@ -76,7 +76,7 @@ export default function FloatingParticles({
   return (
     <Box 
       className="fixed inset-0 pointer-events-none overflow-hidden"
-      sx={{ zIndex: 2 }}
+      sx={{ zIndex: -1 }}
     >
       {particles.map((_, index) => (
         <div

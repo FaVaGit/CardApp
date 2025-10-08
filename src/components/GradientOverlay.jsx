@@ -64,10 +64,10 @@ export default function GradientOverlay({
 
   const getZIndex = () => {
     switch (position) {
-      case 'foreground': return 10;
-      case 'middle': return 5;
+      case 'foreground': return -1;
+      case 'middle': return -2;
       case 'background': 
-      default: return 1;
+      default: return -3;
     }
   };
 
