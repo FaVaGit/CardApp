@@ -61,6 +61,8 @@ public partial class Program
             {
                 using var conn = ctx.Database.GetDbConnection();
                 await conn.OpenAsync();
+                
+                // Patch per AuthToken nella tabella Users
                 var existingCols = new List<string>();
                 using (var cmd = conn.CreateCommand())
                 {
@@ -76,6 +78,24 @@ public partial class Program
                     foreach (var u in ctx.Users) u.AuthToken = Guid.NewGuid().ToString();
                     await ctx.SaveChangesAsync();
                 }
+
+                // Patch per DrawingData nella tabella GameSessions  
+                var gameSessionCols = new List<string>();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "PRAGMA table_info('GameSessions')";
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync()) gameSessionCols.Add(r.GetString(1));
+                }
+                if (!gameSessionCols.Contains("DrawingData"))
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = "ALTER TABLE GameSessions ADD COLUMN DrawingData TEXT";
+                    await alter.ExecuteNonQueryAsync();
+                    Console.WriteLine("[SchemaPatch] Added DrawingData column to GameSessions");
+                }
+
+                // Patch per tabella CoupleJoinRequests
                 using (var chk = conn.CreateCommand())
                 {
                     chk.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CoupleJoinRequests'";

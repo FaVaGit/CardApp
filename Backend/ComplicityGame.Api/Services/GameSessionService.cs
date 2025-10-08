@@ -13,6 +13,12 @@ namespace ComplicityGame.Api.Services
         Task<GameSession?> GetActiveSessionAsync(string coupleId);
         Task<bool> EndGameAsync(string sessionId);
         
+        // Drawing/Whiteboard Methods
+        Task<GameSession?> CreateSessionAsync(GameSession session);
+        Task<GameSession?> GetSessionAsync(string sessionId);
+        Task<bool> UpdateSessionDrawingDataAsync(string sessionId, string drawingData);
+        Task<string?> GetSessionDrawingDataAsync(string sessionId);
+        
         // Helper methods
         Task<int> GetAvailableCardsCountAsync();
     }
@@ -270,6 +276,82 @@ namespace ComplicityGame.Api.Services
         public async Task<int> GetAvailableCardsCountAsync()
         {
             return await _context.GameCards.CountAsync();
+        }
+
+        // Drawing/Whiteboard methods
+        public async Task<GameSession?> CreateSessionAsync(GameSession session)
+        {
+            try
+            {
+                _context.GameSessions.Add(session);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"🎨 Created game session {session.Id}");
+                return session;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Failed to create game session {session.Id}");
+                throw;
+            }
+        }
+
+        public async Task<GameSession?> GetSessionAsync(string sessionId)
+        {
+            try
+            {
+                return await _context.GameSessions
+                    .Include(gs => gs.Couple)
+                    .Include(gs => gs.Messages)
+                    .Include(gs => gs.SharedCards)
+                    .FirstOrDefaultAsync(gs => gs.Id == sessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Failed to get game session {sessionId}");
+                throw;
+            }
+        }
+
+        public async Task<bool> UpdateSessionDrawingDataAsync(string sessionId, string drawingData)
+        {
+            try
+            {
+                var session = await _context.GameSessions
+                    .FirstOrDefaultAsync(gs => gs.Id == sessionId);
+
+                if (session != null)
+                {
+                    session.DrawingData = drawingData;
+                    session.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"🎨 Updated drawing data for session {sessionId}");
+                    return true;
+                }
+
+                _logger.LogWarning($"⚠️ Session {sessionId} not found for drawing data update");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Failed to update drawing data for session {sessionId}");
+                throw;
+            }
+        }
+
+        public async Task<string?> GetSessionDrawingDataAsync(string sessionId)
+        {
+            try
+            {
+                var session = await _context.GameSessions
+                    .FirstOrDefaultAsync(gs => gs.Id == sessionId);
+                
+                return session?.DrawingData;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Failed to get drawing data for session {sessionId}");
+                throw;
+            }
         }
     }
 }

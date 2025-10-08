@@ -2,8 +2,9 @@
 > cardapp@1.0.0 dev
 > vite
 
+8:42:19 PM [vite] (client) Re-optimizing dependencies because lockfile has changed
 
-  VITE v6.3.6  ready in 292 ms
+  VITE v6.3.6  ready in 1560 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose

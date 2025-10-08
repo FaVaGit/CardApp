@@ -91,6 +91,7 @@ public class GameSession
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public string? DrawingData { get; set; } // JSON serialized drawing strokes and notes
     
     public Couple Couple { get; set; } = null!;
     public List<GameMessage> Messages { get; set; } = new();

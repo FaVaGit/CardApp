@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+// Whiteboard
+import { SharedCanvas } from './SharedCanvas.jsx';
+import { useBackend } from './useBackend.js';
 import {
   Box,
   Grid,
@@ -47,6 +50,18 @@ export default function CoupleGame({ user, apiService, onExit }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([]);
+  // Whiteboard panel collapsed state (lavagna sempre montata)
+  const [whiteboardCollapsed, setWhiteboardCollapsed] = useState(false);
+  const {
+    drawingStrokes,
+    drawingNotes,
+    addDrawingStroke,
+    addDrawingNote,
+    clearDrawing,
+    undoDrawing,
+    redoDrawing,
+    getDrawingData
+  } = useBackend();
   const [isRestoredSession, setIsRestoredSession] = useState(false); // Track if this is a restored session
   // Drawer rimossa – evitiamo duplicazione del log (unica colonna destra)
   const [snack, setSnack] = useState(null); // {text, type}
@@ -358,6 +373,10 @@ export default function CoupleGame({ user, apiService, onExit }) {
             {error && (
               <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
             )}
+            {/* Hint lavagna mobile */}
+            <Box sx={{ mt: 2, display: { md: 'none' } }}>
+              <Chip size="small" variant="outlined" label="Lavagna sempre disponibile sotto" />
+            </Box>
           </Paper>
         </Grid>
   <Grid size={{ xs: 12, md: 4 }}>
@@ -410,6 +429,15 @@ export default function CoupleGame({ user, apiService, onExit }) {
             Complicità • Coppia
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          {/* Whiteboard Indicator */}
+          <Chip
+            size="small"
+            variant={whiteboardCollapsed ? 'outlined' : 'filled'}
+            color={whiteboardCollapsed ? 'default' : 'secondary'}
+            label={whiteboardCollapsed ? 'Lavagna (minimizzata)' : 'Lavagna aperta'}
+            onClick={() => setWhiteboardCollapsed(v => !v)}
+            sx={{ mr: 1, cursor: 'pointer' }}
+          />
           {partnerInfo && (
             <Chip 
               size="small" 
@@ -428,6 +456,41 @@ export default function CoupleGame({ user, apiService, onExit }) {
         </Toolbar>
       </AppBar>
       {renderPlaying()}
+      {/* Whiteboard Section always mounted with collapse */}
+      <Box sx={{ maxWidth: 1480, mx: 'auto', px: 2, pb: 6 }}>
+        <Paper elevation={6} sx={{ mt: 3, p: 2, position: 'relative', borderRadius: 4, background: 'linear-gradient(135deg, #ffffffcc, #f5f3ffcc)', backdropFilter: 'blur(10px)' }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              🎨 Lavagna Condivisa
+            </Typography>
+            <Chip size="small" label={`${drawingStrokes.length} tratti`} variant="outlined" />
+            <Chip size="small" label={`${drawingNotes.length} note`} variant="outlined" />
+            <Box sx={{ flexGrow: 1 }} />
+            <Chip
+              size="small"
+              variant={whiteboardCollapsed ? 'outlined' : 'filled'}
+              color={whiteboardCollapsed ? 'default' : 'secondary'}
+              label={whiteboardCollapsed ? 'Espandi' : 'Minimizza'}
+              onClick={() => setWhiteboardCollapsed(v => !v)}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Stack>
+          {!whiteboardCollapsed && (
+            <SharedCanvas
+              strokes={drawingStrokes}
+              notes={drawingNotes}
+              currentUser={{ id: user.userId || user.id, name: user.name }}
+              sessionId={gameSession?.id}
+              onAddStroke={(s) => gameSession?.id && addDrawingStroke(gameSession.id, s)}
+              onAddNote={(n) => gameSession?.id && addDrawingNote(gameSession.id, n)}
+              onClearCanvas={() => gameSession?.id && clearDrawing(gameSession.id)}
+              onUndo={() => gameSession?.id && undoDrawing(gameSession.id)}
+              onRedo={() => gameSession?.id && redoDrawing(gameSession.id)}
+              isReadOnly={!gameSession?.id}
+            />
+          )}
+        </Paper>
+      </Box>
       <Snackbar open={!!snack} autoHideDuration={3000} onClose={() => setSnack(null)}>
         {snack && <Alert onClose={() => setSnack(null)} severity={snack.type === 'error' ? 'error' : snack.type === 'success' ? 'success' : 'info'} sx={{ width: '100%' }}>{snack.text}</Alert>}
       </Snackbar>
