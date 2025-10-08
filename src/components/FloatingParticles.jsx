@@ -60,6 +60,19 @@ export default function FloatingParticles({
     return `${base + (index % 3)}s`;
   };
 
+  const getInlineColor = (index) => {
+    if (color === 'mixed') {
+      const colors = ['rgba(236, 72, 153, 0.6)', 'rgba(168, 85, 247, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(244, 63, 94, 0.6)'];
+      return colors[index % colors.length];
+    }
+    switch (color) {
+      case 'pink': return 'rgba(236, 72, 153, 0.6)';
+      case 'purple': return 'rgba(168, 85, 247, 0.6)';
+      case 'blue': return 'rgba(59, 130, 246, 0.6)';
+      default: return 'rgba(168, 85, 247, 0.6)';
+    }
+  };
+
   return (
     <Box 
       className="fixed inset-0 pointer-events-none overflow-hidden"
@@ -68,23 +81,24 @@ export default function FloatingParticles({
       {particles.map((_, index) => (
         <div
           key={index}
-          className={`
-            absolute animate-float opacity-40 
-            ${getColorClass(index)} ${getSizeClass(index)}
-          `}
           style={{
+            position: 'absolute',
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
+            fontSize: size === 'varied' ? ['0.75rem', '1rem', '1.25rem', '1.5rem'][index % 4] : '1rem',
+            color: getInlineColor(index),
+            opacity: 0.4,
+            animation: `particleFloat ${getAnimationDuration(index)} ease-in-out infinite`,
             animationDelay: `${Math.random() * 5}s`,
-            animationDuration: getAnimationDuration(index),
             animationPlayState: 'running',
             animationFillMode: 'both',
             willChange: 'transform, opacity',
-            transform: `rotate(${Math.random() * 360}deg)`,
+            transform: `rotate(${Math.random() * 360}deg) translateZ(0)`,
             pointerEvents: 'none',
             userSelect: 'none',
             isolation: 'isolate',
-            contain: 'layout style paint'
+            contain: 'layout style paint',
+            zIndex: -1
           }}
         >
           {getParticleSymbol(index)}
