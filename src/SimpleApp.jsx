@@ -347,7 +347,12 @@ export default function SimpleApp() {
             className="glass-effect animate-fade-in shadow-soft"
           >
             <Typography variant="subtitle1" fontWeight={700}>Ciao {authenticatedUser?.name}</Typography>
-            <Typography variant="body2" color="text.secondary">Invita un partner o avvia una partita singola per iniziare subito.</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Invita un partner tramite la directory utenti oppure fai accedere il secondo utente cliccando "Accesso Secondo Utente" qui sotto.
+            </Typography>
+            <Typography variant="body2" color="primary.main" sx={{ mt:1, fontWeight:500 }}>
+              💡 Per il gioco di coppia: entrambi gli utenti devono essere connessi
+            </Typography>
           </Box>
           <Box 
             sx={{ 
@@ -405,10 +410,40 @@ export default function SimpleApp() {
               <span>Out: <b>{joinCounts.outgoing}</b></span>
             </Box>
           </Box>
-          <Box sx={{ mt:3, display:'flex', gap:1 }}>
-            <Button onClick={handleLogout} variant="outlined" color="inherit" fullWidth>Logout</Button>
-            <Button onClick={() => { localStorage.removeItem('complicity_auth'); setAuthenticatedUser(null); setCurrentScreen('auth'); }} variant="outlined" color="warning" fullWidth>Nuovo</Button>
-            <Button onClick={clearAllUsers} variant="contained" color="error" fullWidth>Pulisci</Button>
+          <Box sx={{ mt:3, display:'flex', gap:1, flexDirection:'column' }}>
+            <Box sx={{ display:'flex', gap:1 }}>
+              <Button onClick={handleLogout} variant="outlined" color="inherit" fullWidth>Logout</Button>
+              <Button onClick={clearAllUsers} variant="contained" color="error" fullWidth>Pulisci</Button>
+            </Box>
+            <Button 
+              onClick={() => { 
+                localStorage.removeItem('complicity_auth'); 
+                setAuthenticatedUser(null); 
+                setCurrentScreen('auth'); 
+              }} 
+              variant="contained" 
+              color="secondary" 
+              fullWidth
+              size="large"
+              sx={{
+                background:'linear-gradient(90deg,#ba68c8,#8e24aa)', 
+                fontWeight:600, 
+                letterSpacing:'.5px', 
+                py:1.2,
+                mt:1
+              }}
+              className="animate-pulse-soft"
+            >
+              👥 Accesso Secondo Utente
+            </Button>
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              align="center"
+              sx={{ mt:1 }}
+            >
+              Per il gioco di coppia, il secondo utente deve accedere da qui
+            </Typography>
           </Box>
         </Box>
         <Box sx={{ display:{ xs:'none', md:'block' } }}>
