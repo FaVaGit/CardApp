@@ -224,7 +224,7 @@ export default function SimpleApp() {
         console.log('✅ Purge backend completata');
       }
       // Reset stato app comunque
-      localStorage.removeItem('complicity_auth');
+      sessionStorage.removeItem('complicity_auth');
       setCurrentScreen('auth');
       setAuthenticatedUser(null);
       setSelectedGameType(null);
@@ -259,7 +259,7 @@ export default function SimpleApp() {
     try {
       // Attempt backend logout if token stored
       try {
-        const stored = localStorage.getItem('complicity_auth');
+        const stored = sessionStorage.getItem('complicity_auth');
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed?.authToken && apiService?.userId === parsed.userId) {
@@ -279,7 +279,7 @@ export default function SimpleApp() {
     }
     
     // Clear stored auth to allow new registration
-    localStorage.removeItem('complicity_auth');
+    sessionStorage.removeItem('complicity_auth');
     setCurrentScreen('auth');
     setAuthenticatedUser(null);
     setSelectedGameType(null);
@@ -410,40 +410,9 @@ export default function SimpleApp() {
               <span>Out: <b>{joinCounts.outgoing}</b></span>
             </Box>
           </Box>
-          <Box sx={{ mt:3, display:'flex', gap:1, flexDirection:'column' }}>
-            <Box sx={{ display:'flex', gap:1 }}>
-              <Button onClick={handleLogout} variant="outlined" color="inherit" fullWidth>Logout</Button>
-              <Button onClick={clearAllUsers} variant="contained" color="error" fullWidth>Pulisci</Button>
-            </Box>
-            <Button 
-              onClick={() => { 
-                localStorage.removeItem('complicity_auth'); 
-                setAuthenticatedUser(null); 
-                setCurrentScreen('auth'); 
-              }} 
-              variant="contained" 
-              color="secondary" 
-              fullWidth
-              size="large"
-              sx={{
-                background:'linear-gradient(90deg,#ba68c8,#8e24aa)', 
-                fontWeight:600, 
-                letterSpacing:'.5px', 
-                py:1.2,
-                mt:1
-              }}
-              className="animate-pulse-soft"
-            >
-              👥 Accesso Secondo Utente
-            </Button>
-            <Typography 
-              variant="caption" 
-              color="text.secondary" 
-              align="center"
-              sx={{ mt:1 }}
-            >
-              Per il gioco di coppia, il secondo utente deve accedere da qui
-            </Typography>
+          <Box sx={{ mt:3, display:'flex', gap:1 }}>
+            <Button onClick={handleLogout} variant="outlined" color="inherit" fullWidth>Logout</Button>
+            <Button onClick={clearAllUsers} variant="contained" color="error" fullWidth>Pulisci</Button>
           </Box>
         </Box>
         <Box sx={{ display:{ xs:'none', md:'block' } }}>

@@ -15,7 +15,7 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
   const reconnectAttemptedRef = useRef(false);
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('complicity_auth');
+      const stored = sessionStorage.getItem('complicity_auth');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed?.name && parsed?.userId && parsed?.personalCode && parsed?.authToken) {
@@ -25,7 +25,7 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
               .then(res => {
                 if (res?.invalidToken) {
                   // token invalid => clear stored session silently
-                  localStorage.removeItem('complicity_auth');
+                  sessionStorage.removeItem('complicity_auth');
                   setReuseSession(null);
                   return;
                 }
@@ -90,7 +90,7 @@ export default function SimpleAuth({ onAuthSuccess, onClearUsers, apiService }) 
       };
 
       // Persist minimal auth context
-      localStorage.setItem('complicity_auth', JSON.stringify({
+      sessionStorage.setItem('complicity_auth', JSON.stringify({
         userId: user.userId,
         personalCode: user.personalCode,
         name: user.name,

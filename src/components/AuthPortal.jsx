@@ -60,7 +60,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
       const newUser = { id: connect.userId, name: name.trim(), nickname: nickname.trim(), userCode: connect.personalCode, personalCode: connect.personalCode, salt, hash };
       const updated = [...users, newUser];
       saveUsers(updated); setUsers(updated);
-      localStorage.setItem('complicity_auth', JSON.stringify({ userId: connect.userId, personalCode: connect.personalCode, name: newUser.name, nickname: newUser.nickname, authToken: connect.authToken }));
+      sessionStorage.setItem('complicity_auth', JSON.stringify({ userId: connect.userId, personalCode: connect.personalCode, name: newUser.name, nickname: newUser.nickname, authToken: connect.authToken }));
   console.log('[AuthPortal] Registrazione completata', { user: newUser.name, id: connect.userId });
   if (typeof window !== 'undefined') window.__LAST_AUTH_SUCCESS = 'register';
   onAuthSuccess({ ...newUser, userId: connect.userId, connectionId: connect.connectionId, status: connect });
@@ -87,7 +87,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
         const newUser = { id: connect.userId, name: name.trim(), nickname: nickname.trim(), userCode: connect.personalCode, personalCode: connect.personalCode, salt, hash };
         const updated = [...users, newUser];
         saveUsers(updated); setUsers(updated);
-        localStorage.setItem('complicity_auth', JSON.stringify({ userId: connect.userId, personalCode: connect.personalCode, name: newUser.name, nickname: newUser.nickname, authToken: connect.authToken }));
+        sessionStorage.setItem('complicity_auth', JSON.stringify({ userId: connect.userId, personalCode: connect.personalCode, name: newUser.name, nickname: newUser.nickname, authToken: connect.authToken }));
         onAuthSuccess({ ...newUser, userId: connect.userId, connectionId: connect.connectionId, status: connect });
         resetFields();
         return; // login flow completo
@@ -104,12 +104,12 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
       // Reconnect if same userId present else connect again (fresh session)
       let connect;
       try {
-        connect = await apiService.reconnect(existing.id, localStorage.getItem('complicity_auth') ? JSON.parse(localStorage.getItem('complicity_auth')).authToken : undefined);
+        connect = await apiService.reconnect(existing.id, sessionStorage.getItem('complicity_auth') ? JSON.parse(sessionStorage.getItem('complicity_auth')).authToken : undefined);
         if (connect?.invalidToken || !connect?.userId) {
           connect = await apiService.connectUser(existing.name, 'Coppia');
         }
       } catch { connect = await apiService.connectUser(existing.name, 'Coppia'); }
-      localStorage.setItem('complicity_auth', JSON.stringify({ userId: connect.userId, personalCode: connect.personalCode, name: existing.name, nickname: existing.nickname, authToken: connect.authToken }));
+      sessionStorage.setItem('complicity_auth', JSON.stringify({ userId: connect.userId, personalCode: connect.personalCode, name: existing.name, nickname: existing.nickname, authToken: connect.authToken }));
   console.log('[AuthPortal] Login completato', { user: existing.name, id: connect.userId });
   if (typeof window !== 'undefined') window.__LAST_AUTH_SUCCESS = 'login';
   onAuthSuccess({ ...existing, userId: connect.userId, personalCode: connect.personalCode, connectionId: connect.connectionId, status: connect });
@@ -135,54 +135,21 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
       alignItems:'center', 
       justifyContent:'center', 
       p:3, 
-      overflow: 'hidden',
-      // Assicura che solo il form riceva i click
-      pointerEvents: 'none',
-      '& > *': {
-        pointerEvents: 'auto'
-      }
+      overflow: 'hidden'
     }}>
-      {/* Elementi decorativi di sfondo - COMPLETAMENTE ISOLATI */}
-      <Box sx={{ 
-        position: 'absolute', 
-        inset: 0, 
-        zIndex: 0, 
-        pointerEvents: 'none',
-        isolation: 'isolate'
-      }}>
-        <GradientOverlay variant="romantic" intensity="medium" />
-        <FloatingHearts count={8} size="medium" speed="normal" />
-        <FloatingParticles count={12} type="sparkle" color="mixed" size="varied" speed="normal" />
-      </Box>
       
-      {enableBg && (
-        <Box sx={{ 
-          position: 'absolute', 
-          inset: 0, 
-          zIndex: 0, 
-          pointerEvents: 'none',
-          isolation: 'isolate'
-        }}>
-          <Suspense fallback={null}>
-            <LazyBg opacity={0.18} />
-          </Suspense>
-        </Box>
-      )}
-      
-      <AnimatedBorder variant="glow" color="purple" speed="normal">
-        <Paper 
-          elevation={8} 
-          className="glass-effect animate-fade-in" 
-          sx={{ 
-            p:5, 
-            width:'100%', 
-            maxWidth:520, 
-            position:'relative', 
-            overflow:'hidden',
-            zIndex: 100,
-            margin: 'auto',
-            pointerEvents: 'auto'
-          }}
+      <Paper 
+        elevation={8} 
+        className="glass-effect animate-fade-in" 
+        sx={{ 
+          p:5, 
+          width:'100%', 
+          maxWidth:520, 
+          position:'relative', 
+          overflow:'hidden',
+          zIndex: 100,
+          margin: 'auto'
+        }}
         >
           <Box sx={{ display:'flex', alignItems:'center', mb:1 }}>
             <FavoriteIcon 
@@ -225,12 +192,11 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
             {error && <Alert severity="error" variant="outlined" onClose={()=>setError('')}>{error}</Alert>}
             <Button 
               data-testid="submit-auth" 
-              disabled={loading || !name.trim()} 
+              disabled={loading || !name.trim() || !password} 
               type="submit" 
               variant="contained" 
               size="large" 
               startIcon={mode==='login'? <LockOpenIcon/>:<PersonAddAlt1Icon/>} 
-              className="animate-bounce-soft shadow-romantic"
               sx={{ 
                 py:1.2, 
                 fontWeight:600, 
@@ -243,7 +209,6 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
             </Button>
           </Stack>
         </Paper>
-      </AnimatedBorder>
     </Box>
   );
 }

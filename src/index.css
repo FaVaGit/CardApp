@@ -45,8 +45,6 @@
     animation-play-state: running;
     animation-fill-mode: both;
     will-change: transform;
-    pointer-events: none;
-    user-select: none;
   }
 
   .animate-pulse-soft {
@@ -54,8 +52,6 @@
     animation-play-state: running;
     animation-fill-mode: both;
     will-change: opacity;
-    pointer-events: none;
-    user-select: none;
   }
 
   .animate-rotate-slow {
@@ -89,8 +85,6 @@
     animation-play-state: running;
     animation-fill-mode: both;
     will-change: opacity;
-    pointer-events: none;
-    user-select: none;
   }
 
   .animate-heartbeat {
@@ -98,8 +92,6 @@
     animation-play-state: running;
     animation-fill-mode: both;
     will-change: transform;
-    pointer-events: none;
-    user-select: none;
   }
 
   /* Animazioni per responsività */
