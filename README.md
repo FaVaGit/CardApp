@@ -177,6 +177,33 @@ Note tecniche:
 #### Documentazione dettagliata Join Requests
 Per dettagli su caching locale, flag `_optimistic` e riconciliazione snapshot consultare il file `JOIN_REQUESTS.md`.
 
+## 🎨 Lavagna Collaborativa
+
+La lavagna (canvas) è integrata nella modalità di coppia e offre:
+- Toolbar con strumenti grafici: matita, penna, pennarello, testo, immagini, cancellino
+- Selezione colore, spessore, sfondo (verde lavagna)
+- Modalità cancellino per rimuovere disegni
+- Sincronizzazione live tra partner: ogni modifica viene trasmessa in tempo reale
+- Ottimizzazione: import dinamico di Fabric.js per caricamento rapido
+- UI moderna con icone MaterialUI
+- Indicatori di caricamento e disabilitazione controlli durante l'inizializzazione
+
+### Test
+- **Unitari**: Vitest copre hashing password, migrazione, login, lavagna (toolbar, sync, reset, tool switching)
+- **E2E**: Playwright verifica collaborazione lavagna, sync tra utenti, flussi di login, TTL, metriche
+
+### Come usare
+- Seleziona uno strumento dalla toolbar
+- Disegna, scrivi, cancella, cambia colore/spessore/sfondo
+- Le modifiche sono sincronizzate istantaneamente con il partner
+- La lavagna è ottimizzata per mobile e desktop
+
+### Flag CI
+- `STRICT_COUPLE_ASSERT=1` abilitato in CI per asserzioni forti su sync coppia
+- `VITE_E2E=1` espone window.__apiService per test avanzati
+
+---
+
 ## 🧪 Testing
 
 ### Layering (Core vs API)

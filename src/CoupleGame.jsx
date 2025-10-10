@@ -23,6 +23,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import CardActionButtons from './components/CardActionButtons.jsx';
 import CanvasCardTable from './components/CanvasCardTable.jsx';
+import LavagnaCanvas from './components/LavagnaCanvas.jsx';
 // Componenti decorativi
 import FloatingHearts from './components/FloatingHearts.jsx';
 import GradientOverlay from './components/GradientOverlay.jsx';
@@ -63,6 +64,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     getDrawingData
   } = useBackend();
   const [isRestoredSession, setIsRestoredSession] = useState(false); // Track if this is a restored session
+  const [lavagnaState, setLavagnaState] = useState(null); // Stato sincronizzato della lavagna
   // Drawer rimossa – evitiamo duplicazione del log (unica colonna destra)
   const [snack, setSnack] = useState(null); // {text, type}
   // Flags per deduplicare i log
@@ -210,6 +212,16 @@ export default function CoupleGame({ user, apiService, onExit }) {
         console.warn('Partner sync delay diagnostic event:', info);
       };
 
+      // Handler per sincronizzazione lavagna
+      const handleLavagnaSync = (data) => {
+        try {
+          setLavagnaState(data);
+          addMessage('🎨 Lavagna sincronizzata', 'info');
+        } catch (e) {
+          console.warn('Errore sync lavagna:', e);
+        }
+      };
+
       // Remove existing listeners to prevent duplicates
       apiService.off('coupleJoined', handleCoupleJoined);
       apiService.off('gameSessionStarted', handleGameSessionStarted);
@@ -218,6 +230,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('sessionUpdated', handleSessionUpdated);
       apiService.off('partnerUpdated', handlePartnerUpdated);
   apiService.off('partnerSyncDelay', handlePartnerSyncDelay);
+      apiService.off('lavagnaSync', handleLavagnaSync);
 
       // Add listeners
       apiService.on('coupleJoined', handleCoupleJoined);
@@ -227,8 +240,9 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.on('sessionUpdated', handleSessionUpdated);
       apiService.on('partnerUpdated', handlePartnerUpdated);
   apiService.on('partnerSyncDelay', handlePartnerSyncDelay);
+      apiService.on('lavagnaSync', handleLavagnaSync);
 
-  return { handleCoupleJoined, handleGameSessionStarted, handleGameSessionEnded, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated };
+  return { handleCoupleJoined, handleGameSessionStarted, handleGameSessionEnded, handleCardDrawn, handleSessionUpdated, handlePartnerUpdated, handleLavagnaSync };
     };
 
     const listeners = setupEventListeners();
@@ -242,6 +256,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
       apiService.off('sessionUpdated', listeners.handleSessionUpdated);
       apiService.off('partnerUpdated', listeners.handlePartnerUpdated);
   apiService.off('partnerSyncDelay', listeners.handlePartnerSyncDelay);
+      apiService.off('lavagnaSync', listeners.handleLavagnaSync);
     };
   // Nota dipendenze: intentionally non includiamo gameSession, partnerInfo, messages per evitare duplicazione listener.
   // addMessage è memoized; partnerCode viene letto solo inizialmente per eventuale set.
@@ -326,6 +341,22 @@ export default function CoupleGame({ user, apiService, onExit }) {
     }
   };
 
+  // Funzione per inviare sincronizzazione lavagna
+  const handleLavagnaChange = useCallback(async (json, bgColor) => {
+    if (!gameSession?.id) return;
+    
+    try {
+      await apiService.publishEvent('lavagnaSync', {
+        sessionId: gameSession.id,
+        json,
+        bgColor,
+        timestamp: Date.now()
+      });
+    } catch (e) {
+      console.warn('Errore invio sync lavagna:', e);
+    }
+  }, [gameSession?.id, apiService]);
+
   // (Schermata partner search rimossa) Anche la schermata di preparazione è stata eliminata.
 
   // Render playing screen (ora sempre mostrata). Se la sessione non è ancora pronta mostriamo un badge "In attesa".
@@ -361,6 +392,13 @@ export default function CoupleGame({ user, apiService, onExit }) {
               )}
             </Stack>
 
+            <Box sx={{ mb: 3 }}>
+              <LavagnaCanvas 
+                height={260} 
+                onSync={handleLavagnaChange}
+                syncState={lavagnaState}
+              />
+            </Box>
             <Box sx={{ mb: 3 }}>
               <CanvasCardTable card={currentCard} />
             </Box>

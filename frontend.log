@@ -4,7 +4,151 @@
 
 8:42:19 PM [vite] (client) Re-optimizing dependencies because lockfile has changed
 
+<<<<<<< HEAD
   VITE v6.3.6  ready in 1560 ms
+=======
+  VITE v6.3.6  ready in 245 ms
+>>>>>>> 332f853 (feat: Lavagna collaborativa avanzata, sync live, ottimizzazione Fabric.js, test unitari/e2e)
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
+4:32:32 PM [vite] (client) hmr update /src/components/LavagnaCanvas.jsx, /src/index.css
+4:35:15 PM [vite] (client) hmr update /src/components/LavagnaCanvas.jsx, /src/index.css
+4:35:28 PM [vite] (client) hmr update /src/components/LavagnaCanvas.jsx, /src/index.css
+4:35:49 PM [vite] (client) hmr update /src/components/LavagnaCanvas.jsx, /src/index.css
+4:35:49 PM [vite] Internal server error: /home/fabio/CardApp/src/components/LavagnaCanvas.jsx: Unexpected token, expected "," (66:4)
+
+  64 |     }
+  65 |     }
+> 66 |     function resize() {
+     |     ^
+  67 |       if (!fabricRef.current || !canvasRef.current) return;
+  68 |       const w = canvasRef.current.parentElement?.clientWidth || 420;
+  69 |       fabricRef.current.setWidth(w);
+  Plugin: vite:react-babel
+  File: /home/fabio/CardApp/src/components/LavagnaCanvas.jsx:66:4
+  64 |      }
+  65 |      }
+  66 |      function resize() {
+     |      ^
+  67 |        if (!fabricRef.current || !canvasRef.current) return;
+  68 |        const w = canvasRef.current.parentElement?.clientWidth || 420;
+      at constructor (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:367:19)
+      at JSXParserMixin.raise (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:6630:19)
+      at JSXParserMixin.unexpected (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:6650:16)
+      at JSXParserMixin.expect (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:6930:12)
+      at JSXParserMixin.parseCallExpressionArguments (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11247:14)
+      at JSXParserMixin.parseCoverCallAndAsyncArrowHead (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11190:29)
+      at JSXParserMixin.parseSubscript (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11124:19)
+      at JSXParserMixin.parseSubscripts (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11098:19)
+      at JSXParserMixin.parseExprSubscripts (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11089:17)
+      at JSXParserMixin.parseUpdate (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11070:21)
+      at JSXParserMixin.parseMaybeUnary (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11050:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10903:61)
+      at JSXParserMixin.parseExprOps (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10908:23)
+      at JSXParserMixin.parseMaybeConditional (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10885:23)
+      at JSXParserMixin.parseMaybeAssign (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10835:21)
+      at JSXParserMixin.parseExpressionBase (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10788:23)
+      at /home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10784:39
+      at JSXParserMixin.allowInAnd (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12431:16)
+      at JSXParserMixin.parseExpression (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10784:17)
+      at JSXParserMixin.parseStatementContent (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12904:23)
+      at JSXParserMixin.parseStatementLike (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12776:17)
+      at JSXParserMixin.parseStatementListItem (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12756:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13325:61)
+      at JSXParserMixin.parseBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13318:10)
+      at JSXParserMixin.parseBlock (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13306:10)
+      at JSXParserMixin.parseFunctionBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12110:24)
+      at JSXParserMixin.parseFunctionBodyAndFinish (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12096:10)
+      at /home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13454:12
+      at JSXParserMixin.withSmartMixTopicForbiddingContext (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12413:14)
+      at JSXParserMixin.parseFunction (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13453:10)
+      at JSXParserMixin.parseExportDefaultExpression (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13916:19)
+      at JSXParserMixin.parseExport (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13837:25)
+      at JSXParserMixin.parseStatementContent (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12887:27)
+      at JSXParserMixin.parseStatementLike (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12776:17)
+      at JSXParserMixin.parseModuleItem (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12753:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13325:36)
+      at JSXParserMixin.parseBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13318:10)
+      at JSXParserMixin.parseProgram (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12634:10)
+      at JSXParserMixin.parseTopLevel (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12624:25)
+      at JSXParserMixin.parse (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:14501:10)
+      at parse (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:14535:38)
+      at parser (/home/fabio/CardApp/node_modules/@babel/core/lib/parser/index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (/home/fabio/CardApp/node_modules/@babel/core/lib/transformation/normalize-file.js:64:37)
+      at normalizeFile.next (<anonymous>)
+      at run (/home/fabio/CardApp/node_modules/@babel/core/lib/transformation/index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (/home/fabio/CardApp/node_modules/@babel/core/lib/transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (/home/fabio/CardApp/node_modules/gensync/index.js:261:32)
+4:35:49 PM [vite] Internal server error: /home/fabio/CardApp/src/components/LavagnaCanvas.jsx: Unexpected token, expected "," (66:4)
+
+  64 |     }
+  65 |     }
+> 66 |     function resize() {
+     |     ^
+  67 |       if (!fabricRef.current || !canvasRef.current) return;
+  68 |       const w = canvasRef.current.parentElement?.clientWidth || 420;
+  69 |       fabricRef.current.setWidth(w);
+  Plugin: vite:react-babel
+  File: /home/fabio/CardApp/src/components/LavagnaCanvas.jsx:66:4
+  64 |      }
+  65 |      }
+  66 |      function resize() {
+     |      ^
+  67 |        if (!fabricRef.current || !canvasRef.current) return;
+  68 |        const w = canvasRef.current.parentElement?.clientWidth || 420;
+      at constructor (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:367:19)
+      at JSXParserMixin.raise (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:6630:19)
+      at JSXParserMixin.unexpected (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:6650:16)
+      at JSXParserMixin.expect (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:6930:12)
+      at JSXParserMixin.parseCallExpressionArguments (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11247:14)
+      at JSXParserMixin.parseCoverCallAndAsyncArrowHead (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11190:29)
+      at JSXParserMixin.parseSubscript (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11124:19)
+      at JSXParserMixin.parseSubscripts (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11098:19)
+      at JSXParserMixin.parseExprSubscripts (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11089:17)
+      at JSXParserMixin.parseUpdate (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11070:21)
+      at JSXParserMixin.parseMaybeUnary (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:11050:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10903:61)
+      at JSXParserMixin.parseExprOps (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10908:23)
+      at JSXParserMixin.parseMaybeConditional (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10885:23)
+      at JSXParserMixin.parseMaybeAssign (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10835:21)
+      at JSXParserMixin.parseExpressionBase (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10788:23)
+      at /home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10784:39
+      at JSXParserMixin.allowInAnd (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12431:16)
+      at JSXParserMixin.parseExpression (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:10784:17)
+      at JSXParserMixin.parseStatementContent (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12904:23)
+      at JSXParserMixin.parseStatementLike (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12776:17)
+      at JSXParserMixin.parseStatementListItem (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12756:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13325:61)
+      at JSXParserMixin.parseBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13318:10)
+      at JSXParserMixin.parseBlock (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13306:10)
+      at JSXParserMixin.parseFunctionBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12110:24)
+      at JSXParserMixin.parseFunctionBodyAndFinish (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12096:10)
+      at /home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13454:12
+      at JSXParserMixin.withSmartMixTopicForbiddingContext (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12413:14)
+      at JSXParserMixin.parseFunction (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13453:10)
+      at JSXParserMixin.parseExportDefaultExpression (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13916:19)
+      at JSXParserMixin.parseExport (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13837:25)
+      at JSXParserMixin.parseStatementContent (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12887:27)
+      at JSXParserMixin.parseStatementLike (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12776:17)
+      at JSXParserMixin.parseModuleItem (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12753:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13325:36)
+      at JSXParserMixin.parseBlockBody (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:13318:10)
+      at JSXParserMixin.parseProgram (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12634:10)
+      at JSXParserMixin.parseTopLevel (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:12624:25)
+      at JSXParserMixin.parse (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:14501:10)
+      at parse (/home/fabio/CardApp/node_modules/@babel/parser/lib/index.js:14535:38)
+      at parser (/home/fabio/CardApp/node_modules/@babel/core/lib/parser/index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (/home/fabio/CardApp/node_modules/@babel/core/lib/transformation/normalize-file.js:64:37)
+      at normalizeFile.next (<anonymous>)
+      at run (/home/fabio/CardApp/node_modules/@babel/core/lib/transformation/index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (/home/fabio/CardApp/node_modules/@babel/core/lib/transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (/home/fabio/CardApp/node_modules/gensync/index.js:261:32)
+4:36:18 PM [vite] (client) hmr update /src/components/LavagnaCanvas.jsx, /src/index.css
+4:36:52 PM [vite] (client) hmr update /src/components/LavagnaCanvas.jsx, /src/index.css
