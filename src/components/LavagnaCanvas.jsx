@@ -16,7 +16,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
  * - Import dinamico di Fabric.js per performance ottimizzate
  * - Responsive, stile lavagna scolastica
  */
-export default function LavagnaCanvas({ height = 260, onSync, syncState }) {
+export default function LavagnaCanvas({ height = 260, onSync, syncState = null }) {
   const canvasRef = useRef(null);
   const fabricRef = useRef(null);
   const [tool, setTool] = useState('pencil');
@@ -25,6 +25,14 @@ export default function LavagnaCanvas({ height = 260, onSync, syncState }) {
   const [width, setWidth] = useState(2.5);
   const [textValue, setTextValue] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Funzione di sincronizzazione lavagna
+  const syncBoard = () => {
+    if (fabricRef.current && onSync) {
+      const json = fabricRef.current.toJSON();
+      onSync(json, bgColor);
+    }
+  };
 
   // Inizializza la canvas una sola volta con import dinamico
   useEffect(() => {
@@ -35,10 +43,8 @@ export default function LavagnaCanvas({ height = 260, onSync, syncState }) {
         // Import dinamico per ridurre bundle size iniziale
         const fabricModule = await import('fabric');
         fabric = fabricModule.fabric;
-        
         if (!canvasRef.current || !fabric) return;
         if (canvasRef.current.__fabric) return;
-        
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
           isDrawingMode: ['pencil','pen','marker','eraser'].includes(tool),
           backgroundColor: bgColor,
@@ -48,15 +54,14 @@ export default function LavagnaCanvas({ height = 260, onSync, syncState }) {
         canvasRef.current.__fabric = fabricCanvas;
         fabricCanvas.setHeight(height);
         fabricCanvas.setWidth(canvasRef.current.parentElement?.clientWidth || 420);
-        
         // Event listener per sincronizzazione automatica
         fabricCanvas.on('path:created', syncBoard);
         fabricCanvas.on('object:added', syncBoard);
         fabricCanvas.on('object:removed', syncBoard);
         fabricCanvas.on('object:modified', syncBoard);
-        
         window.addEventListener('resize', resize);
-        setIsLoading(false);
+        // Ensure loading spinner is removed only after Fabric is fully ready and canvas is initialized
+        setTimeout(() => setIsLoading(false), 100);
       } catch (e) { 
         console.warn('Errore caricamento Fabric.js:', e);
         setIsLoading(false);
@@ -162,13 +167,6 @@ export default function LavagnaCanvas({ height = 260, onSync, syncState }) {
     }
   }
 
-  function syncBoard() {
-    if (fabricRef.current && onSync) {
-      const json = fabricRef.current.toJSON();
-      onSync(json, bgColor);
-    }
-  }
-
   return (
     <div style={{ width: '100%', position: 'relative', marginBottom: 16 }}>
       <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8 }}>
@@ -186,7 +184,7 @@ export default function LavagnaCanvas({ height = 260, onSync, syncState }) {
         <span style={{ fontSize:12, color:'#888' }}>Trascina immagini qui</span>
       </div>
       <div style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} style={{ width: '100%', height, borderRadius: 18, boxShadow: '0 2px 12px -6px #2d4c2a44', background: bgColor, border: '2px solid #3a5c37', display: 'block' }} />
+        <canvas ref={canvasRef} data-testid="lavagna-canvas" style={{ width: '100%', height, borderRadius: 18, boxShadow: '0 2px 12px -6px #2d4c2a44', background: bgColor, border: '2px solid #3a5c37', display: 'block' }} />
         {isLoading && (
           <div style={{ 
             position: 'absolute', 

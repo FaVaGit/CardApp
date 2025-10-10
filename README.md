@@ -19,7 +19,8 @@ A modern card game application built with **Event-Driven Architecture** using Re
 - 👥 **Couple Mode (richiesta / approvazione)**: Accoppiamento esplicito con auto‑start sessione
 - ⚡ **Partner Sync Immediato**: `respond-join` ora restituisce direttamente `partnerInfo` evitando attese
 - 🎴 **Card Sharing Sincronizzato**: Stato carte condivise in snapshot (storico `sharedCards`)
-- 🎲 **150+ Carte Conversazione**: Prompt curati in italiano
+- � **Lavagna Collaborativa**: Canvas interattivo con strumenti di disegno, sincronizzazione real-time tra partner
+- �🎲 **150+ Carte Conversazione**: Prompt curati in italiano
 - 💕 **Elementi Decorativi**: Cuori fluttuanti, particelle animate, gradienti romantici per un'atmosfera speciale
 - 🔄 **Eventi Real-time / Polling Resiliente**: RabbitMQ (o polling snapshot come fallback)
 - 🩺 **Diagnostica Sync Partner**: Evento `partnerSyncDelay` dopo 3 poll se partner mancante
@@ -27,7 +28,7 @@ A modern card game application built with **Event-Driven Architecture** using Re
 - 🎨 **Modern UI con MUI + Fabric.js**: Layout responsive, AppBar, Drawer log, canvas animato per carte
 - 📱 **Responsive Design**: Mobile & Desktop
 - 🏗️ **Architettura Moderna**: Separation of concerns, fallback sicuri
- - 🌗 **Dark Mode Toggle**: Tema scuro persistente via localStorage
+- 🌗 **Dark Mode Toggle**: Tema scuro persistente via localStorage
 
 ## 🔐 Sicurezza & Password
 Le credenziali sono gestite solo lato browser (modalità prototipo):

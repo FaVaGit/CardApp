@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Lavagna Canvas</title>
+    <script type="module">
+        // Simple test to check if LavagnaCanvas loads without error
+        console.log('Testing LavagnaCanvas loading...');
+        
+        // Simulate the dynamic fabric.js import
+        import('http://localhost:5173/node_modules/fabric/dist/index.js')
+            .then(fabricModule => {
+                console.log('✅ Fabric.js loaded successfully', fabricModule);
+                
+                // Create a test canvas
+                const canvas = document.createElement('canvas');
+                canvas.id = 'testCanvas';
+                canvas.width = 400;
+                canvas.height = 300;
+                document.body.appendChild(canvas);
+                
+                // Initialize fabric canvas
+                const fabricCanvas = new fabricModule.fabric.Canvas('testCanvas', {
+                    backgroundColor: '#2d4c2a',
+                    isDrawingMode: true
+                });
+                
+                console.log('✅ Fabric Canvas initialized successfully');
+                
+                // Test loading completion
+                setTimeout(() => {
+                    console.log('✅ Lavagna loading test completed successfully');
+                    document.getElementById('status').textContent = 'SUCCESS: Lavagna loads correctly';
+                    document.getElementById('status').style.color = 'green';
+                }, 100);
+                
+            })
+            .catch(error => {
+                console.error('❌ Failed to load Fabric.js:', error);
+                document.getElementById('status').textContent = 'ERROR: ' + error.message;
+                document.getElementById('status').style.color = 'red';
+            });
+    </script>
+</head>
+<body>
+    <h1>Lavagna Canvas Loading Test</h1>
+    <p id="status" style="font-weight: bold;">Loading...</p>
+    <div id="canvas-container"></div>
+</body>
+</html>
