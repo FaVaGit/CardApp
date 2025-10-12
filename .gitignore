@@ -136,6 +136,10 @@ backend.log
 frontend.log
 *.log
 
+# Debug screenshots & ephemeral test artifacts
+debug-*.png
+test-results/.last-run.json
+
 # SQLite WAL/SHM
 *.db-wal
 *.db-shm
