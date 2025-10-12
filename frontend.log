@@ -6,6 +6,7 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   VITE v6.3.6  ready in 1560 ms
 =======
   VITE v6.3.6  ready in 245 ms
@@ -13,6 +14,9 @@
 =======
   VITE v6.3.6  ready in 272 ms
 >>>>>>> 96e1498 (🎨 Fix lavagna loading issue and improve E2E testing)
+=======
+  VITE v6.3.6  ready in 190 ms
+>>>>>>> d965bac (chore(test-results): temporary commit of last-run.json for rebase)
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
