@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR Card Sharing Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .warning { background-color: #fff3cd; }
+        .info { background-color: #d1ecf1; }
+        button { margin: 5px; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; max-height: 300px; overflow-y: auto; }
+        .log-container { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+    </style>
+    <!-- SignalR Client Library -->
+    <script src="https://unpkg.com/@microsoft/signalr/dist/browser/signalr.min.js"></script>
+</head>
+<body>
+    <h1>🃏 SignalR Card Sharing Debug</h1>
+    
+    <div id="steps"></div>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="startUser1()">🚀 Start User1 (Creator)</button>
+        <button onclick="startUser2()">🔗 Start User2 (Joiner)</button>
+        <button onclick="createSession()">🎮 Create Couple Session</button>
+        <button onclick="startGame()">▶️ Start Game</button>
+        <button onclick="drawAndShareCard()">🃏 Draw & Share Card</button>
+        <button onclick="clearLog()">🧹 Clear Log</button>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <h3>📋 Real-time Log:</h3>
+        <div id="realtime-log" class="log-container"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000';
+        let stepCounter = 0;
+        let user1Connection = null;
+        let user2Connection = null;
+        let currentUser1 = null;
+        let currentUser2 = null;
+        let currentCouple = null;
+        let gameSessionId = null;
+
+        function addStep(title, content, type = 'info') {
+            stepCounter++;
+            const div = document.createElement('div');
+            div.className = `step ${type}`;
+            div.innerHTML = `<strong>Step ${stepCounter}: ${title}</strong><br>${content}`;
+            document.getElementById('steps').appendChild(div);
+            logToRealtime(`[${type.toUpperCase()}] ${title}: ${content}`);
+        }
+
+        function logToRealtime(message) {
+            const logDiv = document.getElementById('realtime-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('steps').innerHTML = '';
+            document.getElementById('realtime-log').innerHTML = '';
+            stepCounter = 0;
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            try {
+                logToRealtime(`🌐 API: ${options.method || 'GET'} ${endpoint}`);
+                
+                const response = await fetch(`${BASE_URL}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    responseData = responseText;
+                }
+
+                if (!response.ok) {
+                    addStep(`API Error`, `HTTP ${response.status}: ${responseText}`, 'error');
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                }
+
+                logToRealtime(`✅ API Success: ${JSON.stringify(responseData).substring(0, 100)}`);
+                return responseData;
+            } catch (err) {
+                addStep(`API Failed`, `${err.message}`, 'error');
+                throw err;
+            }
+        }
+
+        async function createSignalRConnection(userId, userName) {
+            logToRealtime(`🔄 Creating SignalR connection for ${userName}...`);
+            
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl(`${BASE_URL}/gamehub`)
+                .withAutomaticReconnect()
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            // Setup event handlers
+            connection.on('GameSessionCreated', (gameSession) => {
+                logToRealtime(`🎮 ${userName}: GameSessionCreated event - ID: ${gameSession.id}`);
+                gameSessionId = gameSession.id;
+                addStep(`GameSession Created`, `${userName} received GameSession ID: ${gameSession.id}`, 'success');
+            });
+
+            connection.on('CardShared', (cardData) => {
+                logToRealtime(`🃏 ${userName}: CardShared event received!`);
+                logToRealtime(`📦 ${userName}: Card data: ${JSON.stringify(cardData)}`);
+                addStep(`Card Received`, `${userName} received card: ${cardData.content || cardData.text}`, 'success');
+            });
+
+            connection.on('JoinedSessionGroup', (sessionId) => {
+                logToRealtime(`✅ ${userName}: Joined session group ${sessionId}`);
+            });
+
+            connection.on('CardShareError', (error) => {
+                logToRealtime(`❌ ${userName}: Card share error: ${error}`);
+                addStep(`Card Share Error`, `${userName}: ${error}`, 'error');
+            });
+
+            // Start connection
+            await connection.start();
+            logToRealtime(`✅ ${userName}: SignalR connection established`);
+            
+            // Join hub
+            await connection.invoke('JoinHub', userId);
+            logToRealtime(`✅ ${userName}: Joined SignalR hub`);
+
+            return connection;
+        }
+
+        async function startUser1() {
+            try {
+                addStep('Creating User1', 'Registering User1...', 'info');
+                
+                // Register User1
+                currentUser1 = await apiCall('/api/users/register', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'TestUser1',
+                        nickname: 'User1',
+                        gameType: 'Couple',
+                        availableForPairing: true
+                    })
+                });
+
+                addStep('User1 Created', `ID: ${currentUser1.id}`, 'success');
+
+                // Create SignalR connection
+                user1Connection = await createSignalRConnection(currentUser1.id, 'User1');
+                addStep('User1 Connected', 'SignalR connection established', 'success');
+
+            } catch (error) {
+                addStep('User1 Failed', error.message, 'error');
+            }
+        }
+
+        async function startUser2() {
+            try {
+                addStep('Creating User2', 'Registering User2...', 'info');
+                
+                // Register User2
+                currentUser2 = await apiCall('/api/users/register', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'TestUser2',
+                        nickname: 'User2',
+                        gameType: 'Couple',
+                        availableForPairing: true
+                    })
+                });
+
+                addStep('User2 Created', `ID: ${currentUser2.id}`, 'success');
+
+                // Create SignalR connection
+                user2Connection = await createSignalRConnection(currentUser2.id, 'User2');
+                addStep('User2 Connected', 'SignalR connection established', 'success');
+
+            } catch (error) {
+                addStep('User2 Failed', error.message, 'error');
+            }
+        }
+
+        async function createSession() {
+            if (!currentUser1 || !user1Connection) {
+                addStep('Session Failed', 'User1 must be created first', 'error');
+                return;
+            }
+
+            try {
+                addStep('Creating Session', 'Creating couple session...', 'info');
+
+                // Create couple session
+                currentCouple = await apiCall('/api/game/couples', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'Debug Test Session',
+                        gameType: 'Couple',
+                        createdBy: currentUser1.id
+                    })
+                });
+
+                addStep('Session Created', `Couple ID: ${currentCouple.id}`, 'success');
+
+                // User2 joins session if exists
+                if (currentUser2 && user2Connection) {
+                    await apiCall(`/api/game/couples/${currentCouple.id}/join`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            userId: currentUser2.id
+                        })
+                    });
+                    addStep('User2 Joined', 'User2 joined the session', 'success');
+                }
+
+            } catch (error) {
+                addStep('Session Failed', error.message, 'error');
+            }
+        }
+
+        async function startGame() {
+            if (!currentCouple || !user1Connection) {
+                addStep('Game Start Failed', 'Session must be created first', 'error');
+                return;
+            }
+
+            try {
+                addStep('Starting Game', 'Creating GameSession...', 'info');
+                logToRealtime(`🎮 Invoking CreateGameSession with couple: ${currentCouple.id}, user: ${currentUser1.id}`);
+
+                await user1Connection.invoke('CreateGameSession', currentCouple.id, currentUser1.id);
+                addStep('Game Started', 'GameSession creation requested', 'success');
+
+                // Wait a bit for the GameSession to be created
+                setTimeout(() => {
+                    if (gameSessionId) {
+                        addStep('GameSession Ready', `GameSession ID: ${gameSessionId}`, 'success');
+                    } else {
+                        addStep('GameSession Warning', 'GameSession ID not received yet', 'warning');
+                    }
+                }, 2000);
+
+            } catch (error) {
+                addStep('Game Start Failed', error.message, 'error');
+            }
+        }
+
+        async function drawAndShareCard() {
+            if (!gameSessionId || !user1Connection) {
+                addStep('Card Share Failed', 'Game session must be started first', 'error');
+                return;
+            }
+
+            try {
+                addStep('Drawing Card', 'Fetching random card...', 'info');
+
+                // Get random card
+                const card = await apiCall('/api/game/cards/Couple/random');
+                addStep('Card Drawn', `Card: ${card.content}`, 'success');
+
+                // Share card via SignalR
+                logToRealtime(`🃏 Invoking ShareCard with sessionId: ${gameSessionId}, userId: ${currentUser1.id}`);
+                logToRealtime(`📦 Card data: ${JSON.stringify(card)}`);
+
+                await user1Connection.invoke('ShareCard', gameSessionId, currentUser1.id, card);
+                addStep('Card Shared', 'ShareCard invoked successfully', 'success');
+
+            } catch (error) {
+                addStep('Card Share Failed', error.message, 'error');
+                logToRealtime(`❌ ShareCard error: ${error.message}`);
+            }
+        }
+
+        // Auto-check backend on load
+        window.onload = async () => {
+            try {
+                const health = await apiCall('/api/health');
+                addStep('Backend Status', `✅ ${health.status}`, 'success');
+            } catch (error) {
+                addStep('Backend Status', `❌ Backend not available`, 'error');
+            }
+        };
+    </script>
+</body>
+</html>

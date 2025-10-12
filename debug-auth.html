@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .warning { background-color: #fff3cd; }
+        .info { background-color: #d1ecf1; }
+        button { margin: 5px; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎮 Autenticazione Debug - Lucia & Mario</h1>
+    
+    <div id="steps"></div>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="testLucia()">Test Lucia</button>
+        <button onclick="testMario()">Test Mario</button>
+        <button onclick="clearAll()">Clear All Users</button>
+        <button onclick="checkStatus()">Check Status</button>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000';
+        let stepCounter = 0;
+
+        function addStep(title, content, type = 'info') {
+            stepCounter++;
+            const div = document.createElement('div');
+            div.className = `step ${type}`;
+            div.innerHTML = `<strong>Step ${stepCounter}: ${title}</strong><br>${content}`;
+            document.getElementById('steps').appendChild(div);
+            console.log(`Step ${stepCounter}: ${title}`, content);
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            try {
+                addStep(`API Call`, `${options.method || 'GET'} ${endpoint}`, 'info');
+                
+                const response = await fetch(`${BASE_URL}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    responseData = responseText;
+                }
+
+                if (!response.ok) {
+                    addStep(`API Error`, `HTTP ${response.status}: ${responseText}`, 'error');
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                }
+
+                addStep(`API Success`, `<pre>${JSON.stringify(responseData, null, 2)}</pre>`, 'success');
+                return responseData;
+            } catch (err) {
+                addStep(`API Failed`, `${err.message}`, 'error');
+                throw err;
+            }
+        }
+
+        async function testUser(name, gameType = 'Couple') {
+            try {
+                addStep(`Starting ${name}`, `Authenticating user: ${name}, GameType: ${gameType}`, 'info');
+                
+                // 1. Register/Login user
+                const userData = {
+                    name: name,
+                    gameType: gameType,
+                    nickname: name.toLowerCase(),
+                    availableForPairing: true
+                };
+
+                const user = await apiCall('/api/users/register', {
+                    method: 'POST',
+                    body: JSON.stringify(userData)
+                });
+
+                addStep(`User Registered`, `User ID: ${user.id}, Name: ${user.name}`, 'success');
+
+                // 2. Load user state
+                const userState = await apiCall(`/api/users/${user.id}/state`);
+                
+                addStep(`User State Loaded`, `
+                    Current User: ${userState.user ? userState.user.name : 'null'}<br>
+                    Current Couple: ${userState.currentCouple ? userState.currentCouple.name : 'null'}<br>
+                    Available Partners: ${userState.availablePartners.length}
+                `, 'success');
+
+                // 3. Check online users
+                const onlineUsers = await apiCall('/api/users');
+                addStep(`Online Users`, `Count: ${onlineUsers.length}`, 'info');
+
+                // 4. Check couples
+                const couples = await apiCall('/api/game/couples');
+                addStep(`Active Couples`, `Count: ${couples.length}`, 'info');
+
+                return {
+                    user,
+                    userState,
+                    onlineUsers,
+                    couples
+                };
+
+            } catch (error) {
+                addStep(`Authentication Failed`, `Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function testLucia() {
+            stepCounter = 0;
+            document.getElementById('steps').innerHTML = '';
+            await testUser('Lucia');
+        }
+
+        async function testMario() {
+            stepCounter = 0;
+            document.getElementById('steps').innerHTML = '';
+            await testUser('Mario');
+        }
+
+        async function clearAll() {
+            try {
+                await apiCall('/api/admin/clear-users', { method: 'POST' });
+                addStep(`Clear Complete`, `All users cleared`, 'success');
+            } catch (error) {
+                addStep(`Clear Failed`, `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const health = await apiCall('/api/health');
+                const users = await apiCall('/api/users');
+                const couples = await apiCall('/api/game/couples');
+                
+                addStep(`System Status`, `
+                    Backend: ✅ ${health.status}<br>
+                    Online Users: ${users.length}<br>
+                    Active Couples: ${couples.length}
+                `, 'success');
+            } catch (error) {
+                addStep(`Status Check Failed`, `Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check status on load
+        window.onload = () => {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

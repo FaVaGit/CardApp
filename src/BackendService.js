@@ -48,24 +48,16 @@ class BackendService {
         this.isConnected = false;
       });
 
-      // Event handlers
+      // Event handlers per messaggi
       this.connection.on('UserJoined', (user) => {
-        console.log('📥 UserJoined event:', user);
         this.emit('userJoined', user);
       });
 
       this.connection.on('UserLeft', (userId) => {
-        console.log('📤 UserLeft event:', userId);
         this.emit('userLeft', userId);
       });
 
-      this.connection.on('UserPresenceUpdated', (users) => {
-        console.log('👥 UserPresenceUpdated event:', users);
-        this.emit('userPresenceUpdated', users);
-      });
-
       this.connection.on('CoupleCreated', (couple) => {
-        console.log('💑 CoupleCreated event:', couple);
         this.emit('coupleCreated', couple);
       });
 
@@ -73,12 +65,25 @@ class BackendService {
         this.emit('messageReceived', message);
       });
 
-      this.connection.on('GameSessionUpdated', (session) => {
-        this.emit('gameSessionUpdated', session);
-      });
-
       this.connection.on('CardShared', (card) => {
         this.emit('cardShared', card);
+      });
+
+      // Event handlers per la lavagna condivisa
+      this.connection.on('DrawingStrokeAdded', (stroke) => {
+        this.emit('drawingStrokeAdded', stroke);
+      });
+
+      this.connection.on('DrawingNoteAdded', (note) => {
+        this.emit('drawingNoteAdded', note);
+      });
+
+      this.connection.on('DrawingCleared', (sessionId) => {
+        this.emit('drawingCleared', sessionId);
+      });
+
+      this.connection.on('DrawingUndoRedo', (data) => {
+        this.emit('drawingUndoRedo', data);
       });
 
       await this.connection.start();
@@ -119,33 +124,13 @@ class BackendService {
 
   // Verifica e ristabilisce la connessione se necessario
   async ensureConnection() {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
-      console.log('🔄 Connection not ready, attempting to reconnect...');
-      return await this.initialize();
-    }
-    
-    // Aggiorna il flag isConnected se la connessione è attiva
-    if (this.connection.state === signalR.HubConnectionState.Connected) {
-      this.isConnected = true;
-    }
-    
-    return true;
-  }
-
-  // Chiude la connessione
-  async disconnect() {
-    if (this.connection) {
-      try {
-        await this.connection.stop();
-        this.isConnected = false;
-        console.log('🔌 SignalR connection closed');
-      } catch (error) {
-        console.error('Error closing connection:', error);
-      }
+    if (!this.isConnected) {
+      console.log('🔄 Reconnecting to SignalR...');
+      await this.initialize();
     }
   }
 
-  // API Calls
+  // API Calls per utenti
   async registerUser(userData) {
     try {
       const response = await fetch(`${this.baseUrl}/users/register`, {
@@ -217,14 +202,14 @@ class BackendService {
 
   async createCouple(coupleData) {
     try {
-      const response = await fetch(`${this.baseUrl}/game/couples`, {
+      const response = await fetch(`${this.baseUrl}/couples/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(coupleData)
       });
       
       if (!response.ok) {
-        throw new Error(`Couple creation failed: ${response.statusText}`);
+        throw new Error(`Failed to create couple: ${response.statusText}`);
       }
       
       return await response.json();
@@ -234,23 +219,33 @@ class BackendService {
     }
   }
 
-  // Nuovo metodo per creare una coppia tramite codice
-  async createCoupleByCode(currentUserId, targetUserCode, coupleName) {
+  async getCoupleById(coupleId) {
     try {
-      const coupleData = {
-        currentUserId: currentUserId,
-        targetUserCode: targetUserCode,
-        name: coupleName
-      };
+      const response = await fetch(`${this.baseUrl}/couples/${coupleId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to get couple: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Get couple error:', error);
+      throw error;
+    }
+  }
 
-      const response = await fetch(`${this.baseUrl}/game/couples/by-code`, {
+  async createCoupleByCode(userId, targetUserCode, coupleName) {
+    try {
+      const response = await fetch(`${this.baseUrl}/couples/create-by-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(coupleData)
+        body: JSON.stringify({
+          userId,
+          targetUserCode,
+          coupleName
+        })
       });
       
       if (!response.ok) {
-        throw new Error(`Couple creation by code failed: ${response.statusText}`);
+        throw new Error(`Failed to create couple by code: ${response.statusText}`);
       }
       
       return await response.json();
@@ -260,94 +255,118 @@ class BackendService {
     }
   }
 
-  async getCoupleById(coupleId) {
-    try {
-      const response = await fetch(`${this.baseUrl}/game/couples/${coupleId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Get couple failed: ${response.statusText}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Get couple error:', error);
-      throw error;
-    }
-  }
-
   async createGameSession(sessionData) {
     try {
-      const response = await fetch(`${this.baseUrl}/game/sessions`, {
+      const response = await fetch(`${this.baseUrl}/gamesessions/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData)
       });
       
       if (!response.ok) {
-        throw new Error(`Session creation failed: ${response.statusText}`);
+        throw new Error(`Failed to create game session: ${response.statusText}`);
       }
       
       return await response.json();
     } catch (error) {
-      console.error('Create session error:', error);
+      console.error('Create game session error:', error);
       throw error;
     }
   }
 
-  async sendMessage(message) {
+  // API Calls per lavagna condivisa
+  async addDrawingStroke(sessionId, strokeData) {
     try {
+      await this.ensureConnection();
       if (this.isConnected) {
-        await this.connection.invoke('SendMessage', message);
+        await this.connection.invoke('AddDrawingStroke', sessionId, strokeData);
       } else {
-        throw new Error('Not connected to SignalR hub');
+        throw new Error('SignalR connection not available');
       }
     } catch (error) {
-      console.error('Send message error:', error);
+      console.error('Add drawing stroke error:', error);
       throw error;
     }
   }
 
-  async shareCard(card) {
+  async addDrawingNote(sessionId, noteData) {
     try {
+      await this.ensureConnection();
       if (this.isConnected) {
-        await this.connection.invoke('ShareCard', card);
+        await this.connection.invoke('AddDrawingNote', sessionId, noteData);
       } else {
-        throw new Error('Not connected to SignalR hub');
+        throw new Error('SignalR connection not available');
       }
     } catch (error) {
-      console.error('Share card error:', error);
+      console.error('Add drawing note error:', error);
       throw error;
     }
   }
 
-  // Metodi SignalR per aggiornare presenza e notificare coppie
+  async clearDrawing(sessionId) {
+    try {
+      await this.ensureConnection();
+      if (this.isConnected) {
+        await this.connection.invoke('ClearDrawing', sessionId);
+      } else {
+        throw new Error('SignalR connection not available');
+      }
+    } catch (error) {
+      console.error('Clear drawing error:', error);
+      throw error;
+    }
+  }
+
+  async undoDrawing(sessionId) {
+    try {
+      await this.ensureConnection();
+      if (this.isConnected) {
+        await this.connection.invoke('UndoDrawing', sessionId);
+      } else {
+        throw new Error('SignalR connection not available');
+      }
+    } catch (error) {
+      console.error('Undo drawing error:', error);
+      throw error;
+    }
+  }
+
+  async redoDrawing(sessionId) {
+    try {
+      await this.ensureConnection();
+      if (this.isConnected) {
+        await this.connection.invoke('RedoDrawing', sessionId);
+      } else {
+        throw new Error('SignalR connection not available');
+      }
+    } catch (error) {
+      console.error('Redo drawing error:', error);
+      throw error;
+    }
+  }
+
+  async getDrawingData(sessionId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/drawing/${sessionId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to get drawing data: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Get drawing data error:', error);
+      throw error;
+    }
+  }
+
+  // SignalR methods
   async updateUserPresence(userId) {
     try {
       await this.ensureConnection();
       if (this.isConnected) {
-        console.log('👤 Updating user presence for:', userId, 'Connection state:', this.connection?.state);
         await this.connection.invoke('UpdateUserPresence', userId);
-        console.log('✅ Successfully updated user presence for:', userId);
-      } else {
-        throw new Error('Cannot connect to SignalR hub - isConnected is false');
       }
     } catch (error) {
-      console.error('❌ Update user presence error:', error);
-      throw error;
-    }
-  }
-
-  async notifyCoupleCreated(couple) {
-    try {
-      await this.ensureConnection();
-      if (this.isConnected) {
-        console.log('💑 Notifying couple created:', couple);
-        await this.connection.invoke('NotifyCoupleCreated', couple);
-      } else {
-        throw new Error('Cannot connect to SignalR hub');
-      }
-    } catch (error) {
-      console.error('Notify couple created error:', error);
+      console.error('Update user presence error:', error);
       throw error;
     }
   }
@@ -356,14 +375,50 @@ class BackendService {
     try {
       await this.ensureConnection();
       if (this.isConnected) {
-        console.log('🔗 Joining hub for user:', userId, 'Connection state:', this.connection?.state);
         await this.connection.invoke('JoinHub', userId);
-        console.log('✅ Successfully joined hub for user:', userId);
-      } else {
-        throw new Error('Cannot connect to SignalR hub - isConnected is false');
       }
     } catch (error) {
-      console.error('❌ Join hub error:', error);
+      console.error('Join hub error:', error);
+      throw error;
+    }
+  }
+
+  async notifyCoupleCreated(couple) {
+    try {
+      await this.ensureConnection();
+      if (this.isConnected) {
+        await this.connection.invoke('NotifyCoupleCreated', couple);
+      }
+    } catch (error) {
+      console.error('Notify couple created error:', error);
+      throw error;
+    }
+  }
+
+  async sendMessage(message) {
+    try {
+      await this.ensureConnection();
+      if (this.isConnected) {
+        await this.connection.invoke('SendMessage', message);
+      } else {
+        throw new Error('SignalR connection not available');
+      }
+    } catch (error) {
+      console.error('Send message error:', error);
+      throw error;
+    }
+  }
+
+  async shareCard(cardData) {
+    try {
+      await this.ensureConnection();
+      if (this.isConnected) {
+        await this.connection.invoke('ShareCard', cardData);
+      } else {
+        throw new Error('SignalR connection not available');
+      }
+    } catch (error) {
+      console.error('Share card error:', error);
       throw error;
     }
   }

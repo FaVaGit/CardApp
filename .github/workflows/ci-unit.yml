@@ -1,0 +1,52 @@
+name: CI Unit
+
+on:
+  push:
+    branches: [ Evolution ]
+  pull_request:
+    branches: [ Evolution ]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Unit tests with coverage
+        run: npm run test:unit:coverage
+      - name: Update coverage badge
+        if: success()
+        run: |
+          node scripts/update-coverage-badge.mjs
+          if git diff --quiet README.md; then
+            echo "No badge change";
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "chore(ci): update coverage badge [skip ci]" || echo "Nothing to commit"
+            git push || echo "Push skipped (likely PR context)"
+          fi
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage
+          if-no-files-found: ignore
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: coverage
+          fail_ci_if_error: false

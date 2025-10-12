@@ -1,0 +1,256 @@
+nohup: ignoring input
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "type" = 'table' AND "rootpage" IS NOT NULL;
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/fabio/CardApp/Backend/ComplicityGame.Api
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/game/cards/Couple/random - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.GameController.GetRandomCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetRandomCard", controller = "Game"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[ComplicityGame.Api.Models.GameCard]] GetRandomCard(System.String) on controller ComplicityGame.Api.Controllers.GameController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'ComplicityGame.Api.Models.GameCard'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.GameController.GetRandomCard (ComplicityGame.Api) in 31.9935ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.GameController.GetRandomCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/game/cards/Couple/random - 200 - application/json;+charset=utf-8 70.2408ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 OPTIONS http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 OPTIONS http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - - -
+info: Microsoft.AspNetCore.Cors.Infrastructure.CorsService[4]
+      CORS policy execution successful.
+info: Microsoft.AspNetCore.Cors.Infrastructure.CorsService[4]
+      CORS policy execution successful.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 OPTIONS http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - 204 - - 5.1659ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 OPTIONS http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - 204 - - 5.1724ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - - 0
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - - 0
+info: Microsoft.AspNetCore.Cors.Infrastructure.CorsService[4]
+      CORS policy execution successful.
+info: Microsoft.AspNetCore.Cors.Infrastructure.CorsService[4]
+      CORS policy execution successful.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint '/gamehub/negotiate'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint '/gamehub/negotiate'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint '/gamehub/negotiate'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint '/gamehub/negotiate'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - 200 316 application/json 11.5662ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5000/gamehub/negotiate?negotiateVersion=1 - 200 316 application/json 11.5692ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/gamehub?id=0tM7uOsnlcW_QZIjRcIIvg - - -
+info: Microsoft.AspNetCore.Cors.Infrastructure.CorsService[4]
+      CORS policy execution successful.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/gamehub?id=Fib8WBrJF7YPQq8a_6Yj7A - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint '/gamehub'
+info: Microsoft.AspNetCore.Cors.Infrastructure.CorsService[4]
+      CORS policy execution successful.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint '/gamehub'
+🔗 Client connected: Wu81tQ44Jc8YAiBxzblHAQ
+🔗 Client connected: -TZy4ov4AyhiAg13T3zgYQ
+🔌 Client disconnected: -TZy4ov4AyhiAg13T3zgYQ
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint '/gamehub'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/gamehub?id=Fib8WBrJF7YPQq8a_6Yj7A - 101 - - 12994.3841ms
+🔌 Client disconnected: Wu81tQ44Jc8YAiBxzblHAQ
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint '/gamehub'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/gamehub?id=0tM7uOsnlcW_QZIjRcIIvg - 101 - - 17875.1771ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/health - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Get", controller = "Health"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult Get() on controller ComplicityGame.Api.Controllers.HealthController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType3`3[[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api) in 6.7644ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/health - 200 - application/json;+charset=utf-8 10.9425ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/health - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Get", controller = "Health"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult Get() on controller ComplicityGame.Api.Controllers.HealthController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType3`3[[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api) in 0.3233ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/health - 200 - application/json;+charset=utf-8 0.9634ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/health - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Get", controller = "Health"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult Get() on controller ComplicityGame.Api.Controllers.HealthController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType3`3[[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api) in 0.4034ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/health - 200 - application/json;+charset=utf-8 1.0292ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/health - application/json -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Get", controller = "Health"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.IActionResult Get() on controller ComplicityGame.Api.Controllers.HealthController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType3`3[[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api) in 0.3387ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.HealthController.Get (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/health - 200 - application/json;+charset=utf-8 0.7183ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5000/api/users/register - application/json 57
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.UsersController.RegisterUser (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "RegisterUser", controller = "Users"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[ComplicityGame.Api.Models.User]] RegisterUser(ComplicityGame.Api.Controllers.RegisterUserRequest) on controller ComplicityGame.Api.Controllers.UsersController (ComplicityGame.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@__ToLower_0='?' (Size = 8), @__gameType_1='?' (Size = 6)], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."AvailableForPairing", "u"."CreatedAt", "u"."GameType", "u"."IsOnline", "u"."LastSeen", "u"."Name", "u"."Nickname", "u"."PersonalCode", "u"."UpdatedAt"
+      FROM "Users" AS "u"
+      WHERE lower("u"."Name") = @__ToLower_0 AND "u"."GameType" = @__gameType_1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__code_0='?' (Size = 6)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM "Users" AS "u"
+          WHERE "u"."PersonalCode" = @__code_0)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (8ms) [Parameters=[@p0='?' (Size = 36), @p1='?' (DbType = Boolean), @p2='?' (DbType = DateTime), @p3='?' (Size = 6), @p4='?' (DbType = Boolean), @p5='?' (DbType = DateTime), @p6='?' (Size = 8), @p7='?' (Size = 4), @p8='?' (Size = 6), @p9='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Users" ("Id", "AvailableForPairing", "CreatedAt", "GameType", "IsOnline", "LastSeen", "Name", "Nickname", "PersonalCode", "UpdatedAt")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9);
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'ComplicityGame.Api.Models.User'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.UsersController.RegisterUser (ComplicityGame.Api) in 360.1461ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.UsersController.RegisterUser (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5000/api/users/register - 200 - application/json;+charset=utf-8 368.8715ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/users - application/json -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.UsersController.GetUsers (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetUsers", controller = "Users"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[System.Collections.Generic.List`1[ComplicityGame.Api.Models.User]]] GetUsers(System.String) on controller ComplicityGame.Api.Controllers.UsersController (ComplicityGame.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."AvailableForPairing", "u"."CreatedAt", "u"."GameType", "u"."IsOnline", "u"."LastSeen", "u"."Name", "u"."Nickname", "u"."PersonalCode", "u"."UpdatedAt"
+      FROM "Users" AS "u"
+      WHERE "u"."IsOnline"
+      ORDER BY "u"."Name"
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'System.Collections.Generic.List`1[[ComplicityGame.Api.Models.User, ComplicityGame.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.UsersController.GetUsers (ComplicityGame.Api) in 51.2352ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.UsersController.GetUsers (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/users - 200 - application/json;+charset=utf-8 54.4233ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/game/couples - application/json -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.GameController.GetAllCouples (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetAllCouples", controller = "Game"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[System.Collections.Generic.List`1[ComplicityGame.Api.Models.Couple]]] GetAllCouples() on controller ComplicityGame.Api.Controllers.GameController (ComplicityGame.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Id", "c"."CreatedAt", "c"."CreatedBy", "c"."GameType", "c"."IsActive", "c"."Name", "c"."UpdatedAt"
+      FROM "Couples" AS "c"
+      WHERE "c"."IsActive"
+      ORDER BY "c"."CreatedAt" DESC
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__couple_Id_0='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."CoupleId", "c"."UserId", "c"."JoinedAt", "c"."Role", "u"."Id", "u"."AvailableForPairing", "u"."CreatedAt", "u"."GameType", "u"."IsOnline", "u"."LastSeen", "u"."Name", "u"."Nickname", "u"."PersonalCode", "u"."UpdatedAt"
+      FROM "CoupleUsers" AS "c"
+      INNER JOIN "Users" AS "u" ON "c"."UserId" = "u"."Id"
+      WHERE "c"."CoupleId" = @__couple_Id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__couple_Id_0='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."CoupleId", "c"."UserId", "c"."JoinedAt", "c"."Role", "u"."Id", "u"."AvailableForPairing", "u"."CreatedAt", "u"."GameType", "u"."IsOnline", "u"."LastSeen", "u"."Name", "u"."Nickname", "u"."PersonalCode", "u"."UpdatedAt"
+      FROM "CoupleUsers" AS "c"
+      INNER JOIN "Users" AS "u" ON "c"."UserId" = "u"."Id"
+      WHERE "c"."CoupleId" = @__couple_Id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__couple_Id_0='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."CoupleId", "c"."UserId", "c"."JoinedAt", "c"."Role", "u"."Id", "u"."AvailableForPairing", "u"."CreatedAt", "u"."GameType", "u"."IsOnline", "u"."LastSeen", "u"."Name", "u"."Nickname", "u"."PersonalCode", "u"."UpdatedAt"
+      FROM "CoupleUsers" AS "c"
+      INNER JOIN "Users" AS "u" ON "c"."UserId" = "u"."Id"
+      WHERE "c"."CoupleId" = @__couple_Id_0
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'System.Collections.Generic.List`1[[ComplicityGame.Api.Models.Couple, ComplicityGame.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.GameController.GetAllCouples (ComplicityGame.Api) in 67.8789ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.GameController.GetAllCouples (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/game/couples - 200 - application/json;+charset=utf-8 71.9929ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/game/cards/Single - application/json -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.GameController.GetCards (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetCards", controller = "Game"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[System.Collections.Generic.IEnumerable`1[ComplicityGame.Api.Models.GameCard]]] GetCards(System.String) on controller ComplicityGame.Api.Controllers.GameController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'System.Linq.Enumerable+WhereListIterator`1[[ComplicityGame.Api.Models.GameCard, ComplicityGame.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.GameController.GetCards (ComplicityGame.Api) in 2.3869ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.GameController.GetCards (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/game/cards/Single - 200 - application/json;+charset=utf-8 5.5702ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/game/cards/Single/random - application/json -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.GameController.GetRandomCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetRandomCard", controller = "Game"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[ComplicityGame.Api.Models.GameCard]] GetRandomCard(System.String) on controller ComplicityGame.Api.Controllers.GameController (ComplicityGame.Api).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing NotFoundObjectResult, writing value of type '<>f__AnonymousType1`1[[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.GameController.GetRandomCard (ComplicityGame.Api) in 2.8687ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.GameController.GetRandomCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/game/cards/Single/random - 404 - application/json;+charset=utf-8 3.3802ms
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...

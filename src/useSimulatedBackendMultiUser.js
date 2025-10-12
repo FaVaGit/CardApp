@@ -49,10 +49,13 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     } finally {
       setIsLoading(false);
     }
-  }, [isBackendEnabled]); // Aggiunta dipendenza
+  }, [isBackendEnabled, setupBackendListeners, loadInitialData]); // include helpers for exhaustive deps
+
+  // NOTE: Hook dependencies per initializeBackend limitate a isBackendEnabled (currentUser non necessario perché non usato internamente),
+  // eventuali listener aggiornano state tramite funzioni set* sicure.
 
   // Setup listeners per eventi del backend
-  const setupBackendListeners = () => {
+  const setupBackendListeners = useCallback(() => {
     simulatedBackend.on('userUpdate', (user) => {
       console.log('📱 Aggiornamento utente ricevuto:', user.name);
       setAllUsers(prev => {
@@ -63,7 +66,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
       });
     });
 
-    simulatedBackend.on('coupleCreated', (couple) => {
+  simulatedBackend.on('coupleCreated', (couple) => {
       console.log('💑 Nuova coppia creata:', couple.name);
       setAllCouples(prev => {
         const filtered = prev.filter(c => c.id !== couple.id);
@@ -90,7 +93,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
       }
     });
 
-    simulatedBackend.on('sessionCreated', (session) => {
+  simulatedBackend.on('sessionCreated', (session) => {
       console.log('🎮 Nuova sessione di gioco:', session.id);
       if (currentCouple && session.coupleId === currentCouple.id) {
         setGameSession(session);
@@ -107,10 +110,10 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
         }));
       }
     });
-  };
+  }, [currentUser, gameSession, currentCouple, updateOnlineUsers, updatePartnerStatus]);
 
   // Carica dati iniziali
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       // Carica utenti
       const users = await simulatedBackend.getUsers();
@@ -125,7 +128,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     } catch (error) {
       console.error('❌ Errore caricamento dati iniziali:', error);
     }
-  };
+  }, [updateOnlineUsers]);
 
   // Registra nuovo utente
   const registerUser = async (userData) => {
@@ -438,8 +441,8 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     };
   };
 
-  // Aggiorna lista utenti online
-  const updateOnlineUsers = (users = allUsers) => {
+  // Aggiorna lista utenti online (memoized)
+  const updateOnlineUsers = useCallback((users = allUsers) => {
     const sixtySecondsAgo = Date.now() - 60 * 1000; // Aumentato a 60 secondi
     const online = users.filter(user => 
       user.lastSeen && new Date(user.lastSeen).getTime() > sixtySecondsAgo
@@ -456,10 +459,10 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     if (currentCouple) {
       updatePartnerStatus(online);
     }
-  };
+  }, [allUsers, currentCouple, updatePartnerStatus]);
 
-  // Aggiorna stato partner
-  const updatePartnerStatus = (onlineUsersList = onlineUsers) => {
+  // Aggiorna stato partner (memoized)
+  const updatePartnerStatus = useCallback((onlineUsersList = onlineUsers) => {
     if (!currentCouple || !currentUser) return;
 
     console.log('🔄 Aggiornamento stato partner per coppia:', currentCouple.name);
@@ -491,7 +494,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     } else {
       console.warn('⚠️ Partner non trovato nella coppia');
     }
-  };
+  }, [currentCouple, currentUser, onlineUsers]);
 
   // Logout
   const logout = () => {
@@ -527,22 +530,34 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
   };
 
   // Utilità
+  // Helper to generate a cryptographically secure random string
+  const secureRandomString = (length = 16) => {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    // Convert to base36 for compactness
+    return Array.from(array, b => b.toString(36).padStart(2, '0')).join('');
+  };
+
   const generateUniqueId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + secureRandomString(8);
   };
 
   const generateJoinCode = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
-    
     let code = '';
+    // Securely pick 3 random letters
+    const letterArray = new Uint8Array(3);
+    window.crypto.getRandomValues(letterArray);
     for (let i = 0; i < 3; i++) {
-      code += letters.charAt(Math.floor(Math.random() * letters.length));
+      code += letters.charAt(letterArray[i] % letters.length);
     }
+    // Securely pick 3 random numbers
+    const numberArray = new Uint8Array(3);
+    window.crypto.getRandomValues(numberArray);
     for (let i = 0; i < 3; i++) {
-      code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+      code += numbers.charAt(numberArray[i] % numbers.length);
     }
-    
     return code;
   };
 
@@ -553,7 +568,7 @@ export function useSimulatedBackendMultiUser(currentUser, setCurrentUser) {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [allUsers, currentCouple]);
+  }, [updateOnlineUsers]);
 
   return {
     // Stato

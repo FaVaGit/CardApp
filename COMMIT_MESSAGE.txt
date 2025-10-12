@@ -1,0 +1,9 @@
+feat: Lavagna collaborativa avanzata, sync live, ottimizzazione Fabric.js, test unitari/e2e
+
+- LavagnaCanvas: strumenti grafici, cancellino, sync bidirezionale, icone MaterialUI
+- Import dinamico Fabric.js per performance
+- Test unitari Vitest per lavagna, password, migrazione
+- Test e2e Playwright per lavagna, TTL, metriche
+- Aggiornata documentazione README con istruzioni, flag CI, dettagli sync
+- Stabilizzazione spec E2E con polling e metriche
+- Abilitata STRICT_COUPLE_ASSERT in CI

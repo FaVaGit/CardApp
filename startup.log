@@ -1,0 +1,24 @@
+nohup: ignoring input
+🚀 CardApp - Start Application
+==============================
+🧹 Initial cleanup...
+🎯 Starting Backend API...
+🚀 Starting backend process...
+⏳ Waiting for backend (simple mode - 5 seconds)...
+🎨 Starting Frontend...
+🌐 Starting frontend on port 5173...
+⏳ Waiting for frontend...
+✅ Frontend ready on port 5173
+
+🎉 CardApp Started Successfully!
+===============================
+🔧 Backend API: http://localhost:5000
+🎮 Frontend:    http://localhost:5173
+📚 API Docs:    http://localhost:5000/swagger
+
+🎯 Ready! Open the frontend URL in your browser.
+👥 For couple games: open two tabs, create accounts, and use partner codes.
+
+📋 Press Ctrl+C to stop all services
+
+🔄 Simple mode - press Ctrl+C to stop

@@ -11,6 +11,10 @@ export function useBackend() {
   const [sharedCards, setSharedCards] = useState([]);
   const [error, setError] = useState(null);
 
+  // Drawing/Whiteboard state
+  const [drawingStrokes, setDrawingStrokes] = useState([]);
+  const [drawingNotes, setDrawingNotes] = useState([]);
+
   // Gestione coppie
   const [currentCouple, setCurrentCouple] = useState(null);
 
@@ -36,53 +40,61 @@ export function useBackend() {
         throw new Error('Impossibile connettersi al hub SignalR');
       }
 
-      // Setup event listeners
+      // Setup event listeners per messaggi e carte
       backendService.on('userJoined', (user) => {
         console.log('👤 User joined event:', user);
-        // Aggiorna dalla fonte autorevole invece di usare i dati dell'evento
         refreshOnlineUsers();
       });
 
       backendService.on('userLeft', (userId) => {
         console.log('👋 User left event:', userId);
-        // Aggiorna dalla fonte autorevole invece di filtrare localmente
         refreshOnlineUsers();
       });
 
       backendService.on('coupleCreated', (couple) => {
         console.log('💑 Couple created event:', couple);
-        // Aggiorna la coppia dalla fonte autorevole per avere dati freschi dal database
         if (couple && couple.id) {
           refreshCurrentCouple(couple.id);
         } else {
           setCurrentCouple(couple);
         }
-        // Aggiorna anche la lista utenti
-        refreshOnlineUsers();
-      });
-
-      backendService.on('userPresenceUpdated', (users) => {
-        console.log('🟢 User presence updated event received, refreshing from API...');
-        // Invece di usare i dati dell'evento, aggiorna dalla fonte autorevole
         refreshOnlineUsers();
       });
 
       backendService.on('messageReceived', (message) => {
+        console.log('💬 Message received:', message);
         setMessages(prev => [...prev, message]);
       });
 
-      backendService.on('gameSessionUpdated', (session) => {
-        setGameSession(session);
-      });
-
       backendService.on('cardShared', (card) => {
+        console.log('🎴 Card shared:', card);
         setSharedCards(prev => [...prev, card]);
       });
 
-      backendService.on('onlineUsersUpdate', (users) => {
-        console.log('📋 Online users update event received, refreshing from API...');
-        // Invece di usare i dati dell'evento, aggiorna dalla fonte autorevole
-        refreshOnlineUsers();
+      // Setup event listeners per la lavagna condivisa
+      backendService.on('drawingStrokeAdded', (stroke) => {
+        console.log('🎨 Drawing stroke added:', stroke);
+        setDrawingStrokes(prev => [...prev, stroke]);
+      });
+
+      backendService.on('drawingNoteAdded', (note) => {
+        console.log('📝 Drawing note added:', note);
+        setDrawingNotes(prev => [...prev, note]);
+      });
+
+      backendService.on('drawingCleared', (sessionId) => {
+        console.log('🧹 Drawing cleared for session:', sessionId);
+        setDrawingStrokes([]);
+        setDrawingNotes([]);
+      });
+
+      backendService.on('drawingUndoRedo', (data) => {
+        console.log('↩️ Drawing undo/redo:', data);
+        // Handle undo/redo operations
+        if (data.action === 'undo') {
+          // Remove last stroke
+          setDrawingStrokes(prev => prev.slice(0, -1));
+        }
       });
 
       setIsConnected(true);
@@ -168,31 +180,12 @@ export function useBackend() {
         // Riprova dopo la connessione
         setTimeout(async () => {
           if (backendService.isConnected) {
-            console.log('🔄 Retrying SignalR methods after delay...');
             await backendService.updateUserPresence(user.id);
             await backendService.joinHub(user.id);
-            
-            setTimeout(async () => {
-              await backendService.refreshOnlineUsers();
-              console.log('🔄 Refreshed online users after retry');
-            }, 1000);
-            
-            console.log('✅ SignalR methods called successfully (retry)');
+            await backendService.refreshOnlineUsers();
           }
         }, 2000);
       }
-      
-      // FALLBACK: Carica gli utenti via API REST come backup
-      console.log('🌐 Loading users via REST API as fallback...');
-      setTimeout(async () => {
-        try {
-          const users = await backendService.getUsers();
-          console.log('📋 Loaded users via REST API:', users);
-          setOnlineUsers(users);
-        } catch (error) {
-          console.warn('⚠️ Failed to load users via REST API:', error);
-        }
-      }, 2000);
       
       return user;
     } catch (error) {
@@ -236,9 +229,9 @@ export function useBackend() {
       // Notifica creazione coppia via SignalR
       if (backendService.isConnected) {
         await backendService.notifyCoupleCreated(couple);
-        console.log('✅ Couple creation notified via SignalR');
+        console.log('✅ Couple creation notification sent via SignalR');
       } else {
-        console.warn('⚠️ SignalR not connected, skipping couple notification');
+        console.warn('⚠️ SignalR not connected, skipping couple creation notification');
       }
       
       return couple;
@@ -246,21 +239,15 @@ export function useBackend() {
       setError(error.message);
       throw error;
     }
-  }, []);
+  }, [refreshCurrentCouple, refreshOnlineUsers]);
 
-  // Unirsi a una coppia tramite codice utente
-  const joinUserByCode = useCallback(async (targetUserCode) => {
+  // Connetti a un utente tramite codice
+  const createCoupleByCode = useCallback(async (targetUserCode, coupleName = null) => {
     if (!currentUser) {
-      throw new Error('Devi essere loggato per unirti a una coppia');
+      throw new Error('Utente non autenticato');
     }
 
     try {
-      // Prima verifico che l'utente target esista
-      const targetUser = await backendService.joinUserByCode(targetUserCode);
-      console.log('Target user found:', targetUser);
-      
-      // Creo una coppia usando l'endpoint corretto che aggiunge entrambi gli utenti
-      const coupleName = `${currentUser.name} & ${targetUser.name}`;
       const couple = await backendService.createCoupleByCode(currentUser.id, targetUserCode, coupleName);
       setCurrentCouple(couple);
       console.log('Couple created:', couple);
@@ -331,6 +318,88 @@ export function useBackend() {
     }
   }, [currentUser]);
 
+  // Drawing/Whiteboard methods
+  const addDrawingStroke = useCallback(async (sessionId, strokeData) => {
+    if (!currentUser) {
+      throw new Error('Utente non autenticato');
+    }
+
+    try {
+      const strokeWithUser = {
+        ...strokeData,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        timestamp: Date.now()
+      };
+      
+      await backendService.addDrawingStroke(sessionId, strokeWithUser);
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, [currentUser]);
+
+  const addDrawingNote = useCallback(async (sessionId, noteData) => {
+    if (!currentUser) {
+      throw new Error('Utente non autenticato');
+    }
+
+    try {
+      const noteWithUser = {
+        ...noteData,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        timestamp: Date.now()
+      };
+      
+      await backendService.addDrawingNote(sessionId, noteWithUser);
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, [currentUser]);
+
+  const clearDrawing = useCallback(async (sessionId) => {
+    try {
+      await backendService.clearDrawing(sessionId);
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, []);
+
+  const undoDrawing = useCallback(async (sessionId) => {
+    try {
+      await backendService.undoDrawing(sessionId);
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, []);
+
+  const redoDrawing = useCallback(async (sessionId) => {
+    try {
+      await backendService.redoDrawing(sessionId);
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, []);
+
+  const getDrawingData = useCallback(async (sessionId) => {
+    try {
+      const data = await backendService.getDrawingData(sessionId);
+      if (data) {
+        setDrawingStrokes(data.strokes || []);
+        setDrawingNotes(data.notes || []);
+      }
+      return data;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }, []);
+
   // Logout
   const logout = useCallback(async () => {
     try {
@@ -340,18 +409,21 @@ export function useBackend() {
       setGameSession(null);
       setMessages([]);
       setSharedCards([]);
+      setDrawingStrokes([]);
+      setDrawingNotes([]);
+      setCurrentCouple(null);
       setIsConnected(false);
+      setError(null);
     } catch (error) {
-      console.error('Logout error:', error);
+      setError(error.message);
+      throw error;
     }
   }, []);
 
-  // Cleanup on unmount
+  // Inizializza la connessione quando il hook viene montato
   useEffect(() => {
-    return () => {
-      backendService.disconnect();
-    };
-  }, []);
+    initializeConnection();
+  }, [initializeConnection]);
 
   return {
     // Connection state
@@ -359,26 +431,44 @@ export function useBackend() {
     isConnecting,
     error,
     
-    // User data
+    // User management
     currentUser,
     onlineUsers,
-    currentCouple,
-    
-    // Game data
-    gameSession,
-    messages,
-    sharedCards,
-    
-    // Actions
-    initializeConnection,
     registerUser,
     loginUser,
     getUsers,
+    logout,
+    
+    // Couple management
+    currentCouple,
     createCouple,
-    joinUserByCode,
+    createCoupleByCode,
+    
+    // Game management
+    gameSession,
     createGameSession,
+    
+    // Messaging
+    messages,
     sendMessage,
+    
+    // Card sharing
+    sharedCards,
     shareCard,
-    logout
+    
+    // Drawing/Whiteboard
+    drawingStrokes,
+    drawingNotes,
+    addDrawingStroke,
+    addDrawingNote,
+    clearDrawing,
+    undoDrawing,
+    redoDrawing,
+    getDrawingData,
+    
+    // Utility
+    initializeConnection,
+    refreshOnlineUsers,
+    refreshCurrentCouple
   };
 }

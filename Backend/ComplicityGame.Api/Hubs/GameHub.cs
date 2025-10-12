@@ -1,287 +1,216 @@
 using Microsoft.AspNetCore.SignalR;
 using ComplicityGame.Api.Services;
 using ComplicityGame.Api.Models;
+using ComplicityGame.Core.Models;
+using System.Text.Json;
 
 namespace ComplicityGame.Api.Hubs;
 
 public class GameHub : Hub
 {
-    private readonly IUserService _userService;
-    private readonly ICoupleService _coupleService;
     private readonly IGameSessionService _gameSessionService;
-    
-    // Static dictionary per mappare userId -> connectionIds
-    private static readonly Dictionary<string, HashSet<string>> _userConnections = new();
-    private static readonly Dictionary<string, string> _connectionUsers = new();
+    private readonly ILogger<GameHub> _logger;
 
     public GameHub(
-        IUserService userService, 
-        ICoupleService coupleService,
-        IGameSessionService gameSessionService)
+        IGameSessionService gameSessionService,
+        ILogger<GameHub> logger)
     {
-        _userService = userService;
-        _coupleService = coupleService;
         _gameSessionService = gameSessionService;
+        _logger = logger;
     }
 
     public override async Task OnConnectedAsync()
     {
+        _logger.LogInformation($"Client connected: {Context.ConnectionId}");
         await base.OnConnectedAsync();
-        Console.WriteLine($"🔗 Client connected: {Context.ConnectionId}");
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        // Rimuovi la connessione dalle mappature
-        var connectionId = Context.ConnectionId;
-        
-        if (_connectionUsers.TryGetValue(connectionId, out var userId))
-        {
-            // Rimuovi la connessione dal set dell'utente
-            if (_userConnections.TryGetValue(userId, out var connections))
-            {
-                connections.Remove(connectionId);
-                
-                // Se l'utente non ha più connessioni, impostalo offline
-                if (connections.Count == 0)
-                {
-                    _userConnections.Remove(userId);
-                    await _userService.SetUserOfflineAsync(userId);
-                    await Clients.All.SendAsync("UserLeft", userId);
-                    Console.WriteLine($"🔌 User {userId} went offline (no more connections)");
-                }
-            }
-            
-            _connectionUsers.Remove(connectionId);
-        }
-
+        _logger.LogInformation($"Client disconnected: {Context.ConnectionId}");
         await base.OnDisconnectedAsync(exception);
-        Console.WriteLine($"🔌 Client disconnected: {Context.ConnectionId}");
     }
 
-    // User Management
-    public async Task RegisterUser(string name, string gameType, string? nickname = null)
+    // User management methods
+    public async Task JoinHub(int userId)
     {
-        try
-        {
-            var user = await _userService.RegisterUserAsync(name, gameType, nickname);
-            
-            // Associate connection with user
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"User_{user.Id}");
-            
-            // Notify all clients about new user
-            await Clients.All.SendAsync("UserRegistered", user);
-            
-            await Clients.Caller.SendAsync("RegistrationSuccess", user);
-            
-            Console.WriteLine($"👤 User registered: {name} ({user.PersonalCode})");
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("RegistrationError", ex.Message);
-        }
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"User_{userId}");
+        _logger.LogInformation($"User {userId} joined hub with connection {Context.ConnectionId}");
     }
 
-    public async Task UpdateUserPresence(string userId)
+    public async Task UpdateUserPresence(int userId)
     {
-        try
-        {
-            var user = await _userService.UpdateUserPresenceAsync(userId);
-            if (user != null)
-            {
-                await Clients.All.SendAsync("UserPresenceUpdated", user);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Error updating presence for {userId}: {ex.Message}");
-        }
+        await Clients.All.SendAsync("UserPresenceUpdated", userId);
     }
 
-    public async Task GetOnlineUsers(string gameType)
+    public async Task RefreshOnlineUsers()
     {
-        try
-        {
-            var users = await _userService.GetOnlineUsersAsync(gameType);
-            await Clients.Caller.SendAsync("OnlineUsersUpdate", users);
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("Error", ex.Message);
-        }
+        // For now, just acknowledge the request
+        // This would need a user service to implement properly
+        await Clients.All.SendAsync("OnlineUsersUpdate", new object[0]);
     }
 
-    // Couple Management
-    public async Task JoinUserByCode(string currentUserId, string targetUserCode)
+    // Couple management methods
+    public async Task NotifyCoupleCreated(object coupleData)
     {
-        try
-        {
-            var couple = await _coupleService.CreateCoupleByCodeAsync(currentUserId, targetUserCode);
-            
-            // Get both user IDs
-            var partnerId = couple.Members.First(m => m.UserId != couple.CreatedBy).UserId;
-            
-            // Add both users to couple group
-            var user1ConnectionId = await GetUserConnectionId(couple.CreatedBy);
-            var user2ConnectionId = await GetUserConnectionId(partnerId);
-            
-            if (!string.IsNullOrEmpty(user1ConnectionId))
-                await Groups.AddToGroupAsync(user1ConnectionId, $"Couple_{couple.Id}");
-            if (!string.IsNullOrEmpty(user2ConnectionId))
-                await Groups.AddToGroupAsync(user2ConnectionId, $"Couple_{couple.Id}");
-
-            // Notify both users about couple creation
-            await Clients.Group($"Couple_{couple.Id}").SendAsync("CoupleCreated", couple);
-            
-            // Also notify all clients to update online users list
-            var allOnlineUsers = await _userService.GetOnlineUsersAsync();
-            await Clients.All.SendAsync("UserPresenceUpdated", allOnlineUsers);
-            
-            Console.WriteLine($"💑 Couple created: {couple.Name} between {couple.CreatedBy} and {partnerId}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Error creating couple: {ex.Message}");
-            await Clients.Caller.SendAsync("JoinError", ex.Message);
-        }
+        await Clients.All.SendAsync("CoupleCreated", coupleData);
     }
 
-    public async Task NotifyCoupleCreated(object couple)
-    {
-        try
-        {
-            // Broadcast couple creation to all clients
-            await Clients.All.SendAsync("CoupleCreated", couple);
-            Console.WriteLine($"💑 Couple creation notified to all clients");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Error notifying couple creation: {ex.Message}");
-        }
-    }
-
-    // Game Session Management
+    // Game session methods
     public async Task CreateGameSession(string coupleId, string createdBy)
     {
         try
         {
-            var session = await _gameSessionService.CreateSessionAsync(coupleId, createdBy);
-            
-            // Notify couple members
-            await Clients.Group($"Couple_{coupleId}").SendAsync("GameSessionCreated", session);
-            
-            Console.WriteLine($"🎮 Game session created: {session.Id}");
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("SessionError", ex.Message);
-        }
-    }
-
-    public async Task SendMessage(string sessionId, string senderId, string message)
-    {
-        try
-        {
-            var messageData = await _gameSessionService.AddMessageAsync(sessionId, senderId, message);
-            
-            // Broadcast to all session participants
-            await Clients.Group($"Session_{sessionId}").SendAsync("MessageReceived", messageData);
-            
-            Console.WriteLine($"💬 Message sent in session {sessionId}");
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("MessageError", ex.Message);
-        }
-    }
-
-    public async Task ShareCard(string sessionId, string userId, object cardData)
-    {
-        try
-        {
-            var sharedCard = await _gameSessionService.ShareCardAsync(sessionId, userId, cardData);
-            
-            // Broadcast to all session participants
-            await Clients.Group($"Session_{sessionId}").SendAsync("CardShared", sharedCard);
-            
-            Console.WriteLine($"🃏 Card shared in session {sessionId}");
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("CardShareError", ex.Message);
-        }
-    }
-
-    // User joins hub and updates online status
-    public async Task JoinHub(string userId)
-    {
-        try
-        {
-            var connectionId = Context.ConnectionId;
-            
-            // Aggiungi questa connessione alle mappature
-            if (!_userConnections.ContainsKey(userId))
+            var session = new ComplicityGame.Api.Models.GameSession
             {
-                _userConnections[userId] = new HashSet<string>();
-            }
-            
-            var wasAlreadyOnline = _userConnections[userId].Count > 0;
-            _userConnections[userId].Add(connectionId);
-            _connectionUsers[connectionId] = userId;
-            
-            // Associate connection with user group
-            await Groups.AddToGroupAsync(connectionId, $"User_{userId}");
-            
-            // Update user online status
-            var user = await _userService.UpdateUserPresenceAsync(userId);
-            if (user != null)
-            {
-                if (!wasAlreadyOnline)
-                {
-                    Console.WriteLine($"👤 New user joined hub: {user.Name} ({user.PersonalCode})");
-                }
-                else
-                {
-                    Console.WriteLine($"� User reconnected: {user.Name} ({user.PersonalCode})");
-                }
-                
-                // Sempre invia la lista completa degli utenti online a tutti i client
-                var allOnlineUsers = await _userService.GetOnlineUsersAsync();
-                await Clients.All.SendAsync("UserPresenceUpdated", allOnlineUsers);
-                Console.WriteLine($"� Sent updated online users list: {allOnlineUsers.Count} users");
-            }
+                CoupleId = coupleId,
+                CreatedBy = createdBy,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            var createdSession = await _gameSessionService.CreateSessionAsync(session);
+            await Clients.All.SendAsync("GameSessionCreated", createdSession);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error joining hub for {userId}: {ex.Message}");
-            await Clients.Caller.SendAsync("Error", ex.Message);
+            _logger.LogError(ex, "Error creating game session");
+            await Clients.Caller.SendAsync("Error", "Failed to create game session");
         }
     }
 
-    // Refresh online users for all clients
-    public async Task RefreshOnlineUsers()
+    public async Task SendMessage(object messageData)
+    {
+        await Clients.All.SendAsync("MessageReceived", messageData);
+    }
+
+    public async Task ShareCard(object cardData)
+    {
+        await Clients.All.SendAsync("CardShared", cardData);
+    }
+
+    // Drawing/Whiteboard methods
+    public async Task AddDrawingStroke(string sessionId, object strokeData)
     {
         try
         {
-            var onlineUsers = await _userService.GetOnlineUsersAsync();
-            await Clients.All.SendAsync("UserPresenceUpdated", onlineUsers);
-            Console.WriteLine($"📋 Refreshed online users list: {onlineUsers.Count} users");
+            _logger.LogInformation($"Adding drawing stroke to session {sessionId}");
+            
+            // Broadcast to all clients in the session
+            await Clients.Group($"Session_{sessionId}").SendAsync("DrawingStrokeAdded", strokeData);
+            
+            // Optionally persist to database
+            // var session = await _gameSessionService.GetSessionAsync(int.Parse(sessionId));
+            // if (session != null)
+            // {
+            //     // Update session with new stroke data
+            //     // This could be stored as JSON in SessionData field
+            // }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error refreshing online users: {ex.Message}");
-            await Clients.Caller.SendAsync("Error", ex.Message);
+            _logger.LogError(ex, $"Error adding drawing stroke to session {sessionId}");
+            await Clients.Caller.SendAsync("Error", "Failed to add drawing stroke");
         }
     }
 
-    // Helper methods
-    private async Task<string?> GetUserConnectionId(string userId)
+    public async Task AddDrawingNote(string sessionId, object noteData)
     {
-        if (_userConnections.TryGetValue(userId, out var connections) && connections.Count > 0)
+        try
         {
-            // Restituisci la prima connessione disponibile
-            return connections.First();
+            _logger.LogInformation($"Adding drawing note to session {sessionId}");
+            
+            // Broadcast to all clients in the session
+            await Clients.Group($"Session_{sessionId}").SendAsync("DrawingNoteAdded", noteData);
         }
-        return null;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error adding drawing note to session {sessionId}");
+            await Clients.Caller.SendAsync("Error", "Failed to add drawing note");
+        }
+    }
+
+    public async Task ClearDrawing(string sessionId)
+    {
+        try
+        {
+            _logger.LogInformation($"Clearing drawing for session {sessionId}");
+            
+            // Broadcast to all clients in the session
+            await Clients.Group($"Session_{sessionId}").SendAsync("DrawingCleared", sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error clearing drawing for session {sessionId}");
+            await Clients.Caller.SendAsync("Error", "Failed to clear drawing");
+        }
+    }
+
+    public async Task UndoDrawing(string sessionId)
+    {
+        try
+        {
+            _logger.LogInformation($"Undo drawing for session {sessionId}");
+            
+            // Broadcast to all clients in the session
+            await Clients.Group($"Session_{sessionId}").SendAsync("DrawingUndoRedo", new { sessionId, action = "undo" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error undoing drawing for session {sessionId}");
+            await Clients.Caller.SendAsync("Error", "Failed to undo drawing");
+        }
+    }
+
+    public async Task RedoDrawing(string sessionId)
+    {
+        try
+        {
+            _logger.LogInformation($"Redo drawing for session {sessionId}");
+            
+            // Broadcast to all clients in the session
+            await Clients.Group($"Session_{sessionId}").SendAsync("DrawingUndoRedo", new { sessionId, action = "redo" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error redoing drawing for session {sessionId}");
+            await Clients.Caller.SendAsync("Error", "Failed to redo drawing");
+        }
+    }
+
+    // Session management
+    public async Task JoinGameSession(string sessionId, int userId)
+    {
+        try
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"Session_{sessionId}");
+            _logger.LogInformation($"User {userId} joined game session {sessionId}");
+            
+            // Notify other users in the session
+            await Clients.GroupExcept($"Session_{sessionId}", Context.ConnectionId)
+                .SendAsync("UserJoinedSession", new { sessionId, userId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error joining game session {sessionId}");
+            await Clients.Caller.SendAsync("Error", "Failed to join game session");
+        }
+    }
+
+    public async Task LeaveGameSession(string sessionId, int userId)
+    {
+        try
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"Session_{sessionId}");
+            _logger.LogInformation($"User {userId} left game session {sessionId}");
+            
+            // Notify other users in the session
+            await Clients.Group($"Session_{sessionId}")
+                .SendAsync("UserLeftSession", new { sessionId, userId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error leaving game session {sessionId}");
+        }
     }
 }

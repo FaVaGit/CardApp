@@ -1,0 +1,94 @@
+nohup: ignoring input
+/home/fabio/CardApp/Backend/ComplicityGame.Api/ComplicityGame.Api.csproj : warning NU1903: Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-8g4q-xg66-9fp4
+/home/fabio/CardApp/Backend/ComplicityGame.Api/ComplicityGame.Api.csproj : warning NU1903: Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-hh2w-p6rv-4g7w
+/home/fabio/CardApp/Backend/ComplicityGame.Api/ComplicityGame.Api.csproj : warning NU1903: Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-8g4q-xg66-9fp4
+/home/fabio/CardApp/Backend/ComplicityGame.Api/ComplicityGame.Api.csproj : warning NU1903: Package 'System.Text.Json' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-hh2w-p6rv-4g7w
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "type" = 'table' AND "rootpage" IS NOT NULL;
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /home/fabio/CardApp/Backend/ComplicityGame.Api
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5000/api/EventDrivenGame/draw-card - application/json 103
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.EventDrivenGameController.DrawCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "DrawCard", controller = "EventDrivenGame"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] DrawCard(ComplicityGame.Api.Controllers.DrawCardRequest) on controller ComplicityGame.Api.Controllers.EventDrivenGameController (ComplicityGame.Api).
+info: ComplicityGame.Api.Services.RabbitMQEventPublisher[0]
+      ✅ RabbitMQ EventPublisher initialized
+warn: Microsoft.EntityFrameworkCore.Query[20504]
+      Compiling a query which loads related collections for more than one collection navigation, either via 'Include' or through projection, but no 'QuerySplittingBehavior' has been configured. By default, Entity Framework will use 'QuerySplittingBehavior.SingleQuery', which can potentially result in slow query performance. See https://go.microsoft.com/fwlink/?linkid=2134277 for more information. To identify the query that's triggering this warning call 'ConfigureWarnings(w => w.Throw(RelationalEventId.MultipleCollectionIncludeWarning))'.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__sessionId_0='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      SELECT "t"."Id", "t"."CoupleId", "t"."CreatedAt", "t"."CreatedBy", "t"."IsActive", "t"."SessionType", "t"."UpdatedAt", "t"."Id0", "t"."CreatedAt0", "t"."CreatedBy0", "t"."GameType", "t"."IsActive0", "t"."Name", "t"."UpdatedAt0", "c0"."CoupleId", "c0"."UserId", "c0"."JoinedAt", "c0"."Role", "s"."Id", "s"."CardData", "s"."SessionId", "s"."SharedAt", "s"."SharedById"
+      FROM (
+          SELECT "g"."Id", "g"."CoupleId", "g"."CreatedAt", "g"."CreatedBy", "g"."IsActive", "g"."SessionType", "g"."UpdatedAt", "c"."Id" AS "Id0", "c"."CreatedAt" AS "CreatedAt0", "c"."CreatedBy" AS "CreatedBy0", "c"."GameType", "c"."IsActive" AS "IsActive0", "c"."Name", "c"."UpdatedAt" AS "UpdatedAt0"
+          FROM "GameSessions" AS "g"
+          INNER JOIN "Couples" AS "c" ON "g"."CoupleId" = "c"."Id"
+          WHERE "g"."Id" = @__sessionId_0 AND "g"."IsActive"
+          LIMIT 1
+      ) AS "t"
+      LEFT JOIN "CoupleUsers" AS "c0" ON "t"."Id0" = "c0"."CoupleId"
+      LEFT JOIN "SharedCards" AS "s" ON "t"."Id" = "s"."SessionId"
+      ORDER BY "t"."Id", "t"."Id0", "c0"."CoupleId", "c0"."UserId"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@p0='?' (Size = 36), @p1='?' (Size = 62), @p2='?' (Size = 36), @p3='?' (DbType = DateTime), @p4='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "SharedCards" ("Id", "CardData", "SessionId", "SharedAt", "SharedById")
+      VALUES (@p0, @p1, @p2, @p3, @p4);
+info: ComplicityGame.Api.Services.RabbitMQEventPublisher[0]
+      📤 Published event CardDrawn to couple.2ee4e91f-7cb3-4361-a425-2e861f051970
+info: ComplicityGame.Api.Services.GameSessionService[0]
+      🎴 User 9858c861-5d15-489d-8e31-e2f2c0073232 drew card 6 in session 7342dd77-6c95-49ac-b2a9-807ee26ba40e
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType11`2[[System.Boolean, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[<>f__AnonymousType12`2[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], ComplicityGame.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.EventDrivenGameController.DrawCard (ComplicityGame.Api) in 514.2519ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.EventDrivenGameController.DrawCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5000/api/EventDrivenGame/draw-card - 200 - application/json;+charset=utf-8 557.0467ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5000/api/EventDrivenGame/draw-card - application/json 103
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'ComplicityGame.Api.Controllers.EventDrivenGameController.DrawCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "DrawCard", controller = "EventDrivenGame"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] DrawCard(ComplicityGame.Api.Controllers.DrawCardRequest) on controller ComplicityGame.Api.Controllers.EventDrivenGameController (ComplicityGame.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__sessionId_0='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      SELECT "t"."Id", "t"."CoupleId", "t"."CreatedAt", "t"."CreatedBy", "t"."IsActive", "t"."SessionType", "t"."UpdatedAt", "t"."Id0", "t"."CreatedAt0", "t"."CreatedBy0", "t"."GameType", "t"."IsActive0", "t"."Name", "t"."UpdatedAt0", "c0"."CoupleId", "c0"."UserId", "c0"."JoinedAt", "c0"."Role", "s"."Id", "s"."CardData", "s"."SessionId", "s"."SharedAt", "s"."SharedById"
+      FROM (
+          SELECT "g"."Id", "g"."CoupleId", "g"."CreatedAt", "g"."CreatedBy", "g"."IsActive", "g"."SessionType", "g"."UpdatedAt", "c"."Id" AS "Id0", "c"."CreatedAt" AS "CreatedAt0", "c"."CreatedBy" AS "CreatedBy0", "c"."GameType", "c"."IsActive" AS "IsActive0", "c"."Name", "c"."UpdatedAt" AS "UpdatedAt0"
+          FROM "GameSessions" AS "g"
+          INNER JOIN "Couples" AS "c" ON "g"."CoupleId" = "c"."Id"
+          WHERE "g"."Id" = @__sessionId_0 AND "g"."IsActive"
+          LIMIT 1
+      ) AS "t"
+      LEFT JOIN "CoupleUsers" AS "c0" ON "t"."Id0" = "c0"."CoupleId"
+      LEFT JOIN "SharedCards" AS "s" ON "t"."Id" = "s"."SessionId"
+      ORDER BY "t"."Id", "t"."Id0", "c0"."CoupleId", "c0"."UserId"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p0='?' (Size = 36), @p1='?' (Size = 93), @p2='?' (Size = 36), @p3='?' (DbType = DateTime), @p4='?' (Size = 36)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "SharedCards" ("Id", "CardData", "SessionId", "SharedAt", "SharedById")
+      VALUES (@p0, @p1, @p2, @p3, @p4);
+info: ComplicityGame.Api.Services.RabbitMQEventPublisher[0]
+      📤 Published event CardDrawn to couple.2ee4e91f-7cb3-4361-a425-2e861f051970
+info: ComplicityGame.Api.Services.GameSessionService[0]
+      🎴 User 9858c861-5d15-489d-8e31-e2f2c0073232 drew card 9 in session 7342dd77-6c95-49ac-b2a9-807ee26ba40e
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType11`2[[System.Boolean, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[<>f__AnonymousType12`2[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], ComplicityGame.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action ComplicityGame.Api.Controllers.EventDrivenGameController.DrawCard (ComplicityGame.Api) in 68.9516ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'ComplicityGame.Api.Controllers.EventDrivenGameController.DrawCard (ComplicityGame.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5000/api/EventDrivenGame/draw-card - 200 - application/json;+charset=utf-8 73.0804ms
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: ComplicityGame.Api.Services.RabbitMQEventPublisher[0]
+      🔌 RabbitMQ EventPublisher disposed

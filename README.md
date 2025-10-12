@@ -1,330 +1,705 @@
-# 💕 Gioco della Complicità - Card Game per Coppie
+# 🎮 CardApp - Gioco della Complicità
 
-Un'applicazione web interattiva progettata per rafforzare i legami tra le coppie attraverso domande, sf## 🧪 Debug e Testing
+<!-- CI Badges -->
+![Unit Tests](https://github.com/FaVaGit/CardApp/actions/workflows/ci-unit.yml/badge.svg?branch=Evolution)
+![E2E Tests](https://github.com/FaVaGit/CardApp/actions/workflows/ci-e2e.yml/badge.svg?branch=Evolution)
+![E2E Smoke](https://github.com/FaVaGit/CardApp/actions/workflows/e2e-smoke.yml/badge.svg?branch=Evolution)
+![Security Audit](https://github.com/FaVaGit/CardApp/actions/workflows/security-audit.yml/badge.svg?branch=Evolution)
+<!-- If Codecov is enabled add: -->
+![Coverage](https://img.shields.io/badge/coverage-11.3%25-blue?style=flat)
 
-### Logs del Backend
-Il backend produce logs dettagliati per:
-- Connessioni SignalR
-- Operazioni database
-- Gestione errori
+**🌟 Novità**: Elementi decorativi romantici per un'esperienza visiva migliorata! Cuori fluttuanti, particelle animate, gradienti e effetti glassmorphism.
 
-### Testing Multi-utente
-1. Apri due browser (normale + incognito)
-2. Registra due utenti diversi
-3. Crea una coppia e testa la sincronizzazione
+A modern card game application built with **Event-Driven Architecture** using React, ASP.NET Core, and RabbitMQ. Designed for couples to strengthen their relationship through meaningful conversation prompts.
 
-### Troubleshooting
+## ✨ Features
+
+- 🔐 **Registrazione / Login con Password**: Account locale con hashing PBKDF2 (salt univoco, nessuna password in chiaro)
+- 🎯 **Single Player Mode**: Esperienza personale di pesca carte
+- 👥 **Couple Mode (richiesta / approvazione)**: Accoppiamento esplicito con auto‑start sessione
+- ⚡ **Partner Sync Immediato**: `respond-join` ora restituisce direttamente `partnerInfo` evitando attese
+- 🎴 **Card Sharing Sincronizzato**: Stato carte condivise in snapshot (storico `sharedCards`)
+- � **Lavagna Collaborativa**: Canvas interattivo con strumenti di disegno, sincronizzazione real-time tra partner
+- �🎲 **150+ Carte Conversazione**: Prompt curati in italiano
+- 💕 **Elementi Decorativi**: Cuori fluttuanti, particelle animate, gradienti romantici per un'atmosfera speciale
+- 🔄 **Eventi Real-time / Polling Resiliente**: RabbitMQ (o polling snapshot come fallback)
+- 🩺 **Diagnostica Sync Partner**: Evento `partnerSyncDelay` dopo 3 poll se partner mancante
+- 🧪 **Test Integrazione Automatizzati**: Suite Vitest per flussi coppia e pesca carta
+- 🎨 **Modern UI con MUI + Fabric.js**: Layout responsive, AppBar, Drawer log, canvas animato per carte
+- 📱 **Responsive Design**: Mobile & Desktop
+- 🏗️ **Architettura Moderna**: Separation of concerns, fallback sicuri
+- 🌗 **Dark Mode Toggle**: Tema scuro persistente via localStorage
+
+## 🔐 Sicurezza & Password
+Le credenziali sono gestite solo lato browser (modalità prototipo):
+| Aspetto | Implementazione |
+|---------|-----------------|
+| Hashing | PBKDF2 SHA-256 120k iterazioni |
+| Salt | Generato per-account (16 byte) |
+| Storage | `localStorage` (hash + salt + metadati utente) |
+| Trasmissione | Nessun invio password al backend attuale |
+
+Limitazioni attuali:
+- Nessun recupero password / reset
+- Nessun rate limiting locale
+- Sessione legata al browser (no multi-device persistente)
+
+Per produzione migrare a backend con Argon2id / scrypt, sessioni firmate e rotazione token.
+
+## 🌗 Tema & Modalità Scura
+Il toggle (icona sole/luna) consente di passare fra light e dark mode.
+Caratteristiche:
+- Persistenza in `localStorage['complicity_color_mode']`
+- Palette ottimizzata per contrasto su sfumature viola/rosa
+- Canvas Fabric rianima la carta mantenendo centratura in entrambi i temi
+- Componenti MUI reattivi alla palette (background/paper/primary/secondary)
+
+## 🏗️ Architecture
+
+**Event-Driven with RabbitMQ**
+- **Frontend**: React 18 + Vite + Tailwind CSS
+- **Backend**: ASP.NET Core 8 Web API
+- **Database**: SQLite with Entity Framework Core
+- **Events**: RabbitMQ for real-time communication
+- **State Management**: Event sourcing pattern
+
+## 📁 Project Structure
+
+- `window.__apiService` (singleton) esposto solo per scenari E2E quando build con `VITE_E2E=1` (TTL, metriche senza UI fragile). La precedente strumentazione multi‑istanza è stata rimossa.
+- Assert "soft" su formazione coppia / partner name: se il backend è lento non falliscono, ma loggano un messaggio informativo.
+- Flag ambiente supportati:
+   - `E2E_VERBOSE=1` abilita la stampa del frammento HTML post autenticazione.
+   - `STRICT_COUPLE_ASSERT=1` rende nuovamente obbligatorie le asserzioni sulla coppia/partner (usa helper `assertStrict`).
+   - `VITE_E2E=1` (build-time) abilita l'esposizione di `window.__apiService`.
+
+Esempio esecuzione verbosa:
+
 ```bash
-# Verifica porte occupate
-lsof -i :5000  # Backend
-lsof -i :5173  # Frontend
-
-# Reset database
-rm Backend/ComplicityGame.Api/game.db
-
-# Pulisci cache Vite
-rm -rf node_modules/.vite
+E2E_VERBOSE=1 npm run test:e2e
 ```
 
-## 🚀 Deploy e Produzione
+Per esecuzione silenziosa (CI):
 
-### Deploy su IIS (Windows Server)
-1. Pubblica il backend: `dotnet publish -c Release`
-2. Build del frontend: `npm run build`
-3. Configura IIS con i file generati
-4. Aggiorna connection string per database produzione
-
-### Deploy su Docker
-```dockerfile
-# Dockerfile di esempio per il backend
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
-COPY Backend/ComplicityGame.Api/bin/Release/net8.0/publish/ /app/
-WORKDIR /app
-EXPOSE 80
-ENTRYPOINT ["dotnet", "ComplicityGame.Api.dll"]
+```bash
+npm run test:e2e
 ```
 
-### Deploy su Vercel/Netlify (Frontend)
-```bash
-npm run build
-# Carica la cartella dist/ su Vercel/Netlify
-```
-
-### Variabili d'Ambiente Produzione
-```bash
-# Backend
-ASPNETCORE_ENVIRONMENT=Production
-ConnectionStrings__DefaultConnection="Server=..."
-
-# Frontend
-VITE_API_URL=https://your-backend-api.com
-```tà pensate per promuovere la comunicazione e l'intimità.
-
-## 🚀 Caratteristiche Principali
-
-- **🎮 Gioco Interattivo**: Carte con domande e attività per coppie
-- **👥 Multi-utente in Tempo Reale**: Sincronizzazione live tramite SignalR
-- **📱 Responsive Design**: Ottimizzato per dispositivi mobili e desktop
-- **🔗 Sistema di Accoppiamento**: Crea coppie tramite codici unici
-- **🌐 Supporto Multi-dispositivo**: Gioca su diversi dispositivi contemporaneamente
-
-## 🛠️ Tecnologie Utilizzate
-
-### Frontend
-- **React 18** con Hooks
-- **Vite** per il build system
-- **Tailwind CSS** per lo styling
-- **SignalR Client** per la comunicazione in tempo reale
-
-### Backend
-- **ASP.NET Core 8** Web API
-- **SignalR** per la comunicazione real-time
-- **Entity Framework Core** con SQLite
-- **C# 12** con nullable reference types
-
-## 🏗️ Architettura
-
+Nota: l'esposizione di `window.__apiService` è pensata unicamente per test end‑to‑end; evitare di farvi affidamento nel codice di produzione.
 ```
 CardApp/
-├── src/                    # Frontend React
-│   ├── components/         # Componenti riutilizzabili
-│   ├── services/          # Servizi e API client
-│   └── hooks/             # Custom React hooks
-├── Backend/               # Backend ASP.NET Core
-│   └── ComplicityGame.Api/
-│       ├── Controllers/   # API controllers
-│       ├── Services/      # Business logic
-│       ├── Models/        # Data models
-│       └── Hubs/          # SignalR hubs
-└── docs/                  # Documentazione
+├── 🎯 Core Application
+│   ├── src/                          # Clean, modern React frontend
+│   │   ├── main.jsx                  # App entry point
+│   │   ├── SimpleApp.jsx             # Main application orchestrator
+│   │   ├── SimpleAuth.jsx            # User authentication
+│   │   ├── SimpleCardGame.jsx        # Single player game
+│   │   ├── CoupleGame.jsx            # Couple/partner game
+│   │   ├── EventDrivenApiService.js  # API communication layer
+│   │   ├── expandedCards.js          # Card deck data
+│   │   └── familyCards.js            # Family-friendly cards
+│   │
+│   ├── Backend/ComplicityGame.Api/   # ASP.NET Core Web API
+│   │   ├── Controllers/              # REST API endpoints
+│   │   │   └── EventDrivenGameController.cs
+│   │   ├── Services/                 # Business logic layer
+│   │   │   ├── UserPresenceService.cs
+│   │   │   ├── CoupleMatchingService.cs
+│   │   │   ├── GameSessionService.cs
+│   │   │   └── RabbitMQEventPublisher.cs
+│   │   ├── Models/                   # Data models and entities
+│   │   ├── Events/                   # RabbitMQ event system
+│   │   └── Data/                     # Database context (SQLite)
+│   │
+├── 🛠️ Development Tools
+│   ├── start.sh                      # Start complete application
+│   ├── stop.sh                       # Stop all services
+│   ├── test-all.sh                   # Comprehensive test suite
+│   ├── test-partner-matching.sh      # Partner matching tests
+│   │
+├── 📦 Configuration
+│   ├── package.json                  # Frontend dependencies
+│   ├── vite.config.js               # Vite build configuration
+│   └── .github/copilot-instructions.md
+│
+└── 📚 Documentation
+    ├── README.md                     # This file
+    ├── SCRIPTS.md                    # Scripts documentation
+    └── archive/                      # Legacy files (cleaned up)
 ```
 
-## 🚀 Avvio Rapido
+## 🚀 Quick Start
 
 ### Prerequisiti
-- **Node.js** 18+ e npm
-- **.NET 8 SDK**
-- **Git**
+- Node.js 20.19.0+ (consigliato via `.nvmrc` / `nvm use`)
+- .NET 8 SDK
+- SQLite
+- (Opzionale) RabbitMQ se si abilita la messaggistica reale (il polling snapshot è fallback)
 
-## 🚀 Installazione e Setup
+### Installation & Startup
 
-### Prerequisiti
-- **Node.js** 18+ e npm
-- **.NET 8 SDK**
-- **Git**
+1. **Clone and setup**:
+   ```bash
+   git clone <repository-url>
+   cd CardApp
+   npm install
+   ```
 
-### 1. Clona il Repository
+2. **Start the application**:
+   ```bash
+   ./start.sh
+   ```
+
+3. **Access the application**:
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:5000
+
+### Single Player Mode
+1. Open http://localhost:5173
+2. Enter your name and select "Gioco Singolo"
+3. Start drawing cards and enjoy!
+
+### Modalità Coppia (Flusso con approvazione richiesta)
+Flusso moderno (request / approve) implementato per evitare accoppiamenti involontari:
+1. Entrambi gli utenti si connettono ("Gioco di Coppia").
+2. L'utente A preme "Richiedi" accanto al nome di B.
+3. B vede un badge "Richiesta per te" e i pulsanti `Accetta` / `Rifiuta`.
+4. Se B accetta:
+   - La richiesta viene rimossa da entrambi i lati.
+   - Si crea (o completa) la coppia.
+   - Se la coppia ha due membri il sistema avvia automaticamente una Game Session.
+5. Se B rifiuta: la richiesta scompare, nessuna coppia viene creata.
+6. A può anche `Annulla` prima della risposta di B.
+
+Note tecniche:
+- Le richieste pendono per 10 minuti prima di scadere (expire) automaticamente.
+- Optimistic UI: A vede subito lo stato "In attesa" senza attendere il polling.
+- Se una richiesta viene approvata vengono ripulite eventuali richieste incrociate residue.
+
+#### Documentazione dettagliata Join Requests
+Per dettagli su caching locale, flag `_optimistic` e riconciliazione snapshot consultare il file `JOIN_REQUESTS.md`.
+
+## 🎨 Lavagna Collaborativa
+
+La nuova lavagna (`Whiteboard.jsx`) usa **Fabric.js** + **Material UI** con toolbar espandibile e sincronizzazione debounced.
+
+### Funzionalità principali
+- Disegno libero (brush) con spessore e colore
+- Forme rapide: Rettangolo, Cerchio
+- Testo editabile (Fabric IText)
+- Undo / Redo (stack max 50 stati)
+- Zoom incrementale 0.4x – 3x
+- Cambio colore sfondo (persistito nello stato condiviso)
+- Pulizia totale canvas
+- Esportazione PNG (download + callback `onExport`)
+- Modalità toggle Disegno / Oggetti
+- Overlay di caricamento e stato disabilitato con opacità
+
+### API Component
+Props principali:
+```jsx
+<Whiteboard
+  value={{ json, bgColor, version }} // stato remoto ricevuto
+  onChange={(nextState, meta) => { /* publish */ }}
+  disabled={false}
+  loading={false}
+  height={360}
+  debounceMs={600}
+  sessionId={gameSession?.id}
+  userId={user.userId}
+/>
+```
+`nextState` struttura:
+```ts
+{
+  json: FabricJSON,
+  bgColor: string,
+  version: number // timestamp ms usato come semplice vettore
+}
+```
+`meta` struttura:
+```ts
+{ reason: 'draw'|'add'|'modify'|'remove'|'undo'|'redo'|'clear'|'background', localOps: number }
+```
+
+### Sincronizzazione
+Per ora la sincronizzazione avviene tramite `BroadcastChannel` (stub locale) nel service (`syncLavagna`). Questo permette collaborazione multi‑tab / multi‑finestra senza backend dedicato. Ogni emissione:
+1. Genera JSON completo del canvas (`fabric.Canvas.toJSON(['id'])`).
+2. Applica debounce (default 600ms) per ridurre traffico.
+3. Pubblica evento su canale e emette localmente `lavagnaSync`.
+4. Whiteboard ascolta via prop `value` e ricarica se `version` differente da quello locale.
+
+### Roadmap Backend
+Endpoint pianificato: `POST /api/lavagna/sync` con payload:
+```json
+{ "sessionId": "...", "diff": { /* patch ottimizzata */ }, "bgColor": "#fff", "version": 1739032459123 }
+```
+Il backend pubblicherà evento RabbitMQ `LavagnaUpdated` sul routing key `game.<sessionId>.lavagna.updated`.
+
+Fasi evolutive:
+- [ ] Delta/Patch (operazioni incrementali anziché full JSON)
+- [ ] Compressione (rimozione oggetti invariati oltre threshold)
+- [ ] Persistenza snapshot per riapertura sessione
+
+### Testing
+Test E2E `lavagna-sync-test.spec.js` verifica propagazione creando due contesti e simulando modifica (rectangle / broadcast diretto). Lo stato corrente è esposto a scopo test via `window.__latestLavagnaState`.
+
+### Note Prestazioni
+- Debounce evita spam eventi su ogni stroke.
+- Limite history (50) previene crescita memoria eccessiva.
+- Zoom e rendering delegati a Fabric (accelerazione canvas 2D).
+
+### Adesione Tema & Accessibilità
+- Contrasto toolbar (fondo bianco + blur) per leggibilità.
+- Opacità canvas quando disabilitato; overlay di caricamento aria-friendly.
+- Label italiane coerenti con il tema del progetto.
+
+## 🧪 Testing
+
+### Layering (Core vs API)
+Per velocizzare e rendere più stabili i test di dominio è stato introdotto un progetto `ComplicityGame.Core` che contiene:
+- Modelli minimi (`User`, `Couple`, `CoupleUser`) e `GameDbContext` con configurazione EF.
+- Eventi di base per la coppia (`CoupleCreated`, `CoupleCompleted`, `CoupleDisconnection`).
+- `CoupleMatchingService` e relative interfacce semplificate.
+
+I test unitari ora referenziano solo `ComplicityGame.Core`, evitando dipendenze runtime superflue (Swagger, RabbitMQ, SQLite native), con esecuzione più rapida e isolamento maggiore. L'API continua a poter evolvere (controller, presenza utenti, sessioni di gioco) senza appesantire il ciclo TDD sul servizio di matching.
+
+
+### Tipologie di test
+| Livello | Strumento | Percorso | Cosa valida |
+|---------|-----------|----------|-------------|
+| Integrazione API (JS) | Vitest | `tests/integration/*.test.js` | Coppia, sessione, sync partner, pesca carta |
+| Shell integration | bash + curl + jq | `tests/*.test.sh` | Flussi API legacy (approve / reject / cancel) |
+| End‑to‑End UI | Playwright | `tests/e2e/*.spec.js` | Interazioni reali browser (richiesta, accetta, rifiuta, annulla, reconnect) |
+
+### Esecuzione rapida
 ```bash
-git clone https://github.com/FaVaGit/CardApp.git
-cd CardApp
+# Test unit frontend
+npm run test:unit
+
+# Test integrazione (avvia backend + frontend e lancia Vitest integration)
+npm run test:integration
+
+# Test shell (flussi base)
+./test-all.sh
+
+# Test E2E Playwright
+npx playwright test
 ```
 
-### 2. Setup Automatico (Consigliato)
-
-#### Su Linux/macOS:
+Per generare il report HTML Playwright:
 ```bash
-chmod +x setup-backend.sh
-./setup-backend.sh
+npx playwright show-report
 ```
 
-#### Su Windows:
-```powershell
-.\setup-backend.ps1
+### Politica sui selettori E2E
+Sono stati introdotti `data-testid` in `UserDirectory.jsx` per ridurre la fragilità:
+- `incoming-request-badge`
+- `send-request`
+- `accept-request`
+- `reject-request`
+- `cancel-request`
+
+### Troubleshooting
+- Messaggio `Please upgrade your Node.js version`: assicurati di usare `nvm use` (20.19.0+).
+- Se i test E2E trovano molti utenti "fantasma", l'endpoint `POST /api/admin/clear-users` può pulire lo stato.
+- Flakiness ridotta aggiungendo polling con `expect.poll` e testids stabili.
+
+## 🎯 API Endpoints
+
+### Core Game & Join Workflow API
+- `POST /api/EventDrivenGame/connect` - Connessione utente
+- `POST /api/EventDrivenGame/reconnect` - Riconnessione con auth token
+- `GET  /api/EventDrivenGame/available-users/{userId}` - Lista utenti disponibili (esclude self)
+- `POST /api/EventDrivenGame/request-join` - Crea richiesta join (A->B)
+- `POST /api/EventDrivenGame/respond-join` - Approvazione / rifiuto richiesta (B risponde) → ora ritorna anche `partnerInfo` e `gameSession`
+- `POST /api/EventDrivenGame/cancel-join` - Annulla richiesta in pending (A)
+- `GET  /api/EventDrivenGame/join-requests/{userId}` - Incoming / outgoing requests
+- `GET  /api/EventDrivenGame/snapshot/{userId}` - Snapshot aggregato (users + requests + stato + sessione)
+- `POST /api/EventDrivenGame/start-game` - Avvio manuale game (fallback se non auto)
+- `POST /api/EventDrivenGame/draw-card` - Pesca carta
+
+### Admin / Utility API
+- `POST /api/admin/clear-users` - Pulisce utenti, coppie, sessioni (usato nei test)
+- `POST /api/admin/reset-system` - Alias di reset completo
+- `POST /api/admin/force-refresh` - Segnale soft di refresh (no-op logico)
+- `POST /api/admin/seed-test-cards` - Inserisce carte di test
+- `GET  /api/admin/cards-status` - Stato deck carte
+- `GET  /api/health` - Health check
+
+### 📘 Dettaglio Backend API (Esempi JSON)
+
+#### 1. Connect
+Request:
+```json
+POST /api/EventDrivenGame/connect
+{ "name": "Anna", "gameType": "couple" }
 ```
-
-### 3. Setup Manuale
-
-#### Backend:
-```bash
-cd Backend/ComplicityGame.Api
-dotnet restore
-dotnet run
-```
-🌐 Backend disponibile su: `http://localhost:5000`
-📊 Health check: `http://localhost:5000/api/health`
-
-#### Frontend:
-```bash
-# In una nuova finestra del terminale
-cd CardApp
-npm install
-npm run dev
-```
-🌐 Frontend disponibile su: `http://localhost:5173`
-
-### 4. Verifica Installazione
-- ✅ Backend attivo su porta 5000
-- ✅ Frontend attivo su porta 5173
-- ✅ Database SQLite creato automaticamente
-- ✅ SignalR Hub funzionante
-
-## 🎮 Come Giocare
-
-1. **Registrazione**: Crea un account con il tuo nome
-2. **Crea/Unisciti a una Coppia**: 
-   - Crea una nuova coppia e condividi il codice
-   - Oppure inserisci il codice del tuo partner
-3. **Gioca Insieme**: Pescate carte e godetevi l'esperienza insieme!
-
-## 🔧 Funzionalità Tecniche
-
-### Sistema di Accoppiamento
-- Codici unici di 6 caratteri per ogni utente
-- Creazione automatica di coppie tra utenti
-- Stato online/offline in tempo reale
-
-### Sincronizzazione Real-time
-- **SignalR** per aggiornamenti istantanei
-- Notifiche di presenza utente
-- Condivisione carte e messaggi
-
-### Database
-- **SQLite** per sviluppo locale
-- **Entity Framework Core** per ORM
-- Migrazioni automatiche al primo avvio
-
-## 📁 File di Configurazione
-
-### Frontend (`package.json`)
+Response:
 ```json
 {
-  "name": "cardapp",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  }
+  "success": true,
+  "status": { "userId": "f2e...", "isOnline": true, "coupleId": null },
+  "personalCode": "A1B2C3",
+  "authToken": "<guid>",
+  "userId": "f2e..."
 }
 ```
 
-### Backend (`appsettings.json`)
+Campi notevoli:
+- `personalCode`: codice condivisibile (non segreto) per pairing legacy
+- `authToken`: usato per `reconnect`
+
+#### 2. Request Join
+```json
+POST /api/EventDrivenGame/request-join
+{ "requestingUserId": "U1", "targetUserId": "U2" }
+```
+Response:
+```json
+{ "success": true, "requestId": "<guid>", "status": "Pending" }
+```
+Rate limiting: max 5 richieste (A->B) per 30s (`429` + header `Retry-After`).
+
+#### 3. Respond Join
+```json
+POST /api/EventDrivenGame/respond-join
+{ "requestId": "<guid>", "targetUserId": "U2", "approve": true }
+```
+Response (approve):
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Data Source=game.db"
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information"
-    }
-  }
+  "success": true,
+  "approved": true,
+  "coupleId": "<guid>",
+  "gameSession": { "id": "<guid>", "isActive": true, "createdAt": "2025-10-02T12:00:00Z" },
+  "partnerInfo": { "userId": "U1", "name": "Anna", "personalCode": "A1B2C3" }
+}
+```
+Response (reject):
+```json
+{ "success": true, "approved": false }
+```
+
+#### 4. Snapshot
+```http
+GET /api/EventDrivenGame/snapshot/U1
+```
+Response (parziale):
+```json
+{
+  "success": true,
+  "status": { "userId": "U1", "coupleId": "<guid>" },
+  "gameSession": { "id": "<guid>", "isActive": true },
+  "partnerInfo": { "userId": "U2", "name": "Bruno" },
+  "users": [ { "id": "U1", "name": "Anna" }, { "id": "U2", "name": "Bruno" } ],
+  "outgoingRequests": [],
+  "incomingRequests": [],
+  "expiresAfterMinutes": 10
 }
 ```
 
-## � Debug e Testing
+#### 5. Draw Card
+```json
+POST /api/EventDrivenGame/draw-card
+{ "sessionId": "<guid>", "userId": "U1" }
+```
+Response:
+```json
+{
+  "success": true,
+  "card": { "id": 42, "gameType": "couple", "category": "dialogo", "content": "Domanda...", "level": 2 }
+}
+```
 
-### Logs del Backend
-Il backend produce logs dettagliati per:
-- Connessioni SignalR
-- Operazioni database
-- Gestione errori
+#### 6. Start / End Game
+Start (fallback manuale):
+```json
+POST /api/EventDrivenGame/start-game
+{ "coupleId": "<guid>" }
+```
+Response:
+```json
+{ "success": true, "gameSession": { "id": "<guid>", "isActive": true } }
+```
+End:
+```json
+POST /api/EventDrivenGame/end-game
+{ "sessionId": "<guid>" }
+```
+Response:
+```json
+{ "success": true }
+```
 
-### Testing Multi-utente
-1. Apri due browser (normale + incognito)
-2. Registra due utenti diversi
-3. Crea una coppia e testa la sincronizzazione
+Edge cases:
+- `404/400` se `coupleId` o `sessionId` inesistenti o non autorizzati
+- `draw-card` ritorna `400` se mazzo esaurito
+- `request-join` ritorna stesso `requestId` se richiesta pendente già esiste (idempotenza soft)
 
-## 🔥 Sincronizzazione Multi-Dispositivo
+## 🎮 Game Flow
 
-Questa versione implementa un sistema completo di backend ASP.NET Core con:
-- **SignalR Hub** per comunicazioni real-time
-- **Entity Framework** per persistenza dati  
-- **API REST** per operazioni CRUD
-- **Supporto multi-dispositivo** nativo
+### Single Player
+1. **Connect** → User authentication and setup
+2. **Select Game Type** → Choose "Single Player"
+3. **Draw Cards** → Get conversation prompts
+4. **Enjoy** → Reflect on the prompts
 
-## 🤝 Contribuire
+### Couple Mode
+1. **Both Connect** → Authentication for both partners
+2. **Partner Matching** → Use personal codes to form a couple
+3. **Auto Game Session** → System creates shared game session
+4. **Draw Cards Together** → Take turns drawing cards
+5. **Conversation** → Discuss the prompts together
 
-1. Fai un fork del progetto
-2. Crea un branch per la tua feature (`git checkout -b feature/AmazingFeature`)
-3. Committa le modifiche (`git commit -m 'Add AmazingFeature'`)
-4. Pusha sul branch (`git push origin feature/AmazingFeature`)
-5. Apri una Pull Request
+## 🔧 Development Scripts
 
-## 📝 Licenza
+| Script | Purpose |
+|--------|---------|
+| `start.sh` | Start complete application (backend + frontend) |
+| `start.sh --simple` | Quick start mode (minimal checks) |
+| `start.sh --cleanup` | Clean up ports and processes only |
+| `stop.sh` | Stop all services and clean up ports |
+| `test-all.sh` | Run comprehensive test suite |
+| `test-partner-matching.sh` | Test partner matching workflow |
 
-Questo progetto è distribuito sotto licenza MIT. Vedi il file `LICENSE` per i dettagli.
+### Usage Examples
+```bash
+# Standard start with full health checks
+./start.sh
 
-## � Ringraziamenti
+# Quick start for development
+./start.sh --simple
 
-- Progetto nato dall'idea di rafforzare i rapporti di coppia
-- Ispirato dalle moderne tecnologie web per esperienze real-time
-- Costruito con amore per le coppie che vogliono crescere insieme
+# Clean up stuck processes/ports
+./start.sh --cleanup
+
+# Stop everything cleanly
+./stop.sh
+```
+
+## 🗃️ Database Schema
+
+**Users** - User accounts and authentication
+**Couples** - Partner relationships  
+**CoupleUsers** - Many-to-many relationship for couples
+**GameSessions** - Active game instances
+**Cards** - Game card data (optional storage)
+
+## 📊 Event System
+
+The application uses RabbitMQ for real-time events:
+
+- **UserConnected** - User joins the system
+- **CoupleCreated** - New couple formed
+- **CoupleCompleted** - Couple has 2 members
+- **GameSessionStarted** - New game begins
+- **CardDrawn** - Card drawn by player
+
+## 🏆 Stato Funzionalità
+
+### ✅ Implementate
+- Workflow richieste coppia (request / approve / reject / cancel) con auto-start game
+- Risposta `respond-join` arricchita con `partnerInfo` + `gameSession`
+- Fallback server-side partner (`[FallbackPartner]`) per snapshot immediato del richiedente
+- Eventi frontend: `partnerUpdated`, `gameSessionStarted`, `sessionUpdated` (carta pescata)
+- Diagnostica `partnerSyncDelay` dopo 3 poll senza partner
+- Ottimistic UI per richieste (aggiornamento immediato)
+- Snapshot endpoint aggregato
+- Test integrazione Vitest (coppia, stabilità snapshot, pesca, partner immediato)
+- Test shell (approve, reject, cancel) + E2E Playwright con `data-testid`
+- Auto pulizia richieste incrociate dopo approvazione
+- Avvio automatico Game Session
+
+### 🔮 Miglioramenti Futuri
+- Matrix CI (Node / OS) & caching ottimizzato
+- Global Playwright setup (clear-users pre suite)
+- Coverage combinata frontend+backend automatica (badge dinamico)
+- Persistenza carte / progressi sessioni multiple
+- i18n dinamico runtime
+- WebSocket / SignalR per eliminare polling
+- Rate limiting configurabile lato API (già esistente per join, estendere ad altre operazioni)
+
+## 🧹 Aggiornamenti Recenti
+| Area | Aggiornamento |
+|------|---------------|
+| UI | Introduzione Material UI (MUI) con tema personalizzato + Fabric.js (canvas carte) + pulizia log |
+| Join Workflow | `respond-join` ora include `partnerInfo` e `gameSession` |
+| Partner Sync | Fallback server-side immediato + evento diagnostico `partnerSyncDelay` |
+| Snapshot | Aggiunto fallback `[FallbackPartner]` e stabilità sessione verificata via test |
+| Testing | Suite integrazione Vitest + stabilizzazione unit (mock interno & ordine fetch deterministico) |
+| API | Migliorata risposta `respond-join` per ridurre latenze UI |
+| Ottimistic Join | TTL configurabile + pruning con metriche & evento `joinRequestExpired` |
+| Script | `test:integration` esegue backend+frontend+Vitest in modo automatizzato |
+| Documentazione | README aggiornato con nuove sezioni e API arricchite |
+
+## 🧪 Modalità Test Interna (Backend-less)
+Per i test unitari del frontend è disponibile un mock interno opzionale attivabile tramite variabile ambiente.
+
+| Variabile | Valore | Effetto |
+|-----------|--------|---------|
+| `INTERNAL_API_TEST_MOCK` | `1` | Attiva handler in–memory dentro `EventDrivenApiService` (nessuna chiamata HTTP reale) |
+| `ENABLE_POLL_IN_TEST` | `1` | (Opzionale) Riabilita il polling automatico anche in ambiente test |
+
+Caratteristiche mock:
+- Generazione deterministica di ID utente (`U1`, `U2`, ...)
+- Aging artificiale delle richieste join per test pruning
+- Simulazione failure: target contenente `FAIL` o `TARGET2` → errore su `/request-join`; `FAIL` su `/cancel-join`
+- Primo snapshot può nascondere outgoing per validare conservazione ottimistica
+- Nessun side effect esterno → test rapidi e stabili
+
+Disabilitato di default: i test unitari usano fetch mock espliciti e il servizio in modalità "no polling" per mantenere l'ordine prevedibile delle chiamate.
+
+## 🔁 Join Requests Ottimistiche & Pruning
+Il frontend applica un pattern Optimistic UI alle richieste di coppia:
+
+1. `requestJoin` inserisce subito un record temporaneo `{ _optimistic: true }` nella cache `outgoing` con `temp-<timestamp>`.
+2. Se la risposta server contiene `requestId` il record viene aggiornato mantenendo il flag finché uno snapshot non lo conferma.
+3. Snapshot vuoti preservano i record `_optimistic` (evita flicker).
+4. Pruning: se un record resta `_optimistic` oltre `optimisticJoinTTL` viene rimosso e vengono emessi:
+   - `joinRequestExpired` (payload `{ request })`
+   - Incremento metrica `prunedJoinCount` (+ evento `metricsUpdated`)
+
+Parametri:
+| Chiave | Descrizione | Default |
+|--------|-------------|---------|
+| `optimisticJoinTTL` | Tempo massimo (ms) prima di pruning | 30000 |
+| `minOptimisticTTL` | Soglia minima forzata | 500 |
+| `prunedJoinCount` | Contatore persistito (localStorage) | 0 |
+
+Persistenza: `localStorage['complicity_join_settings']` memorizza TTL e contatore pruning.
+
+## 📊 Telemetria & Metriche
+Il servizio accumula eventi interni in un buffer (flush a 20 eventi o al teardown):
+
+Tipi principali:
+- `metricIncrement` (es. pruning)
+- `settingsUpdated` (cambio TTL)
+- `telemetryBatch` (emesso con `{ events, at }` al flush)
+
+Uso suggerito: collegare un listener a `telemetryBatch` per invio futuro a backend / analytics.
+
+## 🧩 Eventi Frontend Esportati
+| Evento | Payload | Trigger |
+|--------|---------|---------|
+| `usersUpdated` | `{ users, incoming, outgoing }` | Cambi snapshot utenti / richieste |
+| `joinRequestsUpdated` | `{ incoming, outgoing }` | Cache richieste aggiornata |
+| `joinRequestExpired` | `{ request }` | Pruning richiesta ottimistica |
+| `metricsUpdated` | `{ prunedJoinCount }` | Aggiornamento metriche |
+| `settingsUpdated` | `{ optimisticJoinTTL }` | Modifica TTL ottimistico |
+| `coupleJoined` | `{ coupleId, partner }` | Coppia formata / approvazione |
+| `partnerUpdated` | `{ userId, name, personalCode }` | Aggiornamento/rilevazione partner |
+| `gameSessionStarted` | `{ sessionId }` | Sessione avviata |
+
+## 🧪 Flag E2E & Modalità CI
+
+Per migliorare stabilità e osservabilità dei test end‑to‑end sono stati introdotti alcuni flag ambiente:
+
+| Variabile | Scope | Effetto |
+|-----------|-------|---------|
+| `VITE_E2E=1` | Build (vite) | Espone il singleton `window.__apiService` per test Playwright (metriche, TTL) – NON usare in produzione |
+| `STRICT_COUPLE_ASSERT=1` | Runtime (Playwright) | Le asserzioni sulla formazione coppia/partner tornano hard‑fail (usa helper `assertStrict`) |
+| `E2E_VERBOSE=1` | Runtime (Playwright) | Logga snippet HTML post‑auth per debug flussi di login/registrazione |
+
+Esempi:
+```bash
+# Esecuzione completa in modalità strict e con log diagnostici
+STRICT_COUPLE_ASSERT=1 E2E_VERBOSE=1 npm run test:e2e
+
+# Costruire il frontend esponendo apiService per E2E
+VITE_E2E=1 npm run dev
+```
+
+Nel workflow CI E2E (`.github/workflows/ci-e2e.yml`) i flag NON sono abilitati di default per mantenere il comportamento standard e evitare di dipendere da API non pubbliche. Abilitare `VITE_E2E` solo se si introducono nuovi test che richiedono accesso diretto alle metriche.
+
+### Shortcut E2E Pulita
+Per eseguire rapidamente i test Playwright in headless partendo da un report pulito:
+
+```
+npm run test:e2e:clean
+```
+
+Questo script rimuove la cartella `playwright-report/` precedente e usa il reporter `list` per output compatto (utile in CI locale). Per il report HTML completo continua a usare `npm run test:e2e` e poi `npm run test:e2e:report`.
+
+### Strategia Soft vs Strict
+Le asserzioni su coppia e partner sono soft per ridurre flakiness dovuta a latenze backend. Abilitare `STRICT_COUPLE_ASSERT` nelle esecuzioni locali quando si vuole intercettare regressioni early.
+
+## 🪵 Logging Configurabile (DEBUG_API)
+
+Per ridurre il rumore in console durante l'uso normale, i log dettagliati dell'`EventDrivenApiService` ora passano tramite `src/utils/logger.js`.
+
+Livelli disponibili:
+- `logger.debug` (mostrato solo se abilitato)
+- `logger.info`
+- `logger.warn`
+- `logger.error`
+
+Abilitazione debug (tutti i log):
+```bash
+# Solo runtime (vite):
+DEBUG_API=1 npm run dev
+# Oppure build-time + runtime
+VITE_DEBUG_API=1 npm run dev
+```
+Nota: `VITE_DEBUG_API` viene iniettata nel bundle, mentre `DEBUG_API` è letta a runtime (utile nei test).
+
+## 🧪 Helper Playwright (`tests/e2e/lib/serviceHelpers.js`)
+Con `VITE_E2E=1` il singleton `window.__apiService` viene esposto solo in ambiente di test. Gli helper forniscono astrazioni stabili:
+
+| Helper | Scopo |
+|--------|-------|
+| `getJoinMetrics(page)` | Ritorna metriche TTL join |
+| `forceExpireOptimistic(page)` | Forza expire richieste ottimistiche |
+| `setOptimisticTTL(page, ms)` | Modifica TTL locale per test |
+| `drawCard(page)` | Esegue una `drawCard` sulla sessione corrente |
+| `waitForCardDrawEvent(page,{timeoutMs})` | Attende evento `sessionUpdated` tipo `cardDrawn` |
+| `getClientState(page)` | Snapshot rapido dello stato client |
+
+Esempio uso in test:
+```js
+import { drawCard, waitForCardDrawEvent } from './lib/serviceHelpers';
+const p = waitForCardDrawEvent(page);
+await drawCard(page);
+const evt = await p;
+expect(evt.success).toBeTruthy();
+```
+
+## 🔥 Card Draw Smoke Test
+File: `tests/e2e/card-draw-smoke.spec.js`
+Verifica rapidamente:
+1. Due utenti si collegano
+2. Formano coppia usando personal code
+3. Sessione disponibile
+4. Pesca carta → evento `sessionUpdated` ricevuto
+
+Questo test viene eseguito nello step Smoke del workflow `verify`.
+
+## 🧾 File Aggiuntivi Consigliati
+Creare (o verificare) i seguenti file per approfondimenti:
+- `JOIN_REQUESTS.md` – Dettaglio lifecycle, esempi timing, casi edge (approve simultaneo, cancel tardivo)
+- `.env.example` – Porta frontend/backend + flag test
+- `docs/FRONTEND_EVENTS.md` – Lista versionata degli eventi con schema payload
+
+
+## 🩺 Diagnostica Sincronizzazione Partner
+In casi rari di latenza, il frontend emette una voce log: `⏱️ Ritardo nella sincronizzazione del partner... (diagnostica)` dopo ~6s (3 poll). Il backend espone un fallback interno che ricostruisce `partnerInfo` direttamente dal DB; il log `[FallbackPartner]` indica che il meccanismo è entrato in azione.
+
+Se questo evento appare di frequente:
+- Verificare carico DB / latenza I/O
+- Controllare eventuali lock o ritardi EF nelle navigation
+- Considerare l'abilitazione di un canale WebSocket per push immediato
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `./test-all.sh`
+5. Submit a pull request
+
+## 📄 License
+
+This project is private and proprietary.
 
 ---
 
-**💕 Buon divertimento e che il vostro amore cresca sempre di più!**
-
-## 🎯 Funzionalità Multi-Utente
-
-### 🤝 **Sistema Semplificato**
-- **Codice Personale**: Ogni utente riceve un codice automatico (es. ABC123)
-- **Join One-Click**: Inserisci il codice del partner per formare una coppia
-- **Sincronizzazione Automatica**: Chat, canvas e gioco sincronizzati istantaneamente
-- **Presenza Real-time**: Vedi quando il partner è online
-
-## 🎮 Come Usare la Modalità Multi-Coppia
-
-### 🚀 **Primo Accesso**
-1. All'avvio dell'app, scegli **"Modalità Multi-Coppia"**
-2. Se siete nuovi: compilate il form di registrazione con i vostri nomi e nickname
-3. Se siete già registrati: inserite il vostro nickname o nomi per accedere
-
-### 👥 **Lobby Multi-Coppia**
-- **Visualizza Coppie Online**: Vedi quali coppie sono attualmente attive
-- **Crea Sessione di Gruppo**: Invita altre coppie per giocare insieme
-- **Unisciti con Codice**: Inserisci un codice sessione per unirti a un gruppo
-- **Gioco Privato**: Inizia una sessione solo per la vostra coppia
-
-### 🎲 **Sessioni di Gruppo**
-- **Pesca Carte Condivise**: Ogni carta pescata viene vista da tutto il gruppo
-- **Chat di Gruppo**: Commentate e discutete insieme le risposte
-- **Cronologia Condivisa**: Vedete tutte le carte giocate nella sessione
-- **Partecipanti**: Lista dinamica di tutte le coppie nella sessione
-
-### 🔄 **Passa tra le Modalità**
-Puoi sempre passare da una modalità all'altra usando i pulsanti:
-- **"Modalità Multi-Coppia"** per entrare nella lobby globale
-- **"Modalità Privata"** per una sessione intima solo per voi
-
-## 🎮 Come Usare la Modalità Dual-Device
-
-### 🚀 **Setup Iniziale**
-1. **Partner 1**: Apri l'app e seleziona "Modalità Dual-Device"
-2. **Scegli Ruolo**: Seleziona se sei Partner 1 (👨 blu) o Partner 2 (👩 rosa)
-3. **Inserisci Dati**: Nome personale, nome coppia e nome dell'altro partner
-4. **Partner 2**: Apri l'app su un altro dispositivo
-5. **Stesso Nome Coppia**: Usa esattamente lo stesso nome coppia per sincronizzarti
-
-### 🎨 **Canvas Collaborativo**
-- **Attiva Disegno**: Clicca "🎨 Canvas" per aprire l'area di disegno
-- **Modalità Disegno**: Attiva "✏️ Disegno ON" per iniziare a disegnare
-- **Personalizza**: Scegli colore e dimensione del pennello
-- **Sincronizzazione**: I disegni appaiono istantaneamente sull'altro dispositivo
-- **Pulisci**: Usa "Pulisci" per ricominciare da capo
-
-### 📝 **Note Condivise**
-- **Apri Note**: Clicca "📝 Note" per vedere tutte le note condivise
-- **Scrivi**: Aggiungi note che saranno visibili ad entrambi i partner
-- **Identificazione**: Ogni nota mostra chi l'ha scritta e quando
-- **Tempo Reale**: Le note si sincronizzano automaticamente
-
-### 🎲 **Gioco Sincronizzato**
-- **Pesca Carte**: Quando un partner pesca una carta, appare su entrambi i dispositivi
-- **Risposte Individuali**: Ognuno può rispondere usando il proprio schermo
-- **Condivisione Idee**: Usate canvas e note per condividere pensieri creativi
-
-## 🛡️ Privacy e Sicurezza
-
-### 🔒 **Dati Locali**
-- Tutti i dati vengono salvati **solo localmente** sul vostro dispositivo
-- Nessun server esterno raccoglie le vostre informazioni
-- Le chat e le sessioni sono simulate localmente
-
-### 🌐 **Simulazione Multi-Utente**
-- Il sistema multi-utente è **simulato localmente** per scopi dimostrativi
-- In una versione reale, userebbe WebSockets e un database condiviso
-- Perfetto per testare l'interfaccia e l'esperienza utente
-
-## ❤️ Dedica
-
-Questo progetto è dedicato a tutte le coppie che credono nel potere della comunicazione, del gioco e della crescita condivisa. Ogni carta è stata pensata per creare momenti di connessione autentica e duratura.
+**CardApp** - Bringing couples closer through meaningful conversation 💕

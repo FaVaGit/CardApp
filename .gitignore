@@ -130,3 +130,92 @@ test_signalr.js
 
 # Firebase config (if using Firebase)
 firebase-config.js
+
+# Logs and runtime artifacts
+backend.log
+frontend.log
+*.log
+
+# Debug screenshots & ephemeral test artifacts
+debug-*.png
+test-results/.last-run.json
+
+# SQLite WAL/SHM
+*.db-wal
+*.db-shm
+
+# Test results and coverage outputs
+test-results/
+playwright-report/
+coverage-summary.json
+coverage-summary.xml
+
+# Misc local scripts or generated JS test helpers
+api-endpoint-test.js
+# Additional coverage outputs
+backend-coverage/
+unit-coverage/
+backend-coverage-summary.json
+unit-coverage-summary.json
+
+# Vite / local tooling caches
+.vite/
+.turbo/
+
+# Playwright traces & assets
+playwright-report/
+test-results/
+*.trace.zip
+trace.zip
+
+# Node diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Lock / state artifacts not manually edited
+package-lock.backup.*.json
+
+# System/OS files
+Thumbs.db
+ehthumbs.db
+*.stackdump
+
+# VS / JetBrains auxiliary
+*.user
+*.userosscache
+*.sln.docstates
+
+# IDE metadata (already partly covered)
+.fleet/
+
+# Misc local dev helpers
+scripts/local-*.sh
+
+# Crash dumps
+core.*
+
+# Temporal data directories
+.pytest_cache/
+*.pytest_cache/
+
+# Python virtual env (if any tooling scripts use it)
+venv/
+.venv/
+
+# Mac metadata variants
+.AppleDouble
+.LSOverride
+
+# npm debug logs pattern already, add pnpm/yarn modern
+pnpm-debug.log*
+
+# Coverage temp fragments
+*.nyc_output
+
+# JetBrains Rider solution wide caches
+.idea/.idea.
+
+*.log
+Backend/ComplicityGame.Core/bin/
+Backend/ComplicityGame.Core/obj/
+Backend/ComplicityGame.Tests/obj/
+Backend/ComplicityGame.Tests/bin/

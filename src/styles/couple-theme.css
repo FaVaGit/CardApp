@@ -1,0 +1,6 @@
+.couple-app-bg{min-height:100vh;background:linear-gradient(135deg,#FFF5FA 0%,#FDE8FF 45%,#F6E3FF 70%,#FFE3F1 100%);background-attachment:fixed;position:relative;overflow-x:hidden}
+.couple-hearts-overlay:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 18%,rgba(255,79,147,.18) 0 18%,transparent 40%),radial-gradient(circle at 88% 72%,rgba(124,58,237,.12) 0 22%,transparent 50%);mix-blend-mode:multiply;opacity:.65}
+.couple-glass{backdrop-filter:blur(14px) saturate(1.4);background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.35);border-radius:26px}
+.couple-divider{height:1px;background:linear-gradient(90deg,transparent,#ff4f9366,#7c3aed55,transparent);margin:1.25rem 0}
+.heart-pulse{animation:heartPulse 1.8s ease-in-out infinite;transform-origin:center}
+@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}

@@ -1,0 +1,289 @@
+name: CI Combined
+
+on:
+  push:
+    branches: [ Evolution ]
+  pull_request:
+    branches: [ Evolution ]
+
+jobs:
+  test:
+    name: ${{ matrix.job }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [unit, backend, e2e]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci || npm install
+
+      # Backend job specific setup
+      - name: Setup .NET (backend only)
+        if: matrix.job == 'backend'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Backend (backend only)
+        if: matrix.job == 'backend'
+        run: dotnet restore Backend/ComplicityGame.Api/ComplicityGame.Api.csproj
+
+      - name: Build Backend (backend only)
+        if: matrix.job == 'backend'
+        run: dotnet build Backend/ComplicityGame.Api/ComplicityGame.Api.csproj -c Release --no-restore
+
+      - name: Test Backend (backend only)
+        if: matrix.job == 'backend'
+        run: |
+          dotnet test Backend/ComplicityGame.Tests/ComplicityGame.Tests.csproj -c Release \
+            --logger trx --results-directory test-results \
+            /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./Coverage/
+
+      - name: Generate Backend Coverage Summary (backend only)
+        if: matrix.job == 'backend'
+        run: |
+          node scripts/backend-cobertura-summary.mjs test-results
+
+      - name: Upload Backend Test Results (backend only)
+        if: matrix.job == 'backend' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: test-results
+          if-no-files-found: ignore
+
+      - name: Install Playwright Browsers (e2e only)
+        if: matrix.job == 'e2e'
+        run: npx playwright install --with-deps
+
+      - name: Setup .NET (e2e only)
+        if: matrix.job == 'e2e'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore & Build Backend (e2e only)
+        if: matrix.job == 'e2e'
+        working-directory: Backend/ComplicityGame.Api
+        run: |
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+
+      - name: Run Backend (e2e only)
+        if: matrix.job == 'e2e'
+        working-directory: Backend/ComplicityGame.Api
+        run: |
+          dotnet run --configuration Release --no-build > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Wait for Backend Health (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          echo "Probing backend health endpoint...";
+          for i in {1..60}; do
+            STATUS=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:5000/api/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health OK (HTTP 200) at attempt $i";
+              curl -fsS http://localhost:5000/api/health || true
+              exit 0;
+            fi
+            if ! ps -p $(cat Backend/ComplicityGame.Api/backend.pid) > /dev/null 2>&1; then
+              echo "Backend process exited prematurely"; break; fi
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "Attempt $i still waiting (last status: $STATUS)";
+              tail -n 20 Backend/ComplicityGame.Api/backend.log || true
+            fi
+            sleep 1;
+          done
+          echo "--- Backend logs (last 200 lines) ---" || true
+          tail -n 200 Backend/ComplicityGame.Api/backend.log || true
+          echo "Failing due to backend not healthy"; exit 1
+
+      # Unit job steps
+      - name: Lint (unit only)
+        if: matrix.job == 'unit'
+        run: npm run lint --if-present
+
+      - name: Unit tests with coverage (unit only)
+        if: matrix.job == 'unit'
+        run: npm run test:unit:coverage
+
+      - name: Upload coverage (unit only)
+        if: matrix.job == 'unit'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage
+          if-no-files-found: ignore
+
+      - name: Collect backend coverage (backend only)
+        if: matrix.job == 'backend'
+        run: |
+          cp backend-coverage-summary.json backend-coverage-summary.json || true
+      - name: Upload backend coverage (backend only)
+        if: matrix.job == 'backend'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend-coverage-summary.json
+          if-no-files-found: ignore
+
+      # E2E job steps
+      - name: Start frontend dev server (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          npm run dev -- --host &
+          echo $! > frontend.pid
+          npx wait-on http://localhost:5173
+
+      - name: Playwright tests (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          set +e
+          ATTEMPTS=2
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "Playwright attempt $i/$ATTEMPTS";
+            npx playwright test --reporter=list,html && STATUS=0 || STATUS=$?
+            if [ "$STATUS" = "0" ]; then echo "Playwright succeeded on attempt $i"; break; fi
+            if [ $i -lt $ATTEMPTS ]; then echo "Retrying in 5s..."; sleep 5; fi
+          done
+          exit ${STATUS:-1}
+
+      - name: Upload Playwright report (e2e only)
+        if: matrix.job == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload backend log (e2e only)
+        if: matrix.job == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log
+          path: Backend/ComplicityGame.Api/backend.log
+          if-no-files-found: ignore
+
+      - name: Stop services
+        if: always()
+        run: |
+          if [ -f Backend/ComplicityGame.Api/backend.pid ]; then kill $(cat Backend/ComplicityGame.Api/backend.pid) || true; fi
+          if [ -f frontend.pid ]; then kill $(cat frontend.pid) || true; fi
+
+  aggregate:
+    name: Aggregate Coverage
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push'
+    env:
+      MIN_COVERAGE_PCT: '5' # adjust threshold as needed
+      MAX_STATEMENT_DROP: '1'
+      MAX_BRANCH_DROP: '1.5'
+  # NOTE: Strategy plan (not yet automated): Periodically raise MIN_COVERAGE_PCT after baseline improves.
+  # Option: compute rolling median of last N main builds and set threshold = floor(median - 0.5) to avoid flakiness.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage
+          path: unit-coverage
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend-coverage
+        continue-on-error: true
+      - name: Combine & update badge
+        run: |
+          node scripts/update-combined-coverage-badge.mjs || true
+          if git diff --quiet README.md; then echo "No combined badge change"; else \
+            git config user.name "github-actions[bot]"; \
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"; \
+            git add README.md; \
+            git commit -m "chore(ci): update combined coverage badge [skip ci]" || true; \
+            git push || echo "Push skipped"; fi
+      - name: Enforce coverage threshold
+        run: |
+          if [ ! -f combined-coverage.json ]; then echo "combined-coverage.json missing"; exit 1; fi
+          PCT=$(jq -r '.combinedPct' combined-coverage.json || echo 0)
+          echo "Combined coverage: $PCT% (min $MIN_COVERAGE_PCT%)"
+          awk "BEGIN {exit !($PCT >= $MIN_COVERAGE_PCT)}" || { echo "Coverage below threshold"; exit 1; }
+      - name: Coverage baseline (generate or compare)
+        run: |
+          if [ "$GITHUB_REF_NAME" = "Evolution" ]; then
+            echo "On Evolution branch: generating / updating baseline";
+            node scripts/coverage-baseline.mjs generate || true
+            if git diff --quiet .coverage-baseline.json; then echo "Baseline unchanged"; else \
+              git config user.name "github-actions[bot]"; \
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"; \
+              git add .coverage-baseline.json; \
+              git commit -m "chore(ci): update coverage baseline [skip ci]" || true; \
+              git push || echo "Push skipped"; fi
+          else
+            echo "Comparing against baseline";
+            if [ -f .coverage-baseline.json ]; then node scripts/coverage-baseline.mjs compare; else echo "No baseline file present"; fi
+          fi
+
+  coverage-comment:
+    name: Coverage PR Comment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage
+          path: unit-coverage
+        continue-on-error: true
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend-coverage
+        continue-on-error: true
+      - name: Generate combined (if missing)
+        run: |
+          if [ ! -f combined-coverage.json ]; then node scripts/update-combined-coverage-badge.mjs || true; fi
+      - name: Build coverage comment
+        id: cov
+        run: |
+          node scripts/coverage-comment.mjs > comment.md
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat comment.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Upsert PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = process.env.BODY;
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: pr, per_page: 100 });
+            const marker = '### Coverage Summary';
+            const existing = comments.find(c => c.body && c.body.startsWith(marker));
+            if(existing){
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pr, body });
+            }
+        env:
+          BODY: ${{ steps.cov.outputs.body }}
