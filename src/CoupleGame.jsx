@@ -23,7 +23,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import CardActionButtons from './components/CardActionButtons.jsx';
 import CanvasCardTable from './components/CanvasCardTable.jsx';
-import LavagnaCanvas from './components/LavagnaCanvas.jsx';
+import Whiteboard from './components/whiteboard/Whiteboard.jsx';
 // Componenti decorativi
 import FloatingHearts from './components/FloatingHearts.jsx';
 import GradientOverlay from './components/GradientOverlay.jsx';
@@ -342,15 +342,14 @@ export default function CoupleGame({ user, apiService, onExit }) {
   };
 
   // Funzione per inviare sincronizzazione lavagna
-  const handleLavagnaChange = useCallback(async (json, bgColor) => {
+  const handleLavagnaChange = useCallback(async (nextState, meta) => {
     if (!gameSession?.id) return;
-    
     try {
-      await apiService.publishEvent('lavagnaSync', {
+      await apiService.syncLavagna({
         sessionId: gameSession.id,
-        json,
-        bgColor,
-        timestamp: Date.now()
+        json: nextState.json,
+        bgColor: nextState.bgColor,
+        version: nextState.version
       });
     } catch (e) {
       console.warn('Errore invio sync lavagna:', e);
@@ -393,10 +392,12 @@ export default function CoupleGame({ user, apiService, onExit }) {
             </Stack>
 
             <Box sx={{ mb: 3 }}>
-              <LavagnaCanvas 
-                height={260} 
-                onSync={handleLavagnaChange}
-                syncState={lavagnaState}
+              <Whiteboard
+                height={360}
+                value={lavagnaState}
+                onChange={handleLavagnaChange}
+                sessionId={gameSession?.id}
+                userId={user.userId}
               />
             </Box>
             <Box sx={{ mb: 3 }}>

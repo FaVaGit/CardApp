@@ -1113,6 +1113,58 @@ class EventDrivenApiService {
             isPolling: !!this.pollingInterval
         };
     }
+
+    // ==== Lavagna Sync (whiteboard) =====================================================
+  // Stub implementation using BroadcastChannel for local browser multi-tab collaboration.
+  // When backend endpoint /api/lavagna/sync will be available, replace internals to POST + RabbitMQ publish.
+  initLavagnaChannel() {
+    if (this._lavagnaChannel) return;
+    try {
+      this._lavagnaChannel = new BroadcastChannel('complicity_lavagna');
+      this._lavagnaChannel.onmessage = (evt) => {
+        const data = evt.data;
+        if (!data || data.type !== 'lavagnaSync') return;
+        // Ignore events from self (match userId)
+        if (data.userId === this.userId) return;
+        // Session filtering: only apply if session matches (if provided)
+        if (this.sessionId && data.sessionId && data.sessionId !== this.sessionId) return;
+        try {
+          this.emit('lavagnaSync', { json: data.json, bgColor: data.bgColor, version: data.version, from: data.userId, at: data.at });
+        } catch {/* ignore */}
+      };
+    } catch (e) {
+      // BroadcastChannel not supported – fallback to window event
+      try {
+        window.addEventListener('message', (ev) => {
+          const data = ev.data;
+          if (!data || data.type !== 'lavagnaSync') return;
+          if (data.userId === this.userId) return;
+          if (this.sessionId && data.sessionId && data.sessionId !== this.sessionId) return;
+          this.emit('lavagnaSync', { json: data.json, bgColor: data.bgColor, version: data.version, from: data.userId, at: data.at });
+        });
+      } catch {/* ignore */}
+    }
+  }
+
+  async syncLavagna(payload) {
+    // payload: { sessionId, json, bgColor, version }
+    if (!payload || !payload.json) return;
+    // Emit locally first (optimistic)
+    try {
+      this.emit('lavagnaSync', { json: payload.json, bgColor: payload.bgColor, version: payload.version, from: this.userId, at: Date.now() });
+    } catch {/* ignore */}
+    // Broadcast to other tabs
+    try {
+      this.initLavagnaChannel();
+      if (this._lavagnaChannel) {
+        this._lavagnaChannel.postMessage({ type: 'lavagnaSync', ...payload, userId: this.userId, at: Date.now() });
+      } else {
+        window.postMessage({ type: 'lavagnaSync', ...payload, userId: this.userId, at: Date.now() }, '*');
+      }
+    } catch {/* ignore */}
+    // Placeholder for future backend call:
+    // await this.apiCall('/lavagna/sync', 'POST', payload);
+  }
 }
 
 export default EventDrivenApiService;

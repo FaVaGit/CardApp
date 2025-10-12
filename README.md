@@ -180,30 +180,78 @@ Per dettagli su caching locale, flag `_optimistic` e riconciliazione snapshot co
 
 ## 🎨 Lavagna Collaborativa
 
-La lavagna (canvas) è integrata nella modalità di coppia e offre:
-- Toolbar con strumenti grafici: matita, penna, pennarello, testo, immagini, cancellino
-- Selezione colore, spessore, sfondo (verde lavagna)
-- Modalità cancellino per rimuovere disegni
-- Sincronizzazione live tra partner: ogni modifica viene trasmessa in tempo reale
-- Ottimizzazione: import dinamico di Fabric.js per caricamento rapido
-- UI moderna con icone MaterialUI
-- Indicatori di caricamento e disabilitazione controlli durante l'inizializzazione
+La nuova lavagna (`Whiteboard.jsx`) usa **Fabric.js** + **Material UI** con toolbar espandibile e sincronizzazione debounced.
 
-### Test
-- **Unitari**: Vitest copre hashing password, migrazione, login, lavagna (toolbar, sync, reset, tool switching)
-- **E2E**: Playwright verifica collaborazione lavagna, sync tra utenti, flussi di login, TTL, metriche
+### Funzionalità principali
+- Disegno libero (brush) con spessore e colore
+- Forme rapide: Rettangolo, Cerchio
+- Testo editabile (Fabric IText)
+- Undo / Redo (stack max 50 stati)
+- Zoom incrementale 0.4x – 3x
+- Cambio colore sfondo (persistito nello stato condiviso)
+- Pulizia totale canvas
+- Esportazione PNG (download + callback `onExport`)
+- Modalità toggle Disegno / Oggetti
+- Overlay di caricamento e stato disabilitato con opacità
 
-### Come usare
-- Seleziona uno strumento dalla toolbar
-- Disegna, scrivi, cancella, cambia colore/spessore/sfondo
-- Le modifiche sono sincronizzate istantaneamente con il partner
-- La lavagna è ottimizzata per mobile e desktop
+### API Component
+Props principali:
+```jsx
+<Whiteboard
+  value={{ json, bgColor, version }} // stato remoto ricevuto
+  onChange={(nextState, meta) => { /* publish */ }}
+  disabled={false}
+  loading={false}
+  height={360}
+  debounceMs={600}
+  sessionId={gameSession?.id}
+  userId={user.userId}
+/>
+```
+`nextState` struttura:
+```ts
+{
+  json: FabricJSON,
+  bgColor: string,
+  version: number // timestamp ms usato come semplice vettore
+}
+```
+`meta` struttura:
+```ts
+{ reason: 'draw'|'add'|'modify'|'remove'|'undo'|'redo'|'clear'|'background', localOps: number }
+```
 
-### Flag CI
-- `STRICT_COUPLE_ASSERT=1` abilitato in CI per asserzioni forti su sync coppia
-- `VITE_E2E=1` espone window.__apiService per test avanzati
+### Sincronizzazione
+Per ora la sincronizzazione avviene tramite `BroadcastChannel` (stub locale) nel service (`syncLavagna`). Questo permette collaborazione multi‑tab / multi‑finestra senza backend dedicato. Ogni emissione:
+1. Genera JSON completo del canvas (`fabric.Canvas.toJSON(['id'])`).
+2. Applica debounce (default 600ms) per ridurre traffico.
+3. Pubblica evento su canale e emette localmente `lavagnaSync`.
+4. Whiteboard ascolta via prop `value` e ricarica se `version` differente da quello locale.
 
----
+### Roadmap Backend
+Endpoint pianificato: `POST /api/lavagna/sync` con payload:
+```json
+{ "sessionId": "...", "diff": { /* patch ottimizzata */ }, "bgColor": "#fff", "version": 1739032459123 }
+```
+Il backend pubblicherà evento RabbitMQ `LavagnaUpdated` sul routing key `game.<sessionId>.lavagna.updated`.
+
+Fasi evolutive:
+- [ ] Delta/Patch (operazioni incrementali anziché full JSON)
+- [ ] Compressione (rimozione oggetti invariati oltre threshold)
+- [ ] Persistenza snapshot per riapertura sessione
+
+### Testing
+Test E2E `lavagna-sync-test.spec.js` verifica propagazione creando due contesti e simulando modifica (rectangle / broadcast diretto). Lo stato corrente è esposto a scopo test via `window.__latestLavagnaState`.
+
+### Note Prestazioni
+- Debounce evita spam eventi su ogni stroke.
+- Limite history (50) previene crescita memoria eccessiva.
+- Zoom e rendering delegati a Fabric (accelerazione canvas 2D).
+
+### Adesione Tema & Accessibilità
+- Contrasto toolbar (fondo bianco + blur) per leggibilità.
+- Opacità canvas quando disabilitato; overlay di caricamento aria-friendly.
+- Label italiane coerenti con il tema del progetto.
 
 ## 🧪 Testing
 
