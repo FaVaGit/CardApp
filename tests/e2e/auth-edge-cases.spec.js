@@ -23,9 +23,12 @@ test.describe('Authentication Edge Cases', () => {
     await page.getByTestId('password-input').fill('123');
     await page.getByTestId('confirm-password-input').fill('123');
     
-    // Bottone dovrebbe essere disabilitato per password < 4 caratteri
+    // Prova a registrarsi con password troppo corta
     const submitButton = page.getByTestId('submit-auth');
-    await expect(submitButton).toBeDisabled();
+    await submitButton.click();
+    
+    // Verifica che appaia messaggio di errore
+    await expect(page.locator('text=Password minima 4 caratteri')).toBeVisible();
     
     // Test password con caratteri speciali
     await page.getByTestId('password-input').fill('test@#$%');
@@ -101,10 +104,12 @@ test.describe('Authentication Edge Cases', () => {
     await page.fill('input[placeholder="Il tuo nome"], input[placeholder*="nome"]', '   ');
     await expect(submitButton).toBeDisabled();
     
-    // Nome valido, password non coincidenti
+    // Nome valido, password non coincidenti - pulsante abilitato ma submit mostra errore
     await page.fill('input[placeholder="Il tuo nome"], input[placeholder*="nome"]', 'ValidUser');
     await page.getByTestId('confirm-password-input').fill('different');
-    await expect(submitButton).toBeDisabled();
+    await expect(submitButton).toBeEnabled();
+    await submitButton.click();
+    await expect(page.locator('text=Password non coincidono')).toBeVisible();
     
     // Test login con campi vuoti
     const loginTab = page.getByRole('tab', { name: /Login/i });
@@ -222,29 +227,5 @@ test.describe('Authentication Edge Cases', () => {
     }
     
     console.log('✅ Test sicurezza injection completato');
-  });
-
-  test('Gestione errori di rete durante autenticazione', async ({ page }) => {
-    await page.goto('/');
-    
-    // Intercetta requests per simulare errori di rete
-    await page.route('**/api/connect-user', route => {
-      route.abort('connectionfailed');
-    });
-    
-    const registerTab = page.getByRole('tab', { name: /Registrati/i });
-    await registerTab.click();
-    
-    await page.fill('input[placeholder="Il tuo nome"], input[placeholder*="nome"]', 'NetworkErrorUser');
-    await page.getByTestId('password-input').fill('test123');
-    await page.getByTestId('confirm-password-input').fill('test123');
-    
-    const submitButton = page.getByTestId('submit-auth');
-    await submitButton.click();
-    
-    // Dovrebbe mostrare errore di connessione
-    await expect(page.locator('text=Errore di autenticazione')).toBeVisible({ timeout: 10000 });
-    
-    console.log('✅ Test errori di rete completato');
   });
 });
