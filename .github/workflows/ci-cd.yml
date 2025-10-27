@@ -2,9 +2,23 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, Evolution ]
+    paths:
+      - 'src/**'
+      - 'Backend/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-cd.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop, Evolution ]
+    paths:
+      - 'src/**'
+      - 'Backend/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
 
 env:
   DOTNET_VERSION: '8.0.x'
