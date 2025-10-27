@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useBackend } from './useBackend';
 import { GameSessionWithWhiteboard } from './components/GameSessionWithWhiteboard';
 import { SharedWhiteboard } from './components/SharedWhiteboard';
@@ -15,11 +15,9 @@ export default function WhiteboardDemo() {
     error,
     drawingStrokes,
     drawingNotes,
-    registerUser,
     addDrawingStroke,
     addDrawingNote,
-    clearDrawing,
-    logout
+    clearDrawing
   } = useBackend();
 
   useEffect(() => {

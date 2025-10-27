@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 // Import namespace for fabric to avoid named export issue during build
 import * as fabric from 'fabric';
 import { 
   PaintBrushIcon, 
   PencilIcon, 
   TrashIcon,
-  SwatchIcon,
   MagnifyingGlassMinusIcon,
   MagnifyingGlassPlusIcon,
   ArrowUturnLeftIcon,
@@ -32,7 +31,6 @@ export function SharedWhiteboard({
   const [selectedTool, setSelectedTool] = useState('brush');
   const [brushSize, setBrushSize] = useState(3);
   const [selectedColor, setSelectedColor] = useState('#8b5cf6');
-  const [isDrawing, setIsDrawing] = useState(false);
   const [notePosition, setNotePosition] = useState({ x: 0, y: 0 });
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -88,6 +86,7 @@ export function SharedWhiteboard({
     return () => {
       canvas.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Aggiorna configurazione strumenti

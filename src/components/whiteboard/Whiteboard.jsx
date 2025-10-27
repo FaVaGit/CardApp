@@ -1,19 +1,16 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, IconButton, Tooltip, Collapse, Divider, Button, Typography, Slider, Menu, MenuItem } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { Box, IconButton, Tooltip, Collapse, Divider, Button, Typography, Slider } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
 import BrushIcon from '@mui/icons-material/Brush';
-import FormatColorFillIcon from '@mui/icons-material/FormatColorFill';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import CropSquareIcon from '@mui/icons-material/CropSquare';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import ImageIcon from '@mui/icons-material/Image';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import SaveAltIcon from '@mui/icons-material/SaveAlt';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
-import LayersIcon from '@mui/icons-material/Layers';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 // Dynamic import Fabric to avoid SSR issues
@@ -47,8 +44,6 @@ const Whiteboard = ({
   height = 480,
   toolbarInitiallyOpen = true,
   debounceMs = 600,
-  sessionId,
-  userId,
   onExport // optional callback receiving dataURL
 }) => {
   const canvasEl = useRef(null);
@@ -63,7 +58,6 @@ const Whiteboard = ({
   const future = useRef([]);
   const lastEmitRef = useRef(0);
   const debounceTimer = useRef(null);
-  const [anchorEl, setAnchorEl] = useState(null);
 
   // Initialize Fabric
   useEffect(() => {
@@ -103,6 +97,7 @@ const Whiteboard = ({
       }
     });
     return () => { disposed = true; if (fabCanvas.current) fabCanvas.current.dispose(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // init once
 
   // External value changes (remote sync)
@@ -118,6 +113,7 @@ const Whiteboard = ({
         }
       } catch {/* ignore */}
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.version]);
 
   const scheduleEmit = (reason) => {
@@ -205,9 +201,6 @@ const Whiteboard = ({
     c.setBackgroundColor(color, () => c.renderAll());
     scheduleEmit('background');
   };
-
-  const openMenu = (e) => setAnchorEl(e.currentTarget);
-  const closeMenu = () => setAnchorEl(null);
 
   // Brush width slider update
   const handleBrushWidthChange = (_, v) => {

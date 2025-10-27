@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Paper, Typography, TextField, Button, Tabs, Tab, Stack, Alert, InputAdornment, IconButton, Fade, Chip } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -7,13 +7,6 @@ import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import LoginIcon from '@mui/icons-material/Login';
 import { hashPassword, hashWithNewSalt } from '../utils/passwordHash.js';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-// Componenti decorativi
-import FloatingHearts from './FloatingHearts.jsx';
-import GradientOverlay from './GradientOverlay.jsx';
-import AnimatedBorder from './AnimatedBorder.jsx';
-import FloatingParticles from './FloatingParticles.jsx';
-// Lazy load heavy Fabric background after idle
-const LazyBg = React.lazy(()=> import('./CoupleBackgroundCanvas.jsx'));
 
 /** Local user store structure in localStorage:
  * complicity_users = [{ id, name, nickname, userCode, personalCode, salt, hash }]
@@ -116,11 +109,7 @@ export default function AuthPortal({ apiService, onAuthSuccess }) {
     } catch(e){ setError(e.message); } finally { setLoading(false); resetFields(); }
   };
 
-  const [enableBg, setEnableBg] = useState(false);
-  useEffect(()=>{
-    const run = ()=> setEnableBg(true);
-    if('requestIdleCallback' in window){ window.requestIdleCallback(run, { timeout:1800 }); } else { setTimeout(run, 800); }
-  },[]);
+
 
   return (
     <Box data-testid="auth-portal" sx={{ 

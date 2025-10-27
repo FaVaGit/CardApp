@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connectUser, assertStrict } from './utils';
+import { connectUser } from './utils';
 
 /**
  * Test Multi-Utente con sessionStorage

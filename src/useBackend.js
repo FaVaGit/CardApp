@@ -109,6 +109,7 @@ export function useBackend() {
     } finally {
       setIsConnecting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnecting, isConnected]);
 
   // Aggiorna la lista utenti online dalla fonte autorevole (API REST)

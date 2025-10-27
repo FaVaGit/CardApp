@@ -1120,6 +1120,7 @@ class EventDrivenApiService {
   initLavagnaChannel() {
     if (this._lavagnaChannel) return;
     try {
+      // eslint-disable-next-line no-undef
       this._lavagnaChannel = new BroadcastChannel('complicity_lavagna');
       this._lavagnaChannel.onmessage = (evt) => {
         const data = evt.data;
@@ -1132,7 +1133,7 @@ class EventDrivenApiService {
           this.emit('lavagnaSync', { json: data.json, bgColor: data.bgColor, version: data.version, from: data.userId, at: data.at });
         } catch {/* ignore */}
       };
-    } catch (e) {
+    } catch {
       // BroadcastChannel not supported – fallback to window event
       try {
         window.addEventListener('message', (ev) => {

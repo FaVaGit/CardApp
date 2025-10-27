@@ -27,7 +27,6 @@ import Whiteboard from './components/whiteboard/Whiteboard.jsx';
 // Componenti decorativi
 import FloatingHearts from './components/FloatingHearts.jsx';
 import GradientOverlay from './components/GradientOverlay.jsx';
-import AnimatedBorder from './components/AnimatedBorder.jsx';
 import FloatingParticles from './components/FloatingParticles.jsx';
 
 /**
@@ -60,8 +59,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
     addDrawingNote,
     clearDrawing,
     undoDrawing,
-    redoDrawing,
-    getDrawingData
+    redoDrawing
   } = useBackend();
   const [isRestoredSession, setIsRestoredSession] = useState(false); // Track if this is a restored session
   const [lavagnaState, setLavagnaState] = useState(null); // Stato sincronizzato della lavagna
@@ -342,7 +340,7 @@ export default function CoupleGame({ user, apiService, onExit }) {
   };
 
   // Funzione per inviare sincronizzazione lavagna
-  const handleLavagnaChange = useCallback(async (nextState, meta) => {
+  const handleLavagnaChange = useCallback(async (nextState, _meta) => {
     if (!gameSession?.id) return;
     try {
       await apiService.syncLavagna({
