@@ -57,6 +57,11 @@ export function SharedWhiteboard({
   // Inizializza FabricJS Canvas
   useEffect(() => {
     if (!canvasRef.current) return;
+    
+    // Previeni doppia inizializzazione
+    if (fabricCanvasRef.current) {
+      return;
+    }
 
     // Crea canvas Fabric
     const canvas = new fabric.Canvas(canvasRef.current, {
@@ -75,8 +80,10 @@ export function SharedWhiteboard({
     fabricCanvasRef.current = canvas;
 
     // Configura drawing brush
-    canvas.freeDrawingBrush.width = brushSize;
-    canvas.freeDrawingBrush.color = selectedColor;
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.width = brushSize;
+      canvas.freeDrawingBrush.color = selectedColor;
+    }
 
     // Event listeners per disegno collaborativo
     canvas.on('path:created', handlePathCreated);
@@ -84,7 +91,10 @@ export function SharedWhiteboard({
     canvas.on('mouse:wheel', handleMouseWheel);
 
     return () => {
-      canvas.dispose();
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.dispose();
+        fabricCanvasRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -97,18 +107,22 @@ export function SharedWhiteboard({
     
     if (selectedTool === 'brush' || selectedTool === 'pen') {
       canvas.isDrawingMode = true;
-      canvas.freeDrawingBrush.width = brushSize;
-      canvas.freeDrawingBrush.color = selectedColor;
-      
-      if (selectedTool === 'pen') {
-        canvas.freeDrawingBrush.opacity = 1;
-      } else {
-        canvas.freeDrawingBrush.opacity = 0.8;
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.width = brushSize;
+        canvas.freeDrawingBrush.color = selectedColor;
+        
+        if (selectedTool === 'pen') {
+          canvas.freeDrawingBrush.opacity = 1;
+        } else {
+          canvas.freeDrawingBrush.opacity = 0.8;
+        }
       }
     } else if (selectedTool === 'eraser') {
       canvas.isDrawingMode = true;
-      canvas.freeDrawingBrush.width = brushSize * 2;
-      canvas.freeDrawingBrush.color = '#ffffff';
+      if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.width = brushSize * 2;
+        canvas.freeDrawingBrush.color = '#ffffff';
+      }
     } else {
       canvas.isDrawingMode = false;
     }

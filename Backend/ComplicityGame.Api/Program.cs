@@ -24,8 +24,14 @@ public partial class Program
 
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy("DevAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+            options.AddPolicy("DevAll", p => p
+                .WithOrigins("http://localhost:5173", "http://localhost:5000")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials());
         });
+
+        builder.Services.AddSignalR();
 
         builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
         builder.Services.AddSingleton<IUserPresenceService, UserPresenceService>();
@@ -52,6 +58,7 @@ public partial class Program
         app.UseCors("DevAll");
         app.UseAuthorization();
         app.MapControllers();
+        app.MapHub<ComplicityGame.Api.Hubs.GameHub>("/gamehub");
 
         using (var scope = app.Services.CreateScope())
         {
