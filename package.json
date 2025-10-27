@@ -12,6 +12,7 @@
     "lint:ci": "eslint . --max-warnings 0",
     "lint:changed": "eslint . --cache --cache-location .eslintcache",
     "preview": "vite preview",
+    "test": "vitest run",
     "test:unit": "vitest run",
     "test:unit:coverage": "vitest run --coverage",
     "coverage:badge": "npm run test:unit:coverage && node scripts/update-coverage-badge.mjs",
