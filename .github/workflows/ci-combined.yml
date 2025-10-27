@@ -3,8 +3,25 @@ name: CI Combined
 on:
   push:
     branches: [ Evolution ]
+    paths:
+      - 'src/**'
+      - 'Backend/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.*'
+      - 'vitest.config.*'
+      - '.github/workflows/ci-combined.yml'
   pull_request:
     branches: [ Evolution ]
+    paths:
+      - 'src/**'
+      - 'Backend/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.*'
+      - 'vitest.config.*'
   workflow_dispatch:
 
 jobs:
