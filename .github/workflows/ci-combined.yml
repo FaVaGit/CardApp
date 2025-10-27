@@ -5,6 +5,7 @@ on:
     branches: [ Evolution ]
   pull_request:
     branches: [ Evolution ]
+  workflow_dispatch:
 
 jobs:
   test:
