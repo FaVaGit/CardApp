@@ -703,3 +703,4 @@ This project is private and proprietary.
 ---
 
 **CardApp** - Bringing couples closer through meaningful conversation 💕
+<!-- Trigger CI/CD: dummy change for workflow activation -->
