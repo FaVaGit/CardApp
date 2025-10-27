@@ -1,5 +1,4 @@
-import React from 'react';
-import { Box, Card, CardContent, Typography } from '@mui/material';
+import { Card } from '@mui/material';
 
 /**
  * Componente carta decorativa per il gioco

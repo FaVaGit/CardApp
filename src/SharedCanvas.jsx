@@ -1,18 +1,15 @@
-import React from 'react';
 import { SharedWhiteboard } from './components/SharedWhiteboard';
 
 export const SharedCanvas = ({ 
   strokes = [], 
   notes = [], 
   currentUser,
-  sessionId,
   onAddStroke, 
   onAddNote, 
   onClearCanvas,
   onUndo,
   onRedo,
-  isReadOnly = false,
-  participants = []
+  isReadOnly = false
 }) => {
   return (
     <SharedWhiteboard

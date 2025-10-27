@@ -161,7 +161,7 @@ test.describe('Authentication Edge Cases', () => {
         const logoutButton = page.getByRole('button', { name: /logout/i });
         await logoutButton.click();
         await registerTab.click();
-      } catch (error) {
+      } catch {
         console.log(`⚠️ Nome unicode "${name}" ha generato errore (previsto per alcuni caratteri)`);
         // Reset form per prossimo test
         await page.reload();
