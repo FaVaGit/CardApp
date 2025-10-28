@@ -103,6 +103,7 @@ jobs:
       contents: read
       security-events: write
       actions: read
+      id-token: write
     
     steps:
     - uses: actions/checkout@v4
