@@ -64,54 +64,59 @@ public partial class Program
         {
             var ctx = scope.ServiceProvider.GetRequiredService<GameDbContext>();
             ctx.Database.EnsureCreated();
-            try
+
+            // Esegui patch schema solo per provider relazionali (es. SQLite),
+            // evita durante i test InMemory per prevenire errori e conflitti.
+            if (ctx.Database.IsRelational())
             {
-                using var conn = ctx.Database.GetDbConnection();
-                await conn.OpenAsync();
-                
-                // Patch per AuthToken nella tabella Users
-                var existingCols = new List<string>();
-                using (var cmd = conn.CreateCommand())
+                try
                 {
-                    cmd.CommandText = "PRAGMA table_info('Users')";
-                    using var r = await cmd.ExecuteReaderAsync();
-                    while (await r.ReadAsync()) existingCols.Add(r.GetString(1));
-                }
-                if (!existingCols.Contains("AuthToken"))
-                {
-                    using var alter = conn.CreateCommand();
-                    alter.CommandText = "ALTER TABLE Users ADD COLUMN AuthToken TEXT";
-                    await alter.ExecuteNonQueryAsync();
-                    foreach (var u in ctx.Users) u.AuthToken = Guid.NewGuid().ToString();
-                    await ctx.SaveChangesAsync();
-                }
-
-                // Patch per DrawingData nella tabella GameSessions  
-                var gameSessionCols = new List<string>();
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "PRAGMA table_info('GameSessions')";
-                    using var r = await cmd.ExecuteReaderAsync();
-                    while (await r.ReadAsync()) gameSessionCols.Add(r.GetString(1));
-                }
-                if (!gameSessionCols.Contains("DrawingData"))
-                {
-                    using var alter = conn.CreateCommand();
-                    alter.CommandText = "ALTER TABLE GameSessions ADD COLUMN DrawingData TEXT";
-                    await alter.ExecuteNonQueryAsync();
-                    Console.WriteLine("[SchemaPatch] Added DrawingData column to GameSessions");
-                }
-
-                // Patch per tabella CoupleJoinRequests
-                using (var chk = conn.CreateCommand())
-                {
-                    chk.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CoupleJoinRequests'";
-                    var exists = await chk.ExecuteScalarAsync();
-                    if (exists == null)
+                    using var conn = ctx.Database.GetDbConnection();
+                    await conn.OpenAsync();
+                    
+                    // Patch per AuthToken nella tabella Users
+                    var existingCols = new List<string>();
+                    using (var cmd = conn.CreateCommand())
                     {
-                        using (var create = conn.CreateCommand())
+                        cmd.CommandText = "PRAGMA table_info('Users')";
+                        using var r = await cmd.ExecuteReaderAsync();
+                        while (await r.ReadAsync()) existingCols.Add(r.GetString(1));
+                    }
+                    if (!existingCols.Contains("AuthToken"))
+                    {
+                        using var alter = conn.CreateCommand();
+                        alter.CommandText = "ALTER TABLE Users ADD COLUMN AuthToken TEXT";
+                        await alter.ExecuteNonQueryAsync();
+                        foreach (var u in ctx.Users) u.AuthToken = Guid.NewGuid().ToString();
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    // Patch per DrawingData nella tabella GameSessions  
+                    var gameSessionCols = new List<string>();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "PRAGMA table_info('GameSessions')";
+                        using var r = await cmd.ExecuteReaderAsync();
+                        while (await r.ReadAsync()) gameSessionCols.Add(r.GetString(1));
+                    }
+                    if (!gameSessionCols.Contains("DrawingData"))
+                    {
+                        using var alter = conn.CreateCommand();
+                        alter.CommandText = "ALTER TABLE GameSessions ADD COLUMN DrawingData TEXT";
+                        await alter.ExecuteNonQueryAsync();
+                        Console.WriteLine("[SchemaPatch] Added DrawingData column to GameSessions");
+                    }
+
+                    // Patch per tabella CoupleJoinRequests
+                    using (var chk = conn.CreateCommand())
+                    {
+                        chk.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='CoupleJoinRequests'";
+                        var exists = await chk.ExecuteScalarAsync();
+                        if (exists == null)
                         {
-                            create.CommandText = @"CREATE TABLE CoupleJoinRequests (
+                            using (var create = conn.CreateCommand())
+                            {
+                                create.CommandText = @"CREATE TABLE CoupleJoinRequests (
 Id TEXT PRIMARY KEY,
 RequestingUserId TEXT NOT NULL,
 TargetUserId TEXT NOT NULL,
@@ -119,19 +124,20 @@ Status TEXT NOT NULL,
 CreatedAt TEXT NOT NULL,
 RespondedAt TEXT NULL
 );";
-                            await create.ExecuteNonQueryAsync();
-                        }
-                        using (var idx = conn.CreateCommand())
-                        {
-                            idx.CommandText = "CREATE INDEX IDX_CoupleJoin_Target_Status ON CoupleJoinRequests (TargetUserId, Status);";
-                            await idx.ExecuteNonQueryAsync();
+                                await create.ExecuteNonQueryAsync();
+                            }
+                            using (var idx = conn.CreateCommand())
+                            {
+                                idx.CommandText = "CREATE INDEX IDX_CoupleJoin_Target_Status ON CoupleJoinRequests (TargetUserId, Status);";
+                                await idx.ExecuteNonQueryAsync();
+                            }
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[SchemaPatch] Warning: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SchemaPatch] Warning: {ex.Message}");
+                }
             }
         }
 

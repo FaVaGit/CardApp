@@ -58,10 +58,12 @@ async function start() {
     console.log('✅ Backend avviato');
   }
 
-  frontendProc = spawn('npm', ['run', 'dev', '--', '--port', FRONTEND_PORT], {
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  frontendProc = spawn(npmCmd, ['run', 'dev', '--', '--port', String(FRONTEND_PORT)], {
     cwd: root,
     stdio: 'inherit',
-    env: { ...process.env, PORT: String(FRONTEND_PORT) }
+    env: { ...process.env, PORT: String(FRONTEND_PORT) },
+    shell: process.platform === 'win32'
   });
 
   await waitFor(`http://localhost:${FRONTEND_PORT}`).catch(e => {

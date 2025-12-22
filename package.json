@@ -69,6 +69,16 @@
         ],
         "lcov",
         "json-summary"
+      ],
+      "include": ["src/**/*.{js,jsx}"],
+      "exclude": [
+        "**/*.config.js",
+        "scripts/**",
+        "**/*.mjs",
+        "playwright.config.js",
+        "postcss.config.js",
+        "tailwind.config.js",
+        "firebase.config.example.js"
       ]
     }
   },

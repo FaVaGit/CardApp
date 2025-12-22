@@ -324,11 +324,15 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
+                _logger.LogInformation($"[RespondJoin] Received dto: RequestId={dto.RequestId}, TargetUserId={dto.TargetUserId}, Approve={dto.Approve}");
+                
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
                 var req = await context.CoupleJoinRequests.FindAsync(dto.RequestId);
+                _logger.LogInformation($"[RespondJoin] Found request: {(req == null ? "NULL" : $"Status={req.Status}")}");
+                
                 if (req == null || req.Status != "Pending")
-                    return BadRequest(new { error = "Richiesta non trovata o già gestita" });
+                    return BadRequest(new { error = "Richiesta non trovata o già gestita", requestId = dto.RequestId, foundReq = req != null, status = req?.Status });
                 if (req.TargetUserId != dto.TargetUserId)
                     return BadRequest(new { error = "Non autorizzato" });
 
@@ -492,11 +496,13 @@ namespace ComplicityGame.Api.Controllers
         {
             try
             {
+                _logger.LogInformation($"[DrawCard] Received request: SessionId={request.SessionId}, UserId={request.UserId}");
                 var card = await _gameService.DrawCardAsync(request.SessionId, request.UserId);
+                _logger.LogInformation($"[DrawCard] Result: Card={(card == null ? "NULL" : card.Id)}");
                 
                 if (card == null)
                 {
-                    return BadRequest(new { error = "No cards available or unauthorized" });
+                    return BadRequest(new { error = "No cards available or unauthorized", sessionId = request.SessionId, userId = request.UserId });
                 }
 
                 return Ok(new { 
@@ -836,6 +842,14 @@ namespace ComplicityGame.Api.Controllers
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+                
+                // Skip raw SQL on non-relational (InMemory) databases
+                if (!context.Database.IsRelational())
+                {
+                    _logger.LogInformation("[EnsureTable] Skipping CoupleJoinRequests table creation on InMemory database");
+                    return;
+                }
+                
                 using var conn = context.Database.GetDbConnection();
                 await conn.OpenAsync();
                 using var check = conn.CreateCommand();

@@ -41,17 +41,41 @@ namespace ComplicityGame.Api.Services
 
         public async Task<GameSession?> StartGameAsync(string coupleId)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
+            if (_context.Database.IsRelational())
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var result = await InternalStartGameAsync(coupleId);
+                    await transaction.CommitAsync();
+                    return result;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            else
+            {
+                return await InternalStartGameAsync(coupleId);
+            }
+        }
+
+        private async Task<GameSession?> InternalStartGameAsync(string coupleId)
+        {
             try
             {
+                _logger.LogInformation($"[StartGame] Starting for coupleId={coupleId}");
                 var couple = await _context.Couples
                     .Include(c => c.Members)
                     .FirstOrDefaultAsync(c => c.Id == coupleId);
 
+                _logger.LogInformation($"[StartGame] Couple found: {(couple == null ? "NULL" : $"Members.Count={couple.Members.Count}")}");
+                
                 if (couple == null || couple.Members.Count != 2)
                 {
-                    _logger.LogWarning($"❌ Cannot start game - couple {coupleId} not found or incomplete");
+                    _logger.LogWarning($"❌ Cannot start game - couple {coupleId} not found or incomplete (Members: {couple?.Members?.Count ?? 0})");
                     return null;
                 }
 
@@ -77,7 +101,6 @@ namespace ComplicityGame.Api.Services
 
                 _context.GameSessions.Add(gameSession);
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
 
                 // Publish game session created event
                 var gameCreatedEvent = new GameSessionCreatedEvent
@@ -95,7 +118,6 @@ namespace ComplicityGame.Api.Services
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, $"❌ Failed to start game for couple {coupleId}");
                 throw;
             }
@@ -103,16 +125,40 @@ namespace ComplicityGame.Api.Services
 
         public async Task<GameCard?> DrawCardAsync(string sessionId, string userId)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
+            if (_context.Database.IsRelational())
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var result = await InternalDrawCardAsync(sessionId, userId);
+                    await transaction.CommitAsync();
+                    return result;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            else
+            {
+                return await InternalDrawCardAsync(sessionId, userId);
+            }
+        }
+
+        private async Task<GameCard?> InternalDrawCardAsync(string sessionId, string userId)
+        {
             try
             {
+                _logger.LogInformation($"[DrawCard] Starting for sessionId={sessionId}, userId={userId}");
                 var session = await _context.GameSessions
                     .Include(gs => gs.Couple)
                     .ThenInclude(c => c.Members)
                     .Include(gs => gs.SharedCards)
                     .FirstOrDefaultAsync(gs => gs.Id == sessionId && gs.IsActive);
 
+                _logger.LogInformation($"[DrawCard] Session found: {(session == null ? "NULL" : $"CoupleId={session.CoupleId}, MemberCount={session.Couple.Members.Count}")}");
+                
                 if (session == null)
                 {
                     _logger.LogWarning($"❌ Game session {sessionId} not found or not active");
@@ -122,7 +168,7 @@ namespace ComplicityGame.Api.Services
                 // Check if user belongs to this couple
                 if (!session.Couple.Members.Any(m => m.UserId == userId))
                 {
-                    _logger.LogWarning($"❌ User {userId} not authorized for session {sessionId}");
+                    _logger.LogWarning($"❌ User {userId} not authorized for session {sessionId}. Couple members: {string.Join(", ", session.Couple.Members.Select(m => m.UserId))}");
                     return null;
                 }
 
@@ -202,7 +248,6 @@ namespace ComplicityGame.Api.Services
 
                 _context.SharedCards.Add(sharedCard);
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
 
                 // Publish card drawn event
                 var cardDrawnEvent = new CardDrawnEvent
@@ -222,7 +267,6 @@ namespace ComplicityGame.Api.Services
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, $"❌ Failed to draw card for user {userId} in session {sessionId}");
                 throw;
             }

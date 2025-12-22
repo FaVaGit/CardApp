@@ -33,16 +33,33 @@ namespace ComplicityGame.Api.Services
 
         public async Task<Couple?> CreateOrJoinCoupleAsync(string userCode, string userId)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
+            // Skip transaction on InMemory databases; transactions are no-op on InMemory
+            if (_context.Database.IsRelational())
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    return await InternalCreateOrJoinCoupleAsync(userCode, userId);
+                    // Note: we don't commit here; the internal method does SaveChangesAsync which auto-commits
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            else
+            {
+                // InMemory: skip transaction wrapper
+                return await InternalCreateOrJoinCoupleAsync(userCode, userId);
+            }
+        }
+
+        private async Task<Couple?> InternalCreateOrJoinCoupleAsync(string userCode, string userId)
+        {
             try
             {
                 var user = await _context.Users.FindAsync(userId);
-                if (user == null)
-                {
-                    _logger.LogWarning($"❌ User {userId} not found");
-                    return null;
-                }
 
                 // Check if user is already in a couple
                 var existingCoupleUser = await _context.CoupleUsers
@@ -152,8 +169,6 @@ namespace ComplicityGame.Api.Services
                     _logger.LogInformation($"👥 Created new couple {couple.Id} between user {userId} and target user {targetUser.Id}");
                 }
 
-                await transaction.CommitAsync();
-
                 // Publish events for both users
                 if (couple.Members.Count == 2)
                 {
@@ -188,7 +203,6 @@ namespace ComplicityGame.Api.Services
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, $"❌ Failed to create/join couple for user {userId} with code {userCode}");
                 throw;
             }
@@ -203,8 +217,29 @@ namespace ComplicityGame.Api.Services
 
         public async Task<bool> DisconnectFromCoupleAsync(string userId)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
+            if (_context.Database.IsRelational())
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var result = await InternalDisconnectFromCoupleAsync(userId);
+                    await transaction.CommitAsync();
+                    return result;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            else
+            {
+                return await InternalDisconnectFromCoupleAsync(userId);
+            }
+        }
+
+        private async Task<bool> InternalDisconnectFromCoupleAsync(string userId)
+        {
             try
             {
                 var coupleUser = await _context.CoupleUsers
@@ -234,7 +269,6 @@ namespace ComplicityGame.Api.Services
                     }
 
                     await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
 
                     // Publish couple disconnection event
                     var coupleDisconnectionEvent = new CoupleDisconnectionEvent
@@ -254,7 +288,6 @@ namespace ComplicityGame.Api.Services
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, $"❌ Failed to disconnect user {userId} from couple");
                 throw;
             }

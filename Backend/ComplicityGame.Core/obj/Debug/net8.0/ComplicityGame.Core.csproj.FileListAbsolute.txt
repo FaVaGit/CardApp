@@ -11,3 +11,16 @@
 /home/fabio/CardApp/Backend/ComplicityGame.Core/obj/Debug/net8.0/refint/ComplicityGame.Core.dll
 /home/fabio/CardApp/Backend/ComplicityGame.Core/obj/Debug/net8.0/ComplicityGame.Core.pdb
 /home/fabio/CardApp/Backend/ComplicityGame.Core/obj/Debug/net8.0/ref/ComplicityGame.Core.dll
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\bin\Debug\net8.0\ComplicityGame.Core.deps.json
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\bin\Debug\net8.0\ComplicityGame.Core.dll
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\bin\Debug\net8.0\ComplicityGame.Core.pdb
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.csproj.AssemblyReference.cache
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.AssemblyInfoInputs.cache
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.AssemblyInfo.cs
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.csproj.CoreCompileInputs.cache
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.sourcelink.json
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.dll
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\refint\ComplicityGame.Core.dll
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ComplicityGame.Core.pdb
+C:\Users\fabio.vacchino\MyProject\CardApp\Backend\ComplicityGame.Core\obj\Debug\net8.0\ref\ComplicityGame.Core.dll
